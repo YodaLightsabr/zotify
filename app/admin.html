@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · Zotify</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@cds/city@1.1.0/css/bundles/default.min.css" rel="stylesheet">
+    <link href="/base.css" rel="stylesheet">
+    <style>
+        header, main {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        header { display: flex; align-items: center; justify-content: space-between; }
+
+        header a.back { color: var(--placeholder); font-size: 0.9rem; }
+
+        main { display: flex; flex-direction: column; gap: 24px; padding-top: 0; }
+
+        h1, h2 {
+            font-family: "Jua", system-ui, sans-serif;
+            font-weight: 400;
+            margin: 0;
+        }
+
+        h1 { font-size: 1.8rem; }
+        h2 { font-size: 1.2rem; }
+
+        .panel {
+            padding: 16px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .muted { color: var(--muted); font-size: 0.85rem; }
+
+        .venues {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .venue .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+        .venue .song { font-weight: 600; margin-top: 6px; }
+        .venue .artist { color: var(--muted); font-size: 0.9rem; }
+        .venue .time { color: var(--muted); font-size: 0.8rem; margin-top: 4px; font-family: system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+        button.small {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: none;
+            color: var(--text);
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        button.small:hover { border-color: var(--accent); }
+
+        /* The cache tree: each level is indented, with a guide line down its left side */
+        .tree {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .tree details > summary {
+            cursor: pointer;
+            list-style: none;
+            white-space: nowrap;
+        }
+
+        .tree details > summary::-webkit-details-marker { display: none; }
+
+        .tree details > summary::before {
+            content: "▸";
+            display: inline-block;
+            width: 1.2em;
+            color: var(--muted);
+            transition: transform 0.1s;
+        }
+
+        .tree details[open] > summary::before { transform: rotate(90deg); }
+
+        .tree .children {
+            margin-left: 0.55em;
+            padding-left: 1.2em;
+            border-left: 1px solid var(--border);
+        }
+
+        .tree .leaf { white-space: nowrap; padding-left: 1.2em; }
+
+        .tree .key { color: var(--placeholder); }
+        .tree .count { color: var(--muted); }
+        .tree .string { color: #a8e6a1; }
+        .tree .number { color: var(--accent); }
+        .tree .boolean, .tree .null { color: var(--error); }
+        .tree .note { color: var(--muted); font-family: "Clarity City", system-ui, sans-serif; margin-left: 8px; }
+
+        .error { color: var(--error); }
+
+        h3 {
+            margin: 20px 0 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        h3:first-of-type { margin-top: 0; }
+
+        .rows { display: flex; flex-direction: column; gap: 6px; }
+
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: var(--bg);
+            font-size: 0.9rem;
+        }
+
+        .row .actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .row .who { font-weight: 600; }
+        .row.revoked { opacity: 0.55; }
+
+        .code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+
+        .row details { font-size: 0.8rem; color: var(--muted); }
+        .row details summary { cursor: pointer; }
+
+        .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+        .inline-form input[type="text"], .inline-form input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        .inline-form input[type="number"] { width: 130px; }
+        .inline-form input::placeholder { color: var(--placeholder); }
+
+        .checkbox { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+
+        button.primary-small { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
+        button.reject { color: var(--error); border-color: var(--error); }
+        button.small:disabled { opacity: 0.5; cursor: default; }
+
+        .form-message { min-height: 1.2em; margin: 6px 0 0; font-size: 0.85rem; color: var(--muted); }
+        .form-message.error { color: var(--error); }
+    </style>
+</head>
+<body>
+    <header>
+        <a class="logo" href="/"><div class="logo-mark">♪</div> Zotify</a>
+        <a class="back" href="/">Back to Zotify</a>
+    </header>
+
+    <main>
+        <h1>Admin</h1>
+
+        <section class="panel" aria-labelledby="playing-title">
+            <div class="panel-header">
+                <h2 id="playing-title">Now playing</h2>
+                <span class="muted" id="playing-updated"></span>
+            </div>
+            <div class="venues" id="venues"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="beta-title">
+            <div class="panel-header">
+                <h2 id="beta-title">Beta</h2>
+                <button class="small" type="button" id="refresh-beta">Refresh</button>
+            </div>
+
+            <h3>Pending requests</h3>
+            <div id="pending-requests"><span class="muted">Loading…</span></div>
+
+            <h3>Invite by UCInetID</h3>
+            <form class="inline-form" id="invite-form">
+                <input id="invite-netid" type="text" placeholder="panteater" required autocapitalize="none" spellcheck="false" aria-label="UCInetID to invite">
+                <label class="checkbox"><input id="invite-silent" type="checkbox"> Silent (no email)</label>
+                <button class="small primary-small" type="submit">Invite</button>
+            </form>
+            <p class="form-message" id="invite-message" role="status"></p>
+
+            <h3>Invite codes</h3>
+            <form class="inline-form" id="code-form">
+                <input id="code-max-uses" type="number" min="1" step="1" placeholder="Unlimited" aria-label="Maximum uses (leave empty for unlimited)">
+                <button class="small primary-small" type="submit">New code</button>
+            </form>
+            <p class="form-message" id="code-message" role="status"></p>
+            <div id="invite-codes"></div>
+
+            <h3>Members</h3>
+            <div id="members"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="cache-title">
+            <div class="panel-header">
+                <h2 id="cache-title">Cache</h2>
+                <div>
+                    <span class="muted" id="cache-size"></span>
+                    <button class="small" type="button" id="collapse-all">Collapse all</button>
+                    <button class="small" type="button" id="refresh-cache">Refresh</button>
+                </div>
+            </div>
+            <div class="tree" id="cache-tree"><span class="muted">Loading…</span></div>
+        </section>
+    </main>
+
+    <script>
+        function el(tag, props = {}, children = []) {
+            const node = Object.assign(document.createElement(tag), props);
+            node.append(...children);
+            return node;
+        }
+
+        const formatTime = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
+        // Now playing at both venues
+
+        const VENUES = [["anteatery", "Anteatery"], ["brandywine", "Brandywine"]];
+
+        async function loadNowPlaying() {
+            const cards = await Promise.all(VENUES.map(async ([venue, label]) => {
+                const card = el("div", { className: "venue" }, [el("div", { className: "label", textContent: label })]);
+
+                try {
+                    const response = await fetch(`/api/venue-queue?${new URLSearchParams({ venue })}`);
+                    if (!response.ok) throw new Error(`Couldn't load the queue (${response.status})`);
+                    const { nowPlaying, onDeck, comingUp } = await response.json();
+
+                    if (!nowPlaying) {
+                        card.append(el("div", { className: "muted", textContent: "Nothing playing" }));
+                        return card;
+                    }
+
+                    card.append(
+                        el("div", { className: "song", textContent: nowPlaying.name }),
+                        el("div", { className: "artist", textContent: nowPlaying.artist })
+                    );
+
+                    const left = nowPlaying.secondsRemaining !== undefined ? `${formatTime(nowPlaying.secondsRemaining)} left · ` : "";
+                    card.append(el("div", { className: "time", textContent: `${left}${onDeck.length + comingUp.length} queued` }));
+                } catch (error) {
+                    card.append(el("div", { className: "error", textContent: error.message }));
+                }
+
+                return card;
+            }));
+
+            document.getElementById("venues").replaceChildren(...cards);
+            document.getElementById("playing-updated").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        }
+
+        // The cache, as a collapsible tree
+
+        // Numbers that look like millisecond timestamps get a readable note
+        function timestampNote(value) {
+            if (typeof value !== "number" || value < 1.5e12 || value > 2.5e12) return null;
+
+            const minutes = Math.round((value - Date.now()) / 60000);
+            const abs = Math.abs(minutes);
+            const span = abs < 60 ? `${abs} min` : abs < 2880 ? `${Math.round(abs / 60)} hr` : `${Math.round(abs / 1440)} days`;
+            return el("span", { className: "note", textContent: minutes >= 0 ? `in ${span}` : `${span} ago`, title: new Date(value).toLocaleString() });
+        }
+
+        function leaf(key, value) {
+            const type = value === null ? "null" : typeof value;
+            const row = el("div", { className: "leaf" }, [
+                el("span", { className: "key", textContent: key }), ": ",
+                el("span", { className: type, textContent: JSON.stringify(value) })
+            ]);
+
+            const note = timestampNote(value);
+            if (note) row.append(note);
+            return row;
+        }
+
+        // Branches are only drawn when opened, so even a large cache renders instantly
+        function branch(key, value, open = false) {
+            const entries = Array.isArray(value) ? value.map((item, i) => [String(i), item]) : Object.entries(value);
+            const count = Array.isArray(value) ? `[${entries.length}]` : `{${entries.length}}`;
+            const children = el("div", { className: "children" });
+
+            const details = el("details", {}, [
+                el("summary", {}, [el("span", { className: "key", textContent: key }), " ", el("span", { className: "count", textContent: count })]),
+                children
+            ]);
+
+            details.addEventListener("toggle", () => {
+                if (details.open && !children.childElementCount) {
+                    children.append(...entries.map(([childKey, childValue]) => node(childKey, childValue)));
+                }
+            });
+
+            details.open = open;
+            return details;
+        }
+
+        const node = (key, value) => value !== null && typeof value === "object" ? branch(key, value) : leaf(key, value);
+
+        async function loadCache() {
+            const tree = document.getElementById("cache-tree");
+
+            try {
+                const response = await fetch("/api/admin/cache");
+                if (response.status === 401) return location.assign(`/login?${new URLSearchParams({ next: "/admin" })}`);
+                if (!response.ok) throw new Error(`Couldn't load the cache (${response.status})`);
+
+                const text = await response.text();
+                document.getElementById("cache-size").textContent = `${(new Blob([text]).size / 1024).toFixed(1)} KB  `;
+                tree.replaceChildren(branch("cache", JSON.parse(text), true));
+            } catch (error) {
+                tree.replaceChildren(el("span", { className: "error", textContent: error.message }));
+            }
+        }
+
+        document.getElementById("refresh-cache").addEventListener("click", loadCache);
+        document.getElementById("collapse-all").addEventListener("click", () => {
+            document.querySelectorAll("#cache-tree details details[open]").forEach(details => details.open = false);
+        });
+
+        // Beta: requests, invites, invite codes and members
+
+        const netId = email => email.replace(/@uci\.edu$/i, "");
+        const when = timestamp => new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+        async function postJson(url, body) {
+            const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`);
+            return data;
+        }
+
+        function smallButton(label, className, onClick) {
+            const button = el("button", { type: "button", className: `small ${className}`, textContent: label });
+            button.addEventListener("click", async () => {
+                button.disabled = true;
+                try { await onClick(); } catch (error) { alert(error.message); button.disabled = false; }
+            });
+            return button;
+        }
+
+        function showFormMessage(id, text, isError = false) {
+            const message = document.getElementById(id);
+            message.textContent = text;
+            message.classList.toggle("error", isError);
+        }
+
+        const rows = items => items.length ? el("div", { className: "rows" }, items) : el("p", { className: "muted", textContent: "None" });
+
+        function renderBeta({ requests, codes, members, admins }) {
+            const pending = requests.filter(request => request.status === "pending");
+
+            document.getElementById("pending-requests").replaceChildren(rows(pending.map(request => el("div", { className: "row" }, [
+                el("div", {}, [el("span", { className: "who", textContent: netId(request.email) }), el("span", { className: "muted", textContent: `  asked ${when(request.requestedAt)}` })]),
+                el("div", { className: "actions" }, [
+                    smallButton("Approve", "primary-small", () => decide(request.email, "approved")),
+                    smallButton("Reject", "reject", () => decide(request.email, "rejected"))
+                ])
+            ]))));
+
+            document.getElementById("invite-codes").replaceChildren(rows(codes.map(code => {
+                const limit = code.maxUses === null ? `${code.uses.length} used` : `${code.uses.length} / ${code.maxUses} used`;
+                const usedBy = code.uses.length
+                    ? el("details", {}, [el("summary", { textContent: "Used by" }), ...code.uses.map(use => el("div", { textContent: `${netId(use.email)}, ${when(use.usedAt)}` }))])
+                    : el("span", {});
+
+                return el("div", { className: `row ${code.revokedAt ? "revoked" : ""}` }, [
+                    el("div", {}, [
+                        el("span", { className: "code", textContent: code.code }),
+                        el("span", { className: "muted", textContent: `  ${limit}${code.revokedAt ? " · revoked" : ""} · by ${netId(code.createdBy)}` }),
+                        usedBy
+                    ]),
+                    el("div", { className: "actions" }, code.revokedAt ? [] : [
+                        smallButton("Copy link", "", async () => {
+                            await navigator.clipboard.writeText(code.url);
+                            showFormMessage("code-message", `Copied ${code.url}`);
+                            loadBeta();
+                        }),
+                        smallButton("Revoke", "reject", async () => {
+                            if (!confirm(`Revoke ${code.code}? Nobody new can use it after this.`)) throw new Error("Cancelled");
+                            await postJson("/api/admin/codes/revoke", { code: code.code });
+                            loadBeta();
+                        })
+                    ])
+                ]);
+            })));
+
+            const via = { request: "request", invite: "invite", code: "code" };
+            const rejected = requests.filter(request => request.status === "rejected");
+
+            document.getElementById("members").replaceChildren(
+                rows([
+                    ...admins.map(email => el("div", { className: "row" }, [el("span", { className: "who", textContent: netId(email) }), el("span", { className: "muted", textContent: "admin" })])),
+                    ...members.map(member => {
+                        const how = member.joinedVia === "code" ? `code ${member.code}` : `${via[member.joinedVia]}${member.approvedBy ? ` by ${netId(member.approvedBy)}` : ""}${member.silent ? " (silent)" : ""}`;
+                        return el("div", { className: "row" }, [el("span", { className: "who", textContent: netId(member.email) }), el("span", { className: "muted", textContent: `${how} · ${when(member.joinedAt)}` })]);
+                    }),
+                    ...rejected.map(request => el("div", { className: "row revoked" }, [el("span", { className: "who", textContent: netId(request.email) }), el("span", { className: "muted", textContent: `rejected · ${when(request.decidedAt)}` })]))
+                ])
+            );
+        }
+
+        async function loadBeta() {
+            try {
+                const response = await fetch("/api/admin/beta");
+                if (!response.ok) throw new Error(`Couldn't load the beta (${response.status})`);
+                renderBeta(await response.json());
+            } catch (error) {
+                document.getElementById("pending-requests").replaceChildren(el("span", { className: "error", textContent: error.message }));
+            }
+        }
+
+        async function decide(email, decision) {
+            const result = await postJson("/api/admin/requests/decide", { email, decision });
+            if (decision === "approved" && !result.emailed) alert(`Approved ${netId(email)}, but the email didn't send. They can still sign in normally.`);
+            loadBeta();
+        }
+
+        document.getElementById("invite-form").addEventListener("submit", async event => {
+            event.preventDefault();
+            const input = document.getElementById("invite-netid");
+            const silent = document.getElementById("invite-silent").checked;
+
+            try {
+                const result = await postJson("/api/admin/invites", { netid: input.value, silent });
+                showFormMessage("invite-message", silent ? `Added ${netId(result.email)} without an email.`
+                    : result.emailed ? `Invited ${netId(result.email)}. They've been emailed a sign-in link.`
+                    : `Added ${netId(result.email)}, but the email didn't send.`, !silent && !result.emailed);
+                input.value = "";
+                loadBeta();
+            } catch (error) {
+                showFormMessage("invite-message", error.message, true);
+            }
+        });
+
+        document.getElementById("code-form").addEventListener("submit", async event => {
+            event.preventDefault();
+            const value = document.getElementById("code-max-uses").value;
+
+            try {
+                const { code, url } = await postJson("/api/admin/codes", { maxUses: value ? Number(value) : null });
+                showFormMessage("code-message", `Created ${code}: ${url}`);
+                document.getElementById("code-max-uses").value = "";
+                loadBeta();
+            } catch (error) {
+                showFormMessage("code-message", error.message, true);
+            }
+        });
+
+        document.getElementById("refresh-beta").addEventListener("click", loadBeta);
+
+        loadNowPlaying();
+        loadBeta();
+        loadCache();
+        setInterval(() => { if (!document.hidden) loadNowPlaying(); }, 20_000);
+    </script>
+</body>
+</html>

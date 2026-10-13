@@ -1,0 +1,77 @@
+/* Shared by every page: UCI colours, fonts, the logo and the loading spinner */
+
+:root {
+    /* Official UCI brand palette: https://brand.uci.edu/identity/colors.php */
+    --uci-blue: #255799;
+    --uci-gold: #fecc07;
+    --darkest-blue: #002244;
+    --dark-blue: #1b3d6d;
+    --light-gray: #c6beb5;
+
+    --bg: var(--darkest-blue);
+    --surface: var(--dark-blue);
+    --surface-2: var(--uci-blue);
+    --border: var(--uci-blue);
+    --text: #ffffff;
+    --muted: var(--light-gray);
+    --error: #f78d2d; /* UCI Orange */
+    --placeholder: #b8d4f5; /* custom light blue, 7.1:1 on Dark Blue */
+    --accent: var(--uci-gold);
+    --on-accent: var(--darkest-blue);
+    --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; }
+
+button, input { font-family: inherit; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Clarity City", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.logo {
+    font-family: "Jua", system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.logo-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+}
+
+.spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.spinner.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}

@@ -1,0 +1,151 @@
+/* The centered card pages (sign in, private beta): card, form fields, buttons and the live footer */
+
+main {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px;
+}
+
+.card {
+    width: min(400px, 100%);
+    padding: 28px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.card .logo { justify-content: center; margin-bottom: 20px; }
+
+.card h1 {
+    font-family: "Jua", system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 1.6rem;
+    text-align: center;
+    margin: 0 0 6px;
+}
+
+.card .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin: 0 0 24px;
+    font-size: 0.95rem;
+}
+
+form { display: flex; flex-direction: column; gap: 8px; }
+
+form[hidden] { display: none; }
+
+label { font-weight: 600; font-size: 0.9rem; }
+
+.field {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(254, 204, 7, 0.2);
+}
+
+.field input {
+    min-width: 0;
+    width: 100%;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.field input::placeholder { color: var(--placeholder); opacity: 1; }
+
+/* "@uci.edu" sits after the UCInetID until someone types their own @ */
+.field .suffix {
+    padding-right: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.field.full-address .suffix { display: none; }
+
+.code-input {
+    font-size: 1.4rem !important;
+    letter-spacing: 0.3em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.primary {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.primary:disabled { opacity: 0.6; cursor: default; }
+.primary .spinner { margin: 0; border-color: rgba(0, 34, 68, 0.3); border-top-color: var(--on-accent); }
+
+.message { min-height: 1.2em; margin: 4px 0 0; font-size: 0.9rem; color: var(--error); }
+.hint { margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+.links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.links button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--placeholder);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.links button:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+
+footer {
+    padding: 14px 16px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+footer strong { color: var(--text); font-weight: 600; }
+
+/* A small pulsing dot so the footer reads as live */
+.live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+    animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

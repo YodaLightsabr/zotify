@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { fileURLToPath } from "node:url";
-import { adminCache, adminPage } from "./routes/admin.js";
+import { adminCache, adminPage, adminTestAccounts } from "./routes/admin.js";
 import { logout, me, requestCode, requireAdmin, requireAuth, requireMember, verifyCode } from "./routes/auth.js";
 import {
     betaPage, createCodeRoute, decideRequestRoute, invitePage, inviteRoute, magicLinkPage, overviewRoute,
@@ -20,6 +20,10 @@ import { voteCapacity } from "./routes/vote-capacity.js";
 
 const app = express();
 
+// Behind Cloudflare Tunnel, cloudflared connects from this machine and says the visitor used HTTPS.
+// Trusting only local proxies lets session cookies be marked Secure without trusting headers from anyone else
+app.set("trust proxy", "loopback");
+
 app.use(express.json());
 
 // Open to everyone: the homepage's live queue, and signing in
@@ -34,7 +38,7 @@ app.post("/api/auth/logout", logout);
 app.post("/api/beta/request", requireAuth, requestInviteRoute);
 app.post("/api/beta/redeem", requireAuth, redeemCodeRoute);
 
-// Everything else needs an approved UCI account during the beta
+// Everything else needs an approved account during the beta
 app.get("/api/search", requireMember, search);
 app.get("/api/match", requireMember, match);
 app.get("/api/queued", requireMember, queued);
@@ -46,6 +50,7 @@ app.post("/api/boost", requireMember, boost);
 
 // Admins only
 app.get("/api/admin/cache", requireAdmin, adminCache);
+app.get("/api/admin/test-accounts", requireAdmin, adminTestAccounts);
 app.get("/api/admin/downvote", requireAdmin, downvoteCheck);
 app.post("/api/admin/downvote", requireAdmin, downvote);
 app.get("/api/admin/beta", requireAdmin, overviewRoute);

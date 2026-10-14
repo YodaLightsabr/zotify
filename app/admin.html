@@ -172,6 +172,9 @@
         button.reject { color: var(--error); border-color: var(--error); }
         button.small:disabled { opacity: 0.5; cursor: default; }
 
+        .test-note { margin: 0 0 10px; }
+        .code-status.active { color: var(--accent); font-weight: 600; }
+
         .form-message { min-height: 1.2em; margin: 6px 0 0; font-size: 0.85rem; color: var(--muted); }
         .form-message.error { color: var(--error); }
     </style>
@@ -193,6 +196,15 @@
             <div class="venues" id="venues"></div>
         </section>
 
+        <section class="panel" aria-labelledby="test-title">
+            <div class="panel-header">
+                <h2 id="test-title">Test accounts</h2>
+                <button class="small" type="button" id="refresh-test">Refresh</button>
+            </div>
+            <p class="muted test-note">Their login codes are printed in the server console instead of emailed.</p>
+            <div id="test-accounts"><span class="muted">Loading…</span></div>
+        </section>
+
         <section class="panel" aria-labelledby="beta-title">
             <div class="panel-header">
                 <h2 id="beta-title">Beta</h2>
@@ -202,9 +214,9 @@
             <h3>Pending requests</h3>
             <div id="pending-requests"><span class="muted">Loading…</span></div>
 
-            <h3>Invite by UCInetID</h3>
+            <h3>Invite by UCInetID or email</h3>
             <form class="inline-form" id="invite-form">
-                <input id="invite-netid" type="text" placeholder="panteater" required autocapitalize="none" spellcheck="false" aria-label="UCInetID to invite">
+                <input id="invite-netid" type="text" placeholder="panteater" required autocapitalize="none" spellcheck="false" aria-label="UCInetID or email address to invite">
                 <label class="checkbox"><input id="invite-silent" type="checkbox"> Silent (no email)</label>
                 <button class="small primary-small" type="submit">Invite</button>
             </form>
@@ -384,6 +396,7 @@
                 el("div", {}, [el("span", { className: "who", textContent: netId(request.email) }), el("span", { className: "muted", textContent: `  asked ${when(request.requestedAt)}` })]),
                 el("div", { className: "actions" }, [
                     smallButton("Approve", "primary-small", () => decide(request.email, "approved")),
+                    smallButton("Approve silently", "", () => decide(request.email, "approved", true)),
                     smallButton("Reject", "reject", () => decide(request.email, "rejected"))
                 ])
             ]))));
@@ -440,9 +453,9 @@
             }
         }
 
-        async function decide(email, decision) {
-            const result = await postJson("/api/admin/requests/decide", { email, decision });
-            if (decision === "approved" && !result.emailed) alert(`Approved ${netId(email)}, but the email didn't send. They can still sign in normally.`);
+        async function decide(email, decision, silent = false) {
+            const result = await postJson("/api/admin/requests/decide", { email, decision, silent });
+            if (decision === "approved" && !silent && !result.emailed) alert(`Approved ${netId(email)}, but the email didn't send. They can still sign in normally.`);
             loadBeta();
         }
 
@@ -479,10 +492,49 @@
 
         document.getElementById("refresh-beta").addEventListener("click", loadBeta);
 
+        // Test accounts: whether a login code is waiting in the server console
+
+        function minutesFromNow(timestamp) {
+            const minutes = Math.max(0, Math.round((timestamp - Date.now()) / 60000));
+            return minutes < 1 ? "under a minute" : `${minutes} min`;
+        }
+
+        async function loadTestAccounts() {
+            const area = document.getElementById("test-accounts");
+
+            try {
+                const response = await fetch("/api/admin/test-accounts");
+                if (!response.ok) throw new Error(`Couldn't load test accounts (${response.status})`);
+                const accounts = await response.json();
+
+                area.replaceChildren(rows(accounts.map(({ email, activeCode }) => el("div", { className: "row" }, [
+                    el("span", { className: "who", textContent: netId(email) }),
+                    activeCode
+                        ? el("span", {
+                            className: "code-status active",
+                            textContent: `Active code · expires in ${minutesFromNow(activeCode.expiresAt)}${activeCode.attempts ? ` · ${plural(activeCode.attempts, "wrong try", "wrong tries")}` : ""}`,
+                            title: `Requested ${when(activeCode.createdAt)}. Check the server console for the code.`
+                        })
+                        : el("span", { className: "code-status muted", textContent: "No active code" })
+                ]))));
+            } catch (error) {
+                area.replaceChildren(el("span", { className: "error", textContent: error.message }));
+            }
+        }
+
+        const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+
+        document.getElementById("refresh-test").addEventListener("click", loadTestAccounts);
+
         loadNowPlaying();
+        loadTestAccounts();
         loadBeta();
         loadCache();
-        setInterval(() => { if (!document.hidden) loadNowPlaying(); }, 20_000);
+        setInterval(() => {
+            if (document.hidden) return;
+            loadNowPlaying();
+            loadTestAccounts();
+        }, 20_000);
     </script>
 </body>
 </html>

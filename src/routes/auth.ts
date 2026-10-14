@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { betaStatus, isApproved } from "../beta.js";
-import { AuthError, emailForNetId, endSession, getSession, isAdmin, requestLoginCode, SESSION_TTL_MS, verifyLoginCode } from "../auth.js";
+import { AuthError, signInEmail, endSession, getSession, isAdmin, requestLoginCode, SESSION_TTL_MS, verifyLoginCode } from "../auth.js";
 
 const SESSION_COOKIE = "zotify_session";
 
@@ -85,12 +85,12 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     next();
 }
 
-/** Body: { netid }. Makes a login code for that UCInetID */
+/** Body: { netid }. Makes a login code for that UCInetID or email address */
 export async function requestCode(req: Request, res: Response) {
-    const email = emailForNetId(req.body?.netid);
+    const email = signInEmail(req.body?.netid);
 
     if (!email) {
-        res.status(400).json({ error: "Enter your UCInetID, like panteater or panteater@uci.edu." });
+        res.status(400).json({ error: "Enter your UCInetID or email address, like panteater or panteater@uci.edu." });
         return;
     }
 
@@ -104,7 +104,7 @@ export async function requestCode(req: Request, res: Response) {
 
 /** Body: { netid, code }. Signs in with a login code and sets the session cookie */
 export async function verifyCode(req: Request, res: Response) {
-    const email = emailForNetId(req.body?.netid);
+    const email = signInEmail(req.body?.netid);
     const code = typeof req.body?.code === "string" ? req.body.code : "";
 
     if (!email || !/^\s*\d{6}\s*$/.test(code)) {

@@ -130,7 +130,8 @@ export async function requestInvite(email: string, baseUrl: string) {
     return requests[email];
 }
 
-export async function decideRequest(email: string, decision: "approved" | "rejected", adminEmail: string, baseUrl: string) {
+/** Approves or rejects a pending request. Approving emails them a magic link, unless silent */
+export async function decideRequest(email: string, decision: "approved" | "rejected", adminEmail: string, baseUrl: string, silent = false) {
     const requests = await readRequests();
     const request = requests[email];
 
@@ -143,8 +144,8 @@ export async function decideRequest(email: string, decision: "approved" | "rejec
         return { emailed: false };
     }
 
-    await addMember(email, { joinedVia: "request", joinedAt: Date.now(), approvedBy: adminEmail });
-    return { emailed: await welcome(email, "approved", baseUrl) };
+    await addMember(email, { joinedVia: "request", joinedAt: Date.now(), approvedBy: adminEmail, ...(silent ? { silent } : {}) });
+    return { emailed: silent ? false : await welcome(email, "approved", baseUrl) };
 }
 
 /** Sends the "you're in" email with a magic link. Approval stands even if the email fails */

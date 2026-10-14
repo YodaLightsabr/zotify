@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { cache } from "./cache.js";
-import { codeDelivery, sendLoginCode } from "./email.js";
+import { codeDelivery, sendLoginCode, type CodeDelivery } from "./email.js";
 
 // Login codes are short-lived, and a few wrong guesses use one up
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -19,6 +19,13 @@ export const ADMIN_EMAILS = ADMIN_NET_IDS.map(netId => `${netId}@${EMAIL_DOMAIN}
 export function isAdmin(email: string) {
     return ADMIN_EMAILS.includes(email);
 }
+
+// Test accounts nobody reads the inbox of: their login codes always go to the server console, never by email
+const TEST_NET_IDS = ["panteater"];
+
+export const TEST_EMAILS = TEST_NET_IDS.map(netId => `${netId}@${EMAIL_DOMAIN}`);
+
+export const isTestAccount = (email: string) => TEST_EMAILS.includes(email);
 
 interface LoginCode {
     hash: string;
@@ -45,17 +52,24 @@ export class AuthError extends Error {
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
+// During the testing phase anyone can sign in with any email address; approval still decides who gets in.
+// Set this to false to go back to UCI accounts only
+const ALLOW_ANY_EMAIL = true;
+
 /**
- * The UCI email for what someone typed: "panteater" or "panteater@uci.edu", in any case.
- * Null for anything else, including other domains
+ * The email someone signs in with. A bare UCInetID ("panteater") becomes panteater@uci.edu, in any case.
+ * Full addresses work for any domain while ALLOW_ANY_EMAIL is on, otherwise only @uci.edu. Null for anything else
  */
-export function emailForNetId(input: unknown): string | null {
+export function signInEmail(input: unknown): string | null {
     if (typeof input !== "string") return null;
 
     const value = input.trim().toLowerCase();
-    const netId = value.endsWith(`@${EMAIL_DOMAIN}`) ? value.slice(0, -(EMAIL_DOMAIN.length + 1)) : value;
 
-    return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(netId) ? `${netId}@${EMAIL_DOMAIN}` : null;
+    if (!value.includes("@")) return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value) ? `${value}@${EMAIL_DOMAIN}` : null;
+    if (!ALLOW_ANY_EMAIL && !value.endsWith(`@${EMAIL_DOMAIN}`)) return null;
+
+    // A light check: one @, no spaces, a dot in the domain, and a sensible length
+    return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : null;
 }
 
 async function readLog<T>(key: "loginCodes" | "sessions"): Promise<Record<string, T>> {
@@ -70,7 +84,7 @@ async function readLog<T>(key: "loginCodes" | "sessions"): Promise<Record<string
 }
 
 /** Makes a 6-digit login code and emails it (or prints it, without a Resend key). The cache only keeps a hash. Returns how it was delivered */
-export async function requestLoginCode(email: string) {
+export async function requestLoginCode(email: string): Promise<CodeDelivery> {
     const codes = await readLog<LoginCode>("loginCodes");
     const existing = codes[email];
 
@@ -91,6 +105,11 @@ export async function requestLoginCode(email: string) {
 
     await cache.set(["loginCodes"], codes);
 
+    if (isTestAccount(email)) {
+        console.log(`Login code for test account ${email}: ${code}`);
+        return "console";
+    }
+
     try {
         await sendLoginCode(email, code, CODE_TTL_MS / 60000);
     } catch (error) {
@@ -103,6 +122,16 @@ export async function requestLoginCode(email: string) {
     }
 
     return codeDelivery;
+}
+
+/** Whether each test account has a login code waiting, for the admin dashboard. Codes are hashed, so this never includes the code itself */
+export async function testAccountCodes() {
+    const codes = await readLog<LoginCode>("loginCodes");
+
+    return TEST_EMAILS.map(email => {
+        const code = codes[email];
+        return { email, activeCode: code ? { createdAt: code.createdAt, expiresAt: code.expiresAt, attempts: code.attempts } : null };
+    });
 }
 
 /** Checks a login code and starts a session. Returns the session token for the cookie */

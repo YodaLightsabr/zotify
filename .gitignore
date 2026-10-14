@@ -3,4 +3,3 @@
 .cache.json
 .cache.json.tmp
 node_modules
-dist

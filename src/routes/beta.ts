@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { AuthError, emailForNetId } from "../auth.js";
+import { AuthError, signInEmail } from "../auth.js";
 import {
     betaOverview, betaStatus, createInviteCode, decideRequest, inviteMember, isApproved, normalizeCode,
     redeemInviteCode, redeemMagicLink, requestInvite, revokeInviteCode
@@ -104,9 +104,9 @@ export async function overviewRoute(req: Request, res: Response) {
     res.json({ ...overview, codes: overview.codes.map(code => ({ ...code, url: `${baseUrl(req)}/invite/${code.code}` })) });
 }
 
-/** Body: { email, decision: "approved" | "rejected" } */
+/** Body: { email, decision: "approved" | "rejected", silent? }. Silent approvals don't email them */
 export async function decideRequestRoute(req: Request, res: Response) {
-    const email = emailForNetId(req.body?.email);
+    const email = signInEmail(req.body?.email);
     const decision = req.body?.decision;
 
     if (!email || (decision !== "approved" && decision !== "rejected")) {
@@ -115,7 +115,7 @@ export async function decideRequestRoute(req: Request, res: Response) {
     }
 
     try {
-        res.json(await decideRequest(email, decision, sessionEmail(res), baseUrl(req)));
+        res.json(await decideRequest(email, decision, sessionEmail(res), baseUrl(req), req.body?.silent === true));
     } catch (error) {
         sendError(res, error, `Error deciding ${email}'s request:`);
     }
@@ -123,10 +123,10 @@ export async function decideRequestRoute(req: Request, res: Response) {
 
 /** Body: { netid, silent? }. Silent invites add them without an email */
 export async function inviteRoute(req: Request, res: Response) {
-    const email = emailForNetId(req.body?.netid);
+    const email = signInEmail(req.body?.netid);
 
     if (!email) {
-        res.status(400).json({ error: "Enter a UCInetID, like panteater." });
+        res.status(400).json({ error: "Enter a UCInetID or email address, like panteater." });
         return;
     }
 

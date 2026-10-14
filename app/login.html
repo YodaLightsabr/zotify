@@ -16,15 +16,15 @@
         <div class="card">
             <a class="logo" href="/"><div class="logo-mark">♪</div> Zotify</a>
             <h1>Sign in</h1>
-            <p class="subtitle">Use your UCI account to search and queue songs.</p>
+            <p class="subtitle">Sign in with your UCInetID or email to search and queue songs.</p>
 
             <form id="netid-form" novalidate>
-                <label for="netid">UCInetID</label>
+                <label for="netid">UCInetID or email</label>
                 <div class="field" id="netid-field">
-                    <!-- Accepts "panteater" or "panteater@uci.edu" (any case); any other address fails validation -->
+                    <!-- Accepts a UCInetID like "panteater" (which gets @uci.edu), or any full email address during the testing phase -->
                     <input id="netid" name="netid" type="text" placeholder="panteater" required
-                        pattern="[A-Za-z0-9][A-Za-z0-9._\-]*(@[Uu][Cc][Ii]\.[Ee][Dd][Uu])?"
-                        title="Your UCInetID, like panteater or panteater@uci.edu"
+                        pattern="[A-Za-z0-9][A-Za-z0-9._\-]*|[^\s@]+@[^\s@]+\.[^\s@]+"
+                        title="Your UCInetID, like panteater, or your email address"
                         autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus>
                     <span class="suffix" aria-hidden="true">@uci.edu</span>
                 </div>
@@ -42,7 +42,7 @@
                 <p class="message" id="code-message" role="alert"></p>
                 <button class="primary" type="submit" id="code-submit">Sign in</button>
                 <div class="links">
-                    <button type="button" id="change-netid">Use a different UCInetID</button>
+                    <button type="button" id="change-netid">Use a different email</button>
                     <button type="button" id="resend">Send a new code</button>
                 </div>
             </form>
@@ -92,11 +92,7 @@
 
         // Typing or pasting a full address drops the "@uci.edu" suffix and gives the input the whole row
         function updateNetIdField() {
-            const value = netIdInput.value.trim();
-            netIdField.classList.toggle("full-address", value.includes("@"));
-
-            const otherDomain = value.includes("@") && !/@uci\.edu$/i.test(value);
-            netIdInput.setCustomValidity(otherDomain ? "Only @uci.edu addresses can sign in." : "");
+            netIdField.classList.toggle("full-address", netIdInput.value.trim().includes("@"));
         }
 
         netIdInput.addEventListener("input", () => {

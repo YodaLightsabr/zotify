@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { isAdmin } from "../auth.js";
+import { isAdmin, testAccountCodes } from "../auth.js";
 import { cache } from "../cache.js";
 import { currentSession } from "./auth.js";
 
@@ -20,6 +20,11 @@ export function adminPage(appDirectory: string) {
 
         res.sendFile("admin.html", { root: appDirectory });
     };
+}
+
+/** Whether each test account (like panteater) has an active login code. The code itself is only ever in the server console */
+export async function adminTestAccounts(_req: Request, res: Response) {
+    res.json(await testAccountCodes());
 }
 
 /** The whole cache, for the admin dashboard. Login codes and sessions are only ever stored as hashes */

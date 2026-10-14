@@ -1447,7 +1447,7 @@
                 renderAccount();
                 goHome();
             });
-            // Just the UCInetID; every account is @uci.edu
+            // UCI accounts show just their UCInetID; other email addresses show in full
             const netId = currentUser.email.replace(/@uci\.edu$/i, "");
             const admin = currentUser.admin ? [el("a", { className: "account-link", href: "/admin", textContent: "Admin" })] : [];
             const join = currentUser.approved ? [] : [el("a", { className: "account-link", href: "/beta", textContent: "Join" })];

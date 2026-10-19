@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@cds/city@1.1.0/css/bundles/default.min.css" rel="stylesheet">
     <link href="/base.css" rel="stylesheet">
+    <link href="/pick-history.css" rel="stylesheet">
     <style>
         header, main {
             width: 100%;
@@ -173,6 +174,8 @@
         button.small:disabled { opacity: 0.5; cursor: default; }
 
         .test-note { margin: 0 0 10px; }
+
+
         .code-status.active { color: var(--accent); font-weight: 600; }
 
         .form-message { min-height: 1.2em; margin: 6px 0 0; font-size: 0.85rem; color: var(--muted); }
@@ -234,6 +237,17 @@
             <div id="members"></div>
         </section>
 
+        <section class="panel" aria-labelledby="history-title">
+            <div class="panel-header">
+                <h2 id="history-title">Pick history</h2>
+                <div>
+                    <span class="muted" id="history-count"></span>
+                    <button class="small" type="button" id="refresh-history">Refresh</button>
+                </div>
+            </div>
+            <div id="history"><span class="muted">Loading…</span></div>
+        </section>
+
         <section class="panel" aria-labelledby="cache-title">
             <div class="panel-header">
                 <h2 id="cache-title">Cache</h2>
@@ -247,6 +261,7 @@
         </section>
     </main>
 
+    <script src="/pick-history.js"></script>
     <script>
         function el(tag, props = {}, children = []) {
             const node = Object.assign(document.createElement(tag), props);
@@ -526,9 +541,32 @@
 
         document.getElementById("refresh-test").addEventListener("click", loadTestAccounts);
 
+        // Pick history: every song queued through Zotify, drawn by the shared pick-history.js
+
+        const historyList = PickHistory.create(document.getElementById("history"), {
+            showRequester: true,
+            emptyText: "Nothing queued through Zotify yet.",
+            onRequested: () => loadHistory()
+        });
+
+        async function loadHistory() {
+            try {
+                const response = await fetch("/api/admin/history");
+                if (!response.ok) throw new Error(`Couldn't load the history (${response.status})`);
+                const picks = await response.json();
+                document.getElementById("history-count").textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"}  `;
+                historyList.render(picks);
+            } catch (error) {
+                document.getElementById("history").replaceChildren(el("span", { className: "error", textContent: error.message }));
+            }
+        }
+
+        document.getElementById("refresh-history").addEventListener("click", loadHistory);
+
         loadNowPlaying();
         loadTestAccounts();
         loadBeta();
+        loadHistory();
         loadCache();
         setInterval(() => {
             if (document.hidden) return;

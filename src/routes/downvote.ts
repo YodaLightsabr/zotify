@@ -21,18 +21,27 @@ export async function downvoteCheck(req: Request, res: Response) {
     }
 }
 
-/** Admin only. Body: { pickId, venue }. Downvotes a pick if every rule allows it; 409 with the reason if not */
+/**
+ * Admin only. Body: { pickId, venue, overrideReason? }. Downvotes a pick if every rule allows it; 409 with the reason if not.
+ * overrideReason gets past karma protection only, and is recorded
+ */
 export async function downvote(req: Request, res: Response) {
     const pickId = typeof req.body?.pickId === "string" || typeof req.body?.pickId === "number" ? String(req.body.pickId) : "";
     const venueName = parseVenue(req.body?.venue);
+    const overrideReason = typeof req.body?.overrideReason === "string" ? req.body.overrideReason.trim() : undefined;
 
     if (!pickId || !venueName) {
         res.status(400).json({ error: "Missing pick ID or venue" });
         return;
     }
 
+    if (overrideReason !== undefined && (overrideReason.length < 3 || overrideReason.length > 200)) {
+        res.status(400).json({ error: "Give a short reason for the override (3 to 200 characters)." });
+        return;
+    }
+
     try {
-        res.json(await downvotePick(venueName, pickId, res.locals.session.email));
+        res.json(await downvotePick(venueName, pickId, res.locals.session.email, overrideReason));
     } catch (error) {
         if (error instanceof DownvoteRefusedError) {
             res.status(409).json({ error: error.message, ...error.check });

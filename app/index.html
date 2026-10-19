@@ -402,6 +402,19 @@
         }
 
         .downvote-note .spinner { margin: 0; }
+
+        .override-reason {
+            width: 100%;
+            margin-top: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--error);
+            border-radius: 10px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.85rem;
+        }
+
+        .override-reason::placeholder { color: var(--placeholder); }
         .downvote-note.error-text { color: var(--error); }
 
         .queue-btn.danger { color: var(--error); border-color: var(--error); flex-shrink: 0; }
@@ -678,6 +691,13 @@
                 note.classList.toggle("error-text", isError);
             };
 
+            // Overriding karma protection needs a reason, which the server records
+            const reasonInput = el("input", {
+                type: "text", className: "override-reason", maxLength: 200,
+                placeholder: "Why? e.g. 4 hours of 30-minute tracks", ariaLabel: "Reason for overriding karma protection"
+            });
+            let mode = "blocked";
+
             (async () => {
                 try {
                     const response = await fetch(`/api/admin/downvote?${new URLSearchParams({ pickId: song.pickId, venue })}`);
@@ -687,6 +707,15 @@
 
                     button.textContent = `Downvote ×${check.count}`;
 
+                    // Karma protection is the only thing in the way, so an admin can override it with a reason
+                    if (!check.allowed && check.overridable) {
+                        showResult(check.reason);
+                        mode = "override";
+                        button.textContent = "Override…";
+                        button.disabled = false;
+                        return;
+                    }
+
                     if (!check.allowed) {
                         showResult(check.reason);
                         return;
@@ -694,31 +723,46 @@
 
                     const karma = check.karma > 0 ? `+${check.karma}` : String(check.karma);
                     showResult(`${karma} karma (${check.upvotes} up, ${check.downvotes} down). Only for meme songs.`);
+                    mode = "allowed";
                     button.disabled = false;
                 } catch (error) {
                     if (isCurrent()) showResult(error.message, true);
                 }
             })();
 
-            // The first click asks for confirmation; the second one downvotes
-            let confirming = false;
+            reasonInput.addEventListener("input", () => button.disabled = reasonInput.value.trim().length < 3);
 
+            // Allowed songs: the first click asks for confirmation and the second downvotes.
+            // Protected songs: the first click asks for a reason, and the button only works once there is one
             button.addEventListener("click", async () => {
-                if (!confirming) {
-                    confirming = true;
+                if (mode === "allowed") {
+                    mode = "confirming";
                     button.textContent = `Confirm downvote ×6`;
                     button.classList.add("confirming");
                     return;
                 }
 
+                if (mode === "override") {
+                    mode = "overriding";
+                    note.after(reasonInput);
+                    button.textContent = "Downvote ×6 anyway";
+                    button.classList.add("confirming");
+                    button.disabled = true;
+                    reasonInput.focus();
+                    return;
+                }
+
+                const overrideReason = mode === "overriding" ? reasonInput.value.trim() : undefined;
+                reasonInput.disabled = true;
                 setButtonBusy(button, "Downvoting…");
 
                 try {
-                    const { response, data } = await postJson("/api/admin/downvote", { pickId: song.pickId, venue });
+                    const { response, data } = await postJson("/api/admin/downvote", { pickId: song.pickId, venue, overrideReason });
                     if (!response.ok) throw new Error(data?.error ?? `Downvoting failed (${response.status})`);
                     if (!isCurrent()) return;
 
-                    showResult(`Downvoted ${plural(data.confirmed ?? data.requested, "time")}.${data.missing?.length ? ` ${plural(data.missing.length, "vote")} didn't go through.` : ""}`);
+                    showResult(`Downvoted ${plural(data.confirmed ?? data.requested, "time")}${overrideReason ? " (override recorded)" : ""}.${data.missing?.length ? ` ${plural(data.missing.length, "vote")} didn't go through.` : ""}`);
+                    reasonInput.remove();
                     button.classList.remove("busy", "confirming");
                     button.textContent = "Downvoted ✓";
 
@@ -1451,7 +1495,8 @@
             const netId = currentUser.email.replace(/@uci\.edu$/i, "");
             const admin = currentUser.admin ? [el("a", { className: "account-link", href: "/admin", textContent: "Admin" })] : [];
             const join = currentUser.approved ? [] : [el("a", { className: "account-link", href: "/beta", textContent: "Join" })];
-            account.replaceChildren(el("span", { className: "account-email", textContent: netId, title: currentUser.email }), ...admin, ...join, signOut);
+            const picks = currentUser.approved ? [el("a", { className: "account-link", href: "/my-picks", textContent: "My picks" })] : [];
+            account.replaceChildren(el("span", { className: "account-email", textContent: netId, title: currentUser.email }), ...picks, ...admin, ...join, signOut);
         }
 
         async function loadAccount() {

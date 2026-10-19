@@ -1,6 +1,7 @@
 import { getAccountsForVenue } from "../accounts.js";
 import { RockbotClient } from "../client.js";
 import { QueueSong } from "../playbook.js";
+import { recordPick } from "../history.js";
 import { markQueued } from "../queued.js";
 import { parseVenue } from "./params.js";
 export async function queue(req, res) {
@@ -28,18 +29,29 @@ export async function queue(req, res) {
     });
     try {
         const pick = await operation.run();
-        // The song is already queued at this point, so a cache failure shouldn't fail the request
-        const queuedAt = await markQueued(venueName, {
+        const details = {
             id: String(song.id),
             pickId: String(pick.id),
             name: String(song.name ?? ""),
             artist: String(song.artist ?? ""),
             // Only keep real image URLs since this gets rendered back on the page
             cover: typeof song.cover === "string" && song.cover.startsWith("https://") ? song.cover : undefined
-        }).catch(error => {
+        };
+        // The song is already queued at this point, so a cache failure shouldn't fail the request
+        const queuedAt = await markQueued(venueName, details).catch(error => {
             console.error(`Could not record queue time for "${song.name}":`, error);
             return Date.now();
         });
+        await recordPick({
+            pickId: details.pickId,
+            songId: details.id,
+            name: details.name,
+            artist: details.artist,
+            ...(details.cover ? { cover: details.cover } : {}),
+            venue: venueName,
+            requestedAt: queuedAt,
+            requestedBy: res.locals.session?.email
+        }).catch(error => console.error(`Could not add "${song.name}" to the pick history:`, error));
         res.json({ id: pick.id, queuedAt });
     }
     catch (error) {

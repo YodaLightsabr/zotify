@@ -1,0 +1,78 @@
+/* A pick history list (app/pick-history.js), used by the admin dashboard and My picks. Scoped so it can't clash with other rows */
+
+.pick-history .history-day + .history-day { margin-top: 20px; }
+
+.pick-history h3 {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.pick-history .history-rows { display: flex; flex-direction: column; gap: 6px; }
+
+.pick-history .history-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--bg);
+    font-size: 0.9rem;
+}
+
+.pick-history .song-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.pick-history .time {
+    width: 64px;
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.pick-history img, .pick-history .no-cover {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+}
+
+.pick-history .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-history .title .name { font-weight: 600; }
+.pick-history .title .details { margin-left: 6px; color: var(--muted); font-size: 0.85rem; }
+
+.pick-history .row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pick-history .row-status { font-size: 0.8rem; color: var(--muted); }
+.pick-history .row-status.error { color: var(--error); }
+
+.pick-history .history-button {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.pick-history .history-button:hover:not(:disabled) { border-color: var(--accent); }
+.pick-history .history-button:disabled { opacity: 0.6; cursor: default; }
+.pick-history .history-button.busy { display: inline-flex; align-items: center; gap: 6px; opacity: 1; }
+.pick-history .history-button .spinner { margin: 0; }
+
+.pick-history .empty { color: var(--muted); font-size: 0.9rem; }
+
+@media (max-width: 520px) {
+    .pick-history .history-row { flex-wrap: wrap; }
+    .pick-history .row-actions { width: 100%; justify-content: flex-end; }
+}

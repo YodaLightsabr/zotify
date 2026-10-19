@@ -3,3 +3,7 @@
 .cache.json
 .cache.json.tmp
 node_modules
+.zotify.db
+.zotify.db-wal
+.zotify.db-shm
+backups/

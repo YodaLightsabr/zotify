@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { fileURLToPath } from "node:url";
-import { adminCache, adminPage, adminTestAccounts } from "./routes/admin.js";
+import { adminCache, adminHistory, adminPage, adminTestAccounts } from "./routes/admin.js";
 import { logout, me, requestCode, requireAdmin, requireAuth, requireMember, verifyCode } from "./routes/auth.js";
 import {
     betaPage, createCodeRoute, decideRequestRoute, invitePage, inviteRoute, magicLinkPage, overviewRoute,
@@ -9,6 +9,7 @@ import {
 import { boost } from "./routes/boost.js";
 import { downvote, downvoteCheck } from "./routes/downvote.js";
 import { match } from "./routes/match.js";
+import { myPicks, myPicksPage } from "./routes/my-picks.js";
 import { queue } from "./routes/queue.js";
 import { queued } from "./routes/queued.js";
 import { search } from "./routes/search.js";
@@ -47,10 +48,12 @@ app.get("/api/vote-capacity", requireMember, voteCapacity);
 app.post("/api/queue", requireMember, queue);
 app.post("/api/vote", requireMember, vote);
 app.post("/api/boost", requireMember, boost);
+app.get("/api/my-picks", requireMember, myPicks);
 
 // Admins only
 app.get("/api/admin/cache", requireAdmin, adminCache);
 app.get("/api/admin/test-accounts", requireAdmin, adminTestAccounts);
+app.get("/api/admin/history", requireAdmin, adminHistory);
 app.get("/api/admin/downvote", requireAdmin, downvoteCheck);
 app.post("/api/admin/downvote", requireAdmin, downvote);
 app.get("/api/admin/beta", requireAdmin, overviewRoute);
@@ -65,6 +68,8 @@ const appDirectory = fileURLToPath(new URL("../app", import.meta.url));
 app.get("/login", (_req, res) => res.sendFile("login.html", { root: appDirectory }));
 app.get("/admin", adminPage(appDirectory));
 app.get("/beta", betaPage(appDirectory));
+app.get("/my-picks", myPicksPage(appDirectory));
+app.get("/my-picks.html", (_req, res) => res.redirect("/my-picks"));
 app.get("/invite/:code", invitePage);
 app.get("/login/magic", magicLinkPage);
 app.get("/beta.html", (_req, res) => res.redirect("/beta"));

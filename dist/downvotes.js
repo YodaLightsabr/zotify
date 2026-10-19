@@ -32,7 +32,7 @@ async function readLog() {
 }
 // Two admins clicking at once shouldn't both get through before the record is saved
 const inProgress = new Set();
-const refuse = (reason, counts = {}) => ({ allowed: false, reason, upvotes: null, downvotes: null, karma: null, outsideDownvotes: null, downvotedAt: null, ...counts });
+const refuse = (reason, counts = {}) => ({ allowed: false, reason, upvotes: null, downvotes: null, karma: null, outsideDownvotes: null, downvotedAt: null, overridable: false, ...counts });
 /** Whether Zotify may downvote this pick right now, checked against Rockbot's current votes */
 export async function checkDownvote(venue, pickId) {
     const record = (await readLog())[venue]?.[pickId];
@@ -60,16 +60,22 @@ export async function checkDownvote(venue, pickId) {
     const counts = { upvotes: upvoters.length, downvotes: downvoters.length, karma, outsideDownvotes };
     if (upvoters.some(name => ours.has(name.toLowerCase())))
         return refuse("Zotify accounts have upvoted it", counts);
-    if (karma > 0)
-        return refuse(`It has +${karma} karma (${upvoters.length} up, ${downvoters.length} down), so it's protected`, counts);
     if (outsideDownvotes < OUTSIDE_DOWNVOTES_NEEDED)
         return refuse("Someone else needs to downvote it first", counts);
-    return { allowed: true, reason: null, ...counts, downvotedAt: null, entry };
+    // Upvotes usually mean real support, but coordinated groups can upvote their own griefing, so admins can override this one rule
+    if (karma > 0) {
+        return { ...refuse(`It has +${karma} karma (${upvoters.length} up, ${downvoters.length} down), so it's protected`, counts), overridable: true, entry };
+    }
+    return { allowed: true, reason: null, ...counts, downvotedAt: null, overridable: false, entry };
 }
-/** Downvotes a pick from ZOTIFY_DOWNVOTES accounts, once, if every rule allows it. Throws DownvoteRefusedError otherwise */
-export async function downvotePick(venue, pickId, adminEmail) {
+/**
+ * Downvotes a pick from ZOTIFY_DOWNVOTES accounts, once, if every rule allows it. An admin can get past karma protection
+ * (and only that) by giving a reason, which is recorded. Throws DownvoteRefusedError otherwise
+ */
+export async function downvotePick(venue, pickId, adminEmail, overrideReason) {
     const check = await checkDownvote(venue, pickId);
-    if (!check.allowed || !check.entry)
+    const overriding = !check.allowed && check.overridable && !!overrideReason;
+    if (!(check.allowed || overriding) || !check.entry)
         throw new DownvoteRefusedError(check);
     const key = `${venue}:${pickId}`;
     inProgress.add(key);
@@ -78,10 +84,20 @@ export async function downvotePick(venue, pickId, adminEmail) {
         // Record it unless nothing at all went through, in which case it can be tried again
         if (result.confirmed !== 0 || !result.requested) {
             const log = await readLog();
-            log[venue] = { ...log[venue], [pickId]: { name: check.entry.name, artist: check.entry.artist, by: adminEmail, downvotedAt: Date.now() } };
+            log[venue] = {
+                ...log[venue],
+                [pickId]: {
+                    name: check.entry.name,
+                    artist: check.entry.artist,
+                    by: adminEmail,
+                    downvotedAt: Date.now(),
+                    ...(overriding ? { override: { reason: overrideReason, karma: check.karma } } : {})
+                }
+            };
             await cache.set(["downvoted"], log);
         }
-        console.log(`${adminEmail} downvoted "${check.entry.name}" by ${check.entry.artist} at ${venue}: ${result.confirmed ?? result.requested} of ${result.requested} downvotes`);
+        const override = overriding ? ` (overrode +${check.karma} karma: "${overrideReason}")` : "";
+        console.log(`${adminEmail} downvoted "${check.entry.name}" by ${check.entry.artist} at ${venue}${override}: ${result.confirmed ?? result.requested} of ${result.requested} downvotes`);
         return result;
     }
     finally {

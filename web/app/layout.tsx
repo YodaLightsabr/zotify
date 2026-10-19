@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import Navbar from "@/components/Navbar";
+import { NavigationProvider } from "@/lib/navigation";
 import { UserProvider } from "@/lib/user";
 import "./globals.css";
 
@@ -19,7 +21,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link href="https://cdn.jsdelivr.net/npm/@cds/city@1.1.0/css/bundles/default.min.css" rel="stylesheet" />
             </head>
             <body>
-                <UserProvider>{children}</UserProvider>
+                <UserProvider>
+                    <NavigationProvider>
+                        {/* One navbar for every page, kept mounted while moving between them */}
+                        <Navbar />
+                        {children}
+                    </NavigationProvider>
+                </UserProvider>
             </body>
         </html>
     );

@@ -7,14 +7,16 @@ import { boost } from "./routes/boost.js";
 import { downvote, downvoteCheck } from "./routes/downvote.js";
 import { match } from "./routes/match.js";
 import { myPicks } from "./routes/my-picks.js";
+import { addPlaylist, myPlaylists, playlist, playlistQueueStatus, queuePlaylist } from "./routes/playlists.js";
 import { queue } from "./routes/queue.js";
 import { queued } from "./routes/queued.js";
 import { search } from "./routes/search.js";
-import { spotifyPlaylist } from "./routes/spotify-playlist.js";
 import { status } from "./routes/status.js";
 import { venueQueue } from "./routes/venue-queue.js";
 import { vote } from "./routes/vote.js";
 import { voteCapacity } from "./routes/vote-capacity.js";
+import { zotifyQueue } from "./routes/zotify-queue.js";
+import { startZotifyQueue } from "./zotifyQueue.js";
 const app = express();
 // Behind Cloudflare Tunnel, cloudflared connects from this machine and says the visitor used HTTPS.
 // Trusting only local proxies lets session cookies be marked Secure without trusting headers from anyone else
@@ -49,9 +51,14 @@ app.post("/api/beta/redeem", requireAuth, redeemCodeRoute);
 app.get("/api/search", requireMember, search);
 app.get("/api/match", requireMember, match);
 app.get("/api/queued", requireMember, queued);
-app.get("/api/spotify-playlist", requireMember, spotifyPlaylist);
+app.post("/api/playlists", requireMember, addPlaylist);
+app.get("/api/playlists", requireMember, myPlaylists);
+app.get("/api/playlists/:id", requireMember, playlist);
+app.post("/api/playlists/:id/queue", requireMember, queuePlaylist);
+app.get("/api/playlists/:id/queue", requireMember, playlistQueueStatus);
 app.get("/api/vote-capacity", requireMember, voteCapacity);
 app.post("/api/queue", requireMember, queue);
+app.get("/api/zotify-queue", requireAuth, zotifyQueue);
 app.post("/api/vote", requireMember, vote);
 app.post("/api/boost", requireMember, boost);
 app.get("/api/my-picks", requireMember, myPicks);
@@ -77,5 +84,6 @@ app.use((error, _req, res, _next) => {
 });
 app.listen(API_PORT, () => {
     console.log(`API running at http://localhost:${API_PORT}/ for ${FRONTEND_URL}`);
+    startZotifyQueue();
 });
 //# sourceMappingURL=server.js.map

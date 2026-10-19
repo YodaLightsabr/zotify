@@ -42,3 +42,23 @@ export async function postJson<T = any>(path: string, body: unknown) {
 export function safeNext(value: string | null) {
     return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
+
+/** GET that throws the API's error message */
+export async function fetchOrThrow<T>(path: string, params: Record<string, string>, failure: string) {
+    const { response, data } = await getJson(path, params);
+    if (!response.ok) throw new Error(data?.error ?? `${failure} (${response.status})`);
+    return data as T;
+}
+
+/** Runs worker over items with at most `limit` running at once. Stops starting new ones once shouldStop() is true */
+export async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>, shouldStop = () => false) {
+    let next = 0;
+    const runner = async () => {
+        while (next < items.length && !shouldStop()) {
+            const index = next++;
+            await worker(items[index], index);
+        }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
+}

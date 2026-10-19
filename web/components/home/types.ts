@@ -35,8 +35,12 @@ export interface VenueQueue {
 
 export interface PlaylistTrack { title: string, artist: string }
 
+/** A Spotify playlist saved on the server */
 export interface Playlist {
+    id: string;
     name: string;
+    // When its tracks were last read from Spotify
+    fetchedAt: number;
     owner?: string;
     mayBeTruncated?: boolean;
     tracks: PlaylistTrack[];

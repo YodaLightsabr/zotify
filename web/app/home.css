@@ -65,6 +65,52 @@
 
     .recent .message { margin-top: 16px; }
 
+    .recent-heading { display: flex; align-items: center; gap: 10px; }
+
+    /* The warning by "Up next" when songs couldn't be queued */
+    .failures-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border: 1px solid var(--error);
+        border-radius: 999px;
+        background: none;
+        color: var(--error);
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .failures-button:hover { background: rgba(255, 255, 255, 0.05); }
+
+    .failures-dialog h2 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.3rem;
+        margin: 0;
+    }
+
+    .failures-intro { color: var(--muted); font-size: 0.9rem; margin: 6px 0 14px; }
+
+    .failures-list {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+
+    .failures-list li { display: flex; align-items: center; gap: 12px; }
+    .failures-list .cover { width: 44px; height: 44px; flex-shrink: 0; }
+    .failures-list .meta { min-width: 0; }
+    .failures-list .name { font-weight: 600; }
+    .failures-list .artist { color: var(--muted); font-size: 0.85rem; }
+    .failures-list .failure-reason { color: var(--error); font-size: 0.8rem; margin-top: 2px; }
+
     .queue-group { margin-top: 20px; }
 
     .queue-group h3 {

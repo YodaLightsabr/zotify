@@ -1,15 +1,15 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { QueueGroup, QueueRow } from "@/components/home/SongParts";
-import { ResultRow, TrackRow, type TrackState } from "@/components/home/ResultRow";
-import type { OpenVote, Playlist, PlaylistTrack, QueueEntry, Song, VenueQueue } from "@/components/home/types";
+import { Loading, Message, SongResults } from "@/components/home/Results";
+import type { OpenVote, QueueEntry, Song, VenueQueue } from "@/components/home/types";
 import VoteDialog from "@/components/home/VoteDialog";
-import Navbar from "@/components/Navbar";
-import { Spinner } from "@/components/Spinner";
-import { getJson, goToLogin, type Venue } from "@/lib/api";
-import { cx, otherVenue, VENUE_LABELS, VENUES } from "@/lib/format";
+import { FailuresButton, FailuresDialog, WaitingRow, type ZotifyQueue } from "@/components/home/ZotifyQueue";
+import { fetchOrThrow, getJson, goToLogin, postJson, type Venue } from "@/lib/api";
+import { cx, VENUE_LABELS, VENUES } from "@/lib/format";
+import { useHomeReset } from "@/lib/navigation";
 import { useUser } from "@/lib/user";
 import "./home.css";
 
@@ -17,41 +17,11 @@ const QUEUE_REFRESH_MS = 20_000;
 
 const SPOTIFY_PLAYLIST_LINK = /open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?playlist\/[A-Za-z0-9]{22}|spotify:playlist:[A-Za-z0-9]{22}/i;
 
-// Only this many playlist searches run at once, to go easy on Rockbot
-const PLAYLIST_SEARCH_CONCURRENCY = 3;
-
-/** Runs worker over items with at most `limit` running at once. Stops starting new ones once shouldStop() is true */
-async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>, shouldStop = () => false) {
-    let next = 0;
-    const runner = async () => {
-        while (next < items.length && !shouldStop()) {
-            const index = next++;
-            await worker(items[index], index);
-        }
-    };
-
-    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
-}
-
-/** GET that throws the API's error message */
-async function fetchOrThrow<T>(path: string, params: Record<string, string>, failure: string) {
-    const { response, data } = await getJson(path, params);
-    if (!response.ok) throw new Error(data?.error ?? `${failure} (${response.status})`);
-    return data as T;
-}
-
-/** Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot */
-const fetchMatch = async (track: PlaylistTrack, venue: Venue) =>
-    (await fetchOrThrow<{ match: Song | null }>("/api/match", { title: track.title, artist: track.artist, venue }, "Search failed")).match;
-
-type NotFound = PlaylistTrack & { failed: boolean };
-
 // What's shown under the search box after searching
 type Output =
     | { kind: "loading" }
     | { kind: "message", text: string }
-    | { kind: "results", songs: Song[], venue: Venue, notFound: NotFound[], playlist?: Playlist }
-    | { kind: "playlist", playlist: Playlist, states: TrackState[], finished: number };
+    | { kind: "results", songs: Song[], venue: Venue };
 
 export default function HomePage() {
     return <Suspense><Home /></Suspense>;
@@ -60,6 +30,7 @@ export default function HomePage() {
 function Home() {
     const { user } = useUser();
     const params = useSearchParams();
+    const router = useRouter();
 
     const [venue, setVenue] = useState<Venue>("anteatery");
     const [query, setQuery] = useState("");
@@ -73,7 +44,9 @@ function Home() {
     const queryInput = useRef<HTMLInputElement>(null);
     const isHome = output === null;
 
-    const queue = useVenueQueue(venue, isHome);
+    const queue = useVenueQueue(venue, isHome, !!user);
+    const [showFailures, setShowFailures] = useState(false);
+    const failures = queue.state.kind === "loaded" ? queue.state.zotify?.failures ?? [] : [];
 
     // Searching and voting need an approved account. Signed-out people sign in; signed-in people who aren't approved see the private beta screen
     const needsAccount = (next?: string) => {
@@ -103,19 +76,23 @@ function Home() {
         setOutput({ kind: "loading" });
 
         try {
-            // A pasted Spotify playlist link finds each of its tracks instead
-            if (SPOTIFY_PLAYLIST_LINK.test(text)) await searchPlaylist(text, searchVenue, isCurrent, setOutput);
-            else {
-                const songs = await fetchOrThrow<Song[]>("/api/search", { q: text, venue: searchVenue }, "Search failed");
-                // Ignore stale responses if another search started while this one was loading
-                if (isCurrent()) setOutput({ kind: "results", songs, venue: searchVenue, notFound: [] });
+            // A pasted Spotify playlist link is saved on the server, which says where its page is
+            if (SPOTIFY_PLAYLIST_LINK.test(text)) {
+                const { response, data } = await postJson("/api/playlists", { url: text });
+                if (!response.ok) throw new Error(data?.error ?? `Couldn't read that playlist (${response.status})`);
+                if (isCurrent()) router.push(`${data.redirect}?${new URLSearchParams({ venue: searchVenue })}`);
+                return;
             }
+
+            const songs = await fetchOrThrow<Song[]>("/api/search", { q: text, venue: searchVenue }, "Search failed");
+            // Ignore stale responses if another search started while this one was loading
+            if (isCurrent()) setOutput({ kind: "results", songs, venue: searchVenue });
         } catch (error) {
             if (isCurrent()) setOutput({ kind: "message", text: (error as Error).message || "Something went wrong. Please try again." });
         } finally {
             if (isCurrent()) setSearching(false);
         }
-    }, [user]);
+    }, [user, router]);
 
     function goHome() {
         searchId.current++;
@@ -126,6 +103,8 @@ function Home() {
         if (isHome) queue.reload();
         else setOutput(null);
     }
+
+    useHomeReset(goHome);
 
     function changeVenue(next: Venue) {
         setVenue(next);
@@ -165,8 +144,6 @@ function Home() {
 
     return (
         <div className="page-home">
-            <Navbar onHome={goHome} />
-
             <main className={cx(!isHome && "has-results")}>
                 <section className="hero">
                     <h1>Pick the <span>soundtrack</span>.</h1>
@@ -191,7 +168,10 @@ function Home() {
                 </div>
 
                 <section className="recent" aria-labelledby="recent-title">
-                    <h2 id="recent-title">Up next at {VENUE_LABELS[venue]}</h2>
+                    <div className="recent-heading">
+                        <h2 id="recent-title">Up next at {VENUE_LABELS[venue]}</h2>
+                        {failures.length > 0 && <FailuresButton count={failures.length} onClick={() => setShowFailures(true)} />}
+                    </div>
                     <div id="recent-list" aria-live="polite">
                         {isHome && <QueueView state={queue.state} venue={venue} onVote={openVote} />}
                     </div>
@@ -206,6 +186,8 @@ function Home() {
                 // Show the new counts on the Up next screen
                 onVoted={() => { if (isHome) queue.reload({ quiet: true }); }} />
 
+            <FailuresDialog failures={failures} venue={venue} open={showFailures} onClose={() => setShowFailures(false)} />
+
             <footer>Made with ♪ by Anteaters</footer>
 
             {welcome && <div className="welcome-note" role="status">You&apos;re in! Welcome to Zotify.</div>}
@@ -213,120 +195,27 @@ function Home() {
     );
 }
 
-/** Reads a Spotify playlist, then finds each track on Rockbot, showing progress as it goes */
-async function searchPlaylist(link: string, venue: Venue, isCurrent: () => boolean, setOutput: (output: Output) => void) {
-    const playlist = await fetchOrThrow<Playlist>("/api/spotify-playlist", { url: link }, "Couldn't read that playlist");
-    if (!isCurrent()) return;
-
-    const states: TrackState[] = playlist.tracks.map(() => "waiting");
-    const matches: (Song | null)[] = playlist.tracks.map(() => null);
-    let finished = 0;
-
-    const show = () => { if (isCurrent()) setOutput({ kind: "playlist", playlist, states: [...states], finished }); };
-    const setState = (i: number, state: TrackState) => { states[i] = state; show(); };
-    show();
-
-    // A failed search is retried once; if it fails again the track is marked failed and the rest carry on
-    await runWithConcurrency(playlist.tracks, PLAYLIST_SEARCH_CONCURRENCY, async (track, i) => {
-        setState(i, "searching");
-
-        try {
-            try {
-                matches[i] = await fetchMatch(track, venue);
-            } catch {
-                setState(i, "retrying");
-                matches[i] = await fetchMatch(track, venue);
-            }
-
-            states[i] = matches[i] ? "found" : "missing";
-        } catch {
-            states[i] = "failed";
-        }
-
-        finished++;
-        show();
-    }, () => !isCurrent());
-
-    if (!isCurrent()) return;
-
-    // Top match per track in playlist order, each song once; grouping then takes priority over this order
-    const seen = new Set<string>();
-    const songs: Song[] = [];
-    const notFound: NotFound[] = [];
-
-    playlist.tracks.forEach((track, i) => {
-        const match = matches[i];
-        if (!match) notFound.push({ ...track, failed: states[i] === "failed" });
-        else if (!seen.has(match.id)) {
-            seen.add(match.id);
-            songs.push(match);
-        }
-    });
-
-    setOutput({ kind: "results", songs, venue, notFound, playlist });
-}
-
-// Which group a search result belongs in. Queued songs are already waiting, so like cooldown songs they can't be queued again
-function resultGroup(song: Song) {
-    if (song.requestable === false) return song.availableAt ? "elsewhere" : "unavailable";
-    if (song.status === "queued" && song.queuedByZotify === false) return "others";
-    if (song.status === "queued" || song.status === "cooldown") return "cooldown";
-    return "available";
-}
-
-function PlaylistHeading({ playlist }: { playlist: Playlist }) {
-    const note = playlist.mayBeTruncated ? ` Spotify only shared the first ${playlist.tracks.length} tracks, so this playlist may have more.` : "";
-
-    return (
-        <div className="playlist-heading">
-            <h2>{playlist.name}{playlist.owner ? ` by ${playlist.owner}` : ""}</h2>
-            <p>{playlist.tracks.length} tracks.{note}</p>
-        </div>
-    );
-}
-
-const Message = ({ text }: { text: string }) => <p className="message">{text}</p>;
-const Loading = () => <div className="message"><Spinner /></div>;
-
 function OutputView({ output, onVote }: { output: Output, onVote: OpenVote }) {
     if (output.kind === "loading") return <Loading />;
     if (output.kind === "message") return <Message text={output.text} />;
 
-    if (output.kind === "playlist") {
-        const { playlist, states, finished } = output;
-        return <>
-            <PlaylistHeading playlist={playlist} />
-            <p className="playlist-progress">Finding songs on Rockbot: {finished} of {playlist.tracks.length}</p>
-            <ul className="results">{playlist.tracks.map((track, i) => <TrackRow key={i} track={track} state={states[i]} />)}</ul>
-        </>;
-    }
-
-    const { songs, venue, notFound, playlist } = output;
-    if (!songs.length && !notFound.length) return <Message text="No songs found. Try a different search." />;
-
-    const groups: [string, React.ReactNode[]][] = [
-        ["cooldown", "On cooldown"],
-        ["others", "Requested by others"],
-        ["available", "Available to play"],
-        ["elsewhere", `Only available at ${VENUE_LABELS[otherVenue(venue)]}`],
-        ["unavailable", "Unavailable anywhere"]
-    ].map(([key, title]) => [title, songs.filter(song => resultGroup(song) === key).map(song =>
-        <ResultRow key={song.id} song={song} venue={venue} onVote={onVote} />)] as [string, React.ReactNode[]]);
-
-    groups.push(["Not found", notFound.map((track, i) => <TrackRow key={i} track={track} state={track.failed ? "failed" : "not-found"} />)]);
-
-    return <>
-        {playlist && <PlaylistHeading playlist={playlist} />}
-        {groups.filter(([, rows]) => rows.length).map(([title, rows]) => (
-            <QueueGroup key={title} title={`${title} (${rows.length})`}><ul className="results">{rows}</ul></QueueGroup>
-        ))}
-    </>;
+    return <SongResults songs={output.songs} venue={output.venue} onVote={onVote} />;
 }
 
-type QueueState = { kind: "loading" } | { kind: "error", text: string } | { kind: "loaded", queue: VenueQueue };
+// zotify is Zotify's own queue, only for signed-in people, and null if it couldn't be loaded
+type QueueState = { kind: "loading" } | { kind: "error", text: string } | { kind: "loaded", queue: VenueQueue, zotify: ZotifyQueue | null };
 
-/** The venue's queue: loaded when the venue changes or the homepage shows again, and refreshed every 20 seconds while visible */
-function useVenueQueue(venue: Venue, active: boolean) {
+/** Zotify's own queue, for signed-in people. A failure here shouldn't hide the venue's queue */
+async function fetchZotifyQueue(venue: Venue) {
+    const { response, data } = await getJson<ZotifyQueue>("/api/zotify-queue", { venue }).catch(() => ({ response: null, data: null }));
+    return response?.ok ? data : null;
+}
+
+/**
+ * The venue's queue, plus Zotify's own for signed-in people: loaded when the venue changes or the homepage shows again,
+ * and refreshed every 20 seconds while visible
+ */
+function useVenueQueue(venue: Venue, active: boolean, signedIn: boolean) {
     const [state, setState] = useState<QueueState>({ kind: "loading" });
     const loadId = useRef(0);
 
@@ -335,14 +224,17 @@ function useVenueQueue(venue: Venue, active: boolean) {
         if (!quiet) setState({ kind: "loading" });
 
         try {
-            const queue = await fetchOrThrow<VenueQueue>("/api/venue-queue", { venue }, "Could not load the queue");
+            const [queue, zotify] = await Promise.all([
+                fetchOrThrow<VenueQueue>("/api/venue-queue", { venue }, "Could not load the queue"),
+                signedIn ? fetchZotifyQueue(venue) : null
+            ]);
             // Ignore stale responses if the venue changed or another load started
-            if (id === loadId.current) setState({ kind: "loaded", queue });
+            if (id === loadId.current) setState({ kind: "loaded", queue, zotify });
         } catch (error) {
             // Keep showing the last queue if a background refresh fails
             if (id === loadId.current && !quiet) setState({ kind: "error", text: (error as Error).message || "Could not load the queue" });
         }
-    }, [venue]);
+    }, [venue, signedIn]);
 
     useEffect(() => {
         if (!active) return;
@@ -366,13 +258,16 @@ function QueueView({ state, venue, onVote }: { state: QueueState, venue: Venue, 
     if (state.kind === "error") return <Message text={state.text} />;
 
     const { nowPlaying, onDeck, comingUp } = state.queue;
-    if (!nowPlaying && !onDeck.length && !comingUp.length) return <Message text={`Nothing is playing at ${VENUE_LABELS[venue]} right now.`} />;
+    // Songs waiting in Zotify's queue for room in the venue's
+    const waiting = state.zotify?.waiting ?? [];
+    if (!nowPlaying && !onDeck.length && !comingUp.length && !waiting.length) return <Message text={`Nothing is playing at ${VENUE_LABELS[venue]} right now.`} />;
 
     const key = (entry: QueueEntry, i: number) => entry.pickId ?? `${entry.id}-${i}`;
 
     return <>
         {nowPlaying && <QueueGroup title="Now playing"><ul className="results"><QueueRow entry={nowPlaying} venue={venue} onVote={onVote} nowPlaying /></ul></QueueGroup>}
         {onDeck.length > 0 && <QueueGroup title="On deck"><ul className="results">{onDeck.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
+        {waiting.length > 0 && <QueueGroup title="Zotify queue"><ul className="results">{waiting.map(song => <WaitingRow key={song.id} song={song} />)}</ul></QueueGroup>}
         {comingUp.length > 0 && <QueueGroup title="Coming up"><ul className="results">{comingUp.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
     </>;
 }

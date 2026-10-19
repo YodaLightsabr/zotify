@@ -3,6 +3,7 @@ import type { QueueEntry } from "./client.js";
 import { fillQueuedDetails, getRecentlyBoosted, getRecentlyQueued } from "./queued.js";
 import { cacheSearches, getCachedSearch, type CachedSong } from "./searchCache.js";
 import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
+import { getWaiting } from "./zotifyQueue.js";
 
 /** Searches Rockbot (or the cache) at a venue and adds each song's queue status, cooldown and availability at the other venue */
 export async function searchSongs(venueName: VenueName, query: string) {
@@ -16,6 +17,8 @@ export async function searchSongs(venueName: VenueName, query: string) {
             .catch(error => (console.error(`Could not load the queue at ${venueName} for search:`, error), null))
     ]);
     const liveEntries = liveQueue ? queueEntries(liveQueue) : null;
+    // Songs waiting in Zotify's queue count as queued, since they're on their way into Rockbot's
+    const waitingIn = new Map(getWaiting(venueName).map(row => [row.song_id, row.requested_at]));
 
     // "queued": waiting or playing in the venue's queue.
     // "cooldown": Zotify queued or boosted it in the last 2 hours but it has already left the queue
@@ -27,7 +30,7 @@ export async function searchSongs(venueName: VenueName, query: string) {
         liveEntries?.find(entry => isSameSong(entry, { ...song, pickId: zotifyPickOf(song)?.pickId ?? boostOf(song)?.pickId })) ?? null;
 
     const statusOf = (song: CachedSong, liveEntry: QueueEntry | null) => {
-        if (liveEntry) return "queued";
+        if (liveEntry || waitingIn.has(song.id)) return "queued";
         if (!zotifyPickOf(song) && !boostOf(song)) return null;
 
         // Without the live queue we can't tell whether it's still waiting, so assume it is
@@ -52,8 +55,8 @@ export async function searchSongs(venueName: VenueName, query: string) {
             availableAt: availableAt(song),
             // Lets the page boost a song someone else queued
             pickId: liveEntry?.pickId ?? null,
-            queuedByZotify: liveEntry ? isFromZotify(liveEntry, recentlyQueued) : null,
-            queuedAt: zotifyPickOf(song)?.queuedAt ?? null,
+            queuedByZotify: liveEntry ? isFromZotify(liveEntry, recentlyQueued) : waitingIn.has(song.id) ? true : null,
+            queuedAt: zotifyPickOf(song)?.queuedAt ?? waitingIn.get(song.id) ?? null,
             boostedAt: boostOf(song)?.queuedAt ?? null,
             status: statusOf(song, liveEntry)
         };

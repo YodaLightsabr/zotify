@@ -1,11 +1,8 @@
 import type { Request, Response } from "express";
-import { getAccountsForVenue } from "../accounts.js";
-import { RockbotClient } from "../client.js";
-import { QueueSong } from "../playbook.js";
-import { recordPick } from "../history.js";
-import { markQueued } from "../queued.js";
+import { enqueue } from "../zotifyQueue.js";
 import { parseVenue } from "./params.js";
 
+/** Adds a song to Zotify's queue, which puts it into Rockbot's queue when there's room (see zotifyQueue.ts) */
 export async function queue(req: Request, res: Response) {
     const body = req.body ?? {};
     const song = body.song;
@@ -22,61 +19,17 @@ export async function queue(req: Request, res: Response) {
         return;
     }
 
-    // Excludes the other venue's home account so it stays checked in there; QueueSong also votes with only these
-    const accounts = await getAccountsForVenue(venueName);
-
-    if (!accounts.length) {
-        res.status(503).json({ error: "No accounts available" });
-        return;
-    }
-
-    const operation = new QueueSong(accounts, {
-        song: { id: String(song.id), name: String(song.name ?? ""), artist: String(song.artist ?? "") },
-        venue: venueName
-    });
-
     try {
-        const pick = await operation.run();
-        const details = {
+        const { requestedAt, position } = enqueue(venueName, {
             id: String(song.id),
-            pickId: String(pick.id),
             name: String(song.name ?? ""),
             artist: String(song.artist ?? ""),
-            // Only keep real image URLs since this gets rendered back on the page
-            cover: typeof song.cover === "string" && song.cover.startsWith("https://") ? song.cover : undefined
-        };
+            cover: typeof song.cover === "string" ? song.cover : undefined
+        }, res.locals.session?.email);
 
-        // The song is already queued at this point, so a cache failure shouldn't fail the request
-        const queuedAt = await markQueued(venueName, details).catch(error => {
-            console.error(`Could not record queue time for "${song.name}":`, error);
-            return Date.now();
-        });
-
-        await recordPick({
-            pickId: details.pickId,
-            songId: details.id,
-            name: details.name,
-            artist: details.artist,
-            ...(details.cover ? { cover: details.cover } : {}),
-            venue: venueName,
-            requestedAt: queuedAt,
-            requestedBy: res.locals.session?.email
-        }).catch(error => console.error(`Could not add "${song.name}" to the pick history:`, error));
-
-        res.json({ id: pick.id, queuedAt });
+        res.json({ queuedAt: requestedAt, position });
     } catch (error) {
-        if (error instanceof RockbotClient.Errors.RepeatLimitReachedError) {
-            res.status(409).json({ error: "This song was played too recently" });
-            return;
-        }
-
-        if (error instanceof RockbotClient.Errors.PickLimitReachedError) {
-            res.status(429).json({ error: "Every account has hit its pick limit" });
-            return;
-        }
-
-        console.error(`Error queuing "${song.name}" at ${venueName}:`, error);
-        const message = error instanceof Error ? error.message : String(error);
-        res.status(502).json({ error: message || "Could not queue song" });
+        console.error(`Error adding "${song.name}" to Zotify's queue at ${venueName}:`, error);
+        res.status(500).json({ error: "Could not queue song. Please try again." });
     }
 }

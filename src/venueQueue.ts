@@ -17,11 +17,11 @@ export function isEmptyQueue(queue: VenueQueue) {
     return !queue.nowPlaying && !queue.onDeck.length && !queue.comingUp.length;
 }
 
-/** Shares one Rockbot request between everyone loading the same venue within CACHE_MS */
-export function getVenueQueue(venueName: VenueName) {
+/** Shares one Rockbot request between everyone loading the same venue within CACHE_MS. fresh skips the cache, and the new fetch is shared after */
+export function getVenueQueue(venueName: VenueName, { fresh = false } = {}) {
     const cached = recentFetches.get(venueName);
 
-    if (cached && Date.now() - cached.fetchedAt < CACHE_MS) return cached;
+    if (!fresh && cached && Date.now() - cached.fetchedAt < CACHE_MS) return cached;
 
     const entry = { queue: fetchVenueQueue(venueName), fetchedAt: Date.now() };
     recentFetches.set(venueName, entry);

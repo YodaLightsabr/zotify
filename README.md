@@ -25,6 +25,12 @@ The API and the frontend run separately and talk over CORS, with the session coo
 
 The API always listens on port 3001 and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. The API only accepts requests from the frontend's URL. Magic links and invite links in emails point at the frontend.
 
+## The Zotify queue
+
+Queuing a song (the Queue button, Request again, or a whole playlist) adds it to Zotify's own first-in, first-out queue for that venue, kept in the database. Every 20 seconds, and whenever something is added, the API checks Rockbot's queue: while fewer than 3 of Zotify's songs are waiting there, it requests the next one and upvotes it with every account. Keeping only a few in Rockbot at once keeps cooldowns short and keeps songs in the order people asked for them.
+
+A song that can't be requested is retried twice, 30 and 60 seconds apart, holding its place in line meanwhile. After that (or straight away, if Rockbot says it was played too recently) it's marked failed and the next song goes. Signed-in people see the waiting songs on the homepage between On deck and Coming up, and a warning by "Up next" lists recent failures. The rules live in `src/zotifyQueue.ts`.
+
 ## Scripts
 
 | Command | What it does |

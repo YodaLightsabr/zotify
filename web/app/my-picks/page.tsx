@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
 import PickHistory, { type Pick } from "@/components/PickHistory";
 import { Spinner } from "@/components/Spinner";
 import { getJson } from "@/lib/api";
@@ -29,7 +28,6 @@ export default function MyPicksPage() {
 
     return (
         <div className="page-my-picks">
-            <Navbar />
             <main>
                 <h1>My picks</h1>
                 <p className="intro">

@@ -1,0 +1,59 @@
+/* A Spotify playlist's page: its songs, and queuing all of them at once */
+
+/* Scoped to this page, since Next.js keeps global CSS loaded across navigation. Song lists come from home.css */
+.page-playlist {
+    display: contents;
+
+    .playlist-heading { margin: 0 0 16px; }
+
+    .playlist-heading h1 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 0;
+    }
+
+    .venues { margin-bottom: 0; }
+
+    .queue-all {
+        margin-top: 20px;
+        padding: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .queue-all-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .queue-all h2 { margin: 0; font-size: 1rem; }
+    .queue-all p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .queue-all .stopped { color: var(--error); }
+
+    .queue-all-bar {
+        height: 6px;
+        border-radius: 999px;
+        background: var(--border);
+        overflow: hidden;
+    }
+
+    .queue-all-bar div {
+        height: 100%;
+        background: var(--accent);
+        transition: width 0.3s ease;
+    }
+
+    .queue-all details { font-size: 0.85rem; color: var(--muted); }
+    .queue-all summary { cursor: pointer; }
+    .queue-all ul { margin: 8px 0 0; padding-left: 18px; }
+    .queue-all li + li { margin-top: 2px; }
+    .queue-all li strong { color: var(--text); font-weight: 600; }
+}

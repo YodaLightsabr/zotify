@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Navbar from "@/components/Navbar";
 import PickHistory, { type Pick } from "@/components/PickHistory";
 import { getJson, goToLogin, postJson } from "@/lib/api";
 import { cx, plural, shortEmail, VENUES } from "@/lib/format";
@@ -56,7 +55,6 @@ export default function AdminPage() {
 
     return (
         <div className="page-admin">
-            <Navbar />
             <main>
                 <h1>Admin</h1>
                 {user?.admin && <>

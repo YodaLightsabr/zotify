@@ -78,7 +78,7 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
     const [done, setDone] = useState(false);
     const [status, setStatus] = useState({ text: "", error: false });
 
-    // Same two steps as the homepage: queue it, then upvote it with every account
+    // Into Zotify's queue, like the homepage's Queue button
     async function requestAgain() {
         setBusy("Queuing…");
         setStatus({ text: "", error: false });
@@ -98,15 +98,8 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
 
             if (!response.ok) throw new Error(data?.error ?? `Couldn't queue it (${response.status})`);
 
-            setBusy("Voting…");
-            const votes = await postJson("/api/vote", { pickId: data.id, venue: pick.venue, song: { name: pick.name, artist: pick.artist } });
-            const summary = votes.response.ok
-                ? (votes.data.confirmed === null ? `${votes.data.requested} votes sent` : `${votes.data.confirmed} of ${votes.data.requested} votes`)
-                : "Queued, but voting failed";
-
             setLabel("Queued ✓");
             setDone(true);
-            setStatus({ text: summary, error: !votes.response.ok });
             onRequested?.();
         } catch (error) {
             setStatus({ text: (error as Error).message, error: true });

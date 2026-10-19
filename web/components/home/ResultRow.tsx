@@ -67,9 +67,7 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
         setError("");
         update({ busy: "Queuing…" });
 
-        // Step 1: request the song
-        let pick;
-
+        // Into Zotify's queue, which puts it into the venue's queue when there's room
         try {
             const { response, data } = await postJson("/api/queue", {
                 song: { id: song.id, name: song.name, artist: song.artist, cover: song.cover },
@@ -83,28 +81,12 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
             }
 
             if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`);
-            pick = data;
+
+            setQueuedAt(data.queuedAt ?? Date.now());
+            setButton(QUEUED);
         } catch (err) {
             setError((err as Error).message || "Could not queue song");
             update({ busy: undefined });
-            return;
-        }
-
-        // The song is in the queue now, whatever happens with the votes
-        setQueuedAt(pick.queuedAt ?? Date.now());
-
-        // Step 2: upvote it with every account and check the votes landed
-        update({ busy: "Voting…" });
-
-        try {
-            const { response, data } = await postJson("/api/vote", { pickId: pick.id, venue, song: { name: song.name, artist: song.artist } });
-            if (!response.ok) throw new Error(data?.error ?? `Voting failed (${response.status})`);
-
-            setButton({ ...QUEUED, title: voteSummary(data) });
-            if (data.missing?.length) setError(`Queued, but ${plural(data.missing.length, "vote")} didn't go through.`);
-        } catch (err) {
-            setError(`Queued, but voting failed: ${(err as Error).message || "please try again"}`);
-            setButton(QUEUED);
         }
     }
 

@@ -5,7 +5,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import CardPage from "@/components/CardPage";
 import { Busy, Spinner } from "@/components/Spinner";
 import { postJson, safeNext } from "@/lib/api";
-import { shortEmail } from "@/lib/format";
 import { useUser, type CurrentUser } from "@/lib/user";
 import "./beta.css";
 
@@ -18,7 +17,7 @@ const date = (timestamp: number) => new Date(timestamp).toLocaleDateString(undef
 function Beta() {
     const router = useRouter();
     const params = useSearchParams();
-    const { user, refresh, signOut } = useUser();
+    const { user, refresh } = useUser();
     const next = safeNext(params.get("next"));
 
     const [code, setCode] = useState("");
@@ -74,12 +73,6 @@ function Beta() {
                 </form>
             </section>
 
-            {user && (
-                <p className="signed-in">
-                    Signed in as {shortEmail(user.email)}.{" "}
-                    <button type="button" onClick={signOut}>Sign out</button>
-                </p>
-            )}
         </CardPage>
     );
 }

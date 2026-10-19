@@ -22,8 +22,6 @@
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
     }
 
-    .card .logo { justify-content: center; margin-bottom: 20px; }
-
     .card h1 {
         font-family: "Jua", system-ui, sans-serif;
         font-weight: 400;

@@ -47,6 +47,58 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS pick_history_requested_at ON pick_history (requested_at);
     CREATE INDEX IF NOT EXISTS pick_history_requested_by ON pick_history (requested_by);
+
+    -- Spotify playlists people have pasted, keyed by Spotify's playlist ID, with their tracks as of the last read
+    CREATE TABLE IF NOT EXISTS playlists (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        owner TEXT,
+        may_be_truncated INTEGER NOT NULL DEFAULT 0,
+        fetched_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS playlist_tracks (
+        playlist_id TEXT NOT NULL REFERENCES playlists (id),
+        position INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        duration_ms INTEGER,
+        uri TEXT,
+        PRIMARY KEY (playlist_id, position)
+    );
+
+    -- Which people have opened which playlists. Many people can share a playlist, and anyone can have many
+    CREATE TABLE IF NOT EXISTS user_playlists (
+        email TEXT NOT NULL,
+        playlist_id TEXT NOT NULL REFERENCES playlists (id),
+        added_at INTEGER NOT NULL,
+        opened_at INTEGER NOT NULL,
+        PRIMARY KEY (email, playlist_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
+
+    -- Zotify's own first-in, first-out queue at each venue. Songs wait here until there's room for them in Rockbot's queue.
+    -- status: waiting, released (requested on Rockbot as pick_id) or failed (after its retries, with last_error)
+    CREATE TABLE IF NOT EXISTS zotify_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venue TEXT NOT NULL,
+        song_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        cover TEXT,
+        requested_by TEXT,
+        requested_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'waiting',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        next_attempt_at INTEGER,
+        pick_id TEXT,
+        released_at INTEGER,
+        failed_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS zotify_queue_status ON zotify_queue (venue, status, id);
 `);
 /** Runs fn in a transaction: all of it lands, or none of it does */
 export function transaction(fn) {
@@ -133,6 +185,13 @@ export function snapshot() {
         ...(row.cover ? { cover: row.cover } : {}), venue: row.venue, requestedAt: row.requested_at,
         ...(row.requested_by ? { requestedBy: row.requested_by } : {})
     }));
+    data.zotifyQueue = db.prepare("SELECT * FROM zotify_queue ORDER BY id DESC LIMIT 200").all();
+    data.playlists = Object.fromEntries(db.prepare("SELECT * FROM playlists ORDER BY fetched_at DESC").all().map(row => [row.id, {
+            name: row.name, owner: row.owner, fetchedAt: row.fetched_at,
+            tracks: db.prepare("SELECT title, artist FROM playlist_tracks WHERE playlist_id = ? ORDER BY position").all(row.id)
+                .map(track => `${track.title} · ${track.artist}`),
+            people: db.prepare("SELECT email FROM user_playlists WHERE playlist_id = ? ORDER BY added_at").all(row.id).map(link => link.email)
+        }]));
     return data;
 }
 //# sourceMappingURL=db.js.map

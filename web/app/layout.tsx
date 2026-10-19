@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Navbar from "@/components/Navbar";
+import NowPlayingBar from "@/components/NowPlayingBar";
 import { NavigationProvider } from "@/lib/navigation";
 import { UserProvider } from "@/lib/user";
 import "./globals.css";
@@ -26,6 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         {/* One navbar for every page, kept mounted while moving between them */}
                         <Navbar />
                         {children}
+                        {/* Everywhere but the homepage, which shows the queue itself */}
+                        <NowPlayingBar />
                     </NavigationProvider>
                 </UserProvider>
             </body>

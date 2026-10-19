@@ -1,0 +1,43 @@
+/* The now playing bar along the bottom of every page but the homepage (components/NowPlayingBar.tsx) */
+
+.now-playing-bar {
+    /* The body is a flex column, so this keeps the bar at the very bottom even on short pages */
+    margin-top: auto;
+    height: 32px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 0.8rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.now-playing-cover {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    object-fit: cover;
+    display: grid;
+    place-items: center;
+    background: var(--surface);
+    font-size: 0.7rem;
+}
+
+.now-playing-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.now-playing-name.muted { color: var(--muted); font-weight: 400; }
+
+.now-playing-time {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}

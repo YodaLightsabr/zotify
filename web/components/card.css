@@ -1,6 +1,4 @@
-/* The centered card pages (sign in, private beta): card, form fields, buttons and the live footer */
-
-@keyframes pulse { 50% { opacity: 0.3; } }
+/* The centered card pages (sign in, private beta): card, form fields and buttons */
 
 /* Scoped to this page, since Next.js keeps global CSS loaded across navigation */
 .card-page {
@@ -125,32 +123,4 @@
     }
 
     .links button:disabled { color: var(--muted); cursor: default; text-decoration: none; }
-
-    footer {
-        padding: 14px 16px;
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--muted);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    footer strong { color: var(--text); font-weight: 600; }
-
-    /* A small pulsing dot so the footer reads as live */
-    .live-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        margin-right: 8px;
-        border-radius: 50%;
-        background: var(--accent);
-        vertical-align: middle;
-        animation: pulse 1.6s ease-in-out infinite;
-    }
-
-
-
-    @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 }

@@ -1,10 +1,7 @@
 import { AuthError, signInEmail } from "../auth.js";
 import { betaOverview, betaStatus, createInviteCode, decideRequest, inviteMember, isApproved, normalizeCode, redeemInviteCode, redeemMagicLink, requestInvite, revokeInviteCode } from "../beta.js";
-import { currentSession, setSessionCookie } from "./auth.js";
-/** Links in emails point here. Set PUBLIC_URL (e.g. https://zotify.app) when running behind a proxy */
-export function baseUrl(req) {
-    return (process.env.PUBLIC_URL ?? `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
-}
+import { FRONTEND_URL } from "../config.js";
+import { setSessionCookie } from "./auth.js";
 function sendError(res, error, context) {
     if (error instanceof AuthError) {
         res.status(error.status).json({ error: error.message });
@@ -14,55 +11,27 @@ function sendError(res, error, context) {
     res.status(500).json({ error: "Something went wrong. Please try again." });
 }
 const sessionEmail = (res) => res.locals.session.email;
-// Pages
-/** The "private beta" screen: only for signed-in people who aren't in yet */
-export function betaPage(appDirectory) {
-    return async (req, res) => {
-        const session = await currentSession(req);
-        if (!session)
-            return res.redirect(`/login?${new URLSearchParams({ next: req.originalUrl })}`);
-        if (await isApproved(session.email))
-            return res.redirect("/");
-        res.sendFile("beta.html", { root: appDirectory });
-    };
-}
-/** An invite code's shareable link. Signs people in first if needed, then lets them in */
-export async function invitePage(req, res) {
-    const code = normalizeCode(req.params.code);
-    const session = await currentSession(req);
-    if (!session)
-        return res.redirect(`/login?${new URLSearchParams({ next: `/invite/${code}` })}`);
-    try {
-        await redeemInviteCode(session.email, code);
-        res.redirect("/?welcome=1");
+/** Body: { token }. Signs in with a magic link from an invite or approval email, and sets the session cookie */
+export async function magicLinkRoute(req, res) {
+    const token = typeof req.body?.token === "string" ? req.body.token : "";
+    if (!token) {
+        res.status(400).json({ error: "That sign-in link is incomplete. Sign in with your UCInetID instead." });
+        return;
     }
-    catch (error) {
-        const message = error instanceof AuthError ? error.message : "That invite link didn't work. Please try again.";
-        if (!(error instanceof AuthError))
-            console.error(`Error redeeming invite link ${code}:`, error);
-        res.redirect(`/beta?${new URLSearchParams({ error: message })}`);
-    }
-}
-/** A magic sign-in link from an invite or approval email */
-export async function magicLinkPage(req, res) {
-    const token = typeof req.query.token === "string" ? req.query.token : "";
     try {
-        const { token: sessionToken } = await redeemMagicLink(token);
+        const { email, token: sessionToken } = await redeemMagicLink(token);
         setSessionCookie(req, res, sessionToken);
-        res.redirect("/?welcome=1");
+        res.json({ email, approved: await isApproved(email) });
     }
     catch (error) {
-        const message = error instanceof AuthError ? error.message : "That sign-in link didn't work. Sign in with your UCInetID instead.";
-        if (!(error instanceof AuthError))
-            console.error("Error redeeming a magic link:", error);
-        res.redirect(`/login?${new URLSearchParams({ error: message })}`);
+        sendError(res, error, "Error redeeming a magic link:");
     }
 }
 // Signed-in people
 /** Asks for an invitation. Only once per account */
 export async function requestInviteRoute(req, res) {
     try {
-        const request = await requestInvite(sessionEmail(res), baseUrl(req));
+        const request = await requestInvite(sessionEmail(res), FRONTEND_URL);
         res.json({ request: { status: request.status, requestedAt: request.requestedAt } });
     }
     catch (error) {
@@ -87,7 +56,7 @@ export async function redeemCodeRoute(req, res) {
 export async function overviewRoute(req, res) {
     const overview = await betaOverview();
     // Each code's shareable link, so the dashboard doesn't have to build it
-    res.json({ ...overview, codes: overview.codes.map(code => ({ ...code, url: `${baseUrl(req)}/invite/${code.code}` })) });
+    res.json({ ...overview, codes: overview.codes.map(code => ({ ...code, url: `${FRONTEND_URL}/invite/${code.code}` })) });
 }
 /** Body: { email, decision: "approved" | "rejected", silent? }. Silent approvals don't email them */
 export async function decideRequestRoute(req, res) {
@@ -98,7 +67,7 @@ export async function decideRequestRoute(req, res) {
         return;
     }
     try {
-        res.json(await decideRequest(email, decision, sessionEmail(res), baseUrl(req), req.body?.silent === true));
+        res.json(await decideRequest(email, decision, sessionEmail(res), FRONTEND_URL, req.body?.silent === true));
     }
     catch (error) {
         sendError(res, error, `Error deciding ${email}'s request:`);
@@ -112,7 +81,7 @@ export async function inviteRoute(req, res) {
         return;
     }
     try {
-        res.json({ email, ...(await inviteMember(email, sessionEmail(res), req.body?.silent === true, baseUrl(req))) });
+        res.json({ email, ...(await inviteMember(email, sessionEmail(res), req.body?.silent === true, FRONTEND_URL)) });
     }
     catch (error) {
         sendError(res, error, `Error inviting ${email}:`);
@@ -127,7 +96,7 @@ export async function createCodeRoute(req, res) {
     }
     try {
         const code = await createInviteCode(sessionEmail(res), maxUses);
-        res.json({ code, url: `${baseUrl(req)}/invite/${code}` });
+        res.json({ code, url: `${FRONTEND_URL}/invite/${code}` });
     }
     catch (error) {
         sendError(res, error, "Error creating an invite code:");

@@ -7,3 +7,7 @@ node_modules
 .zotify.db-wal
 .zotify.db-shm
 backups/
+
+# Next.js build output
+web/.next
+web/tsconfig.tsbuildinfo

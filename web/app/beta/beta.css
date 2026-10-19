@@ -1,0 +1,47 @@
+/* The private beta screen */
+
+/* Scoped to this page, since Next.js keeps global CSS loaded across navigation */
+.page-beta {
+    display: contents;
+
+    .option + .option {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .option h2 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+    }
+
+    .status {
+        margin: 0;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .status strong { color: var(--text); }
+
+    .code-field input { text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .signed-in {
+        margin: 20px 0 0;
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+    }
+
+    .signed-in button {
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--placeholder);
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: inherit;
+    }
+}

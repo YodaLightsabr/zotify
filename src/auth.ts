@@ -107,7 +107,8 @@ export async function requestLoginCode(email: string): Promise<CodeDelivery> {
 
     if (isTestAccount(email)) {
         console.log(`Login code for test account ${email}: ${code}`);
-        return "console";
+        // Report the same delivery as anyone else would get, so the sign-in page doesn't reveal it's a test account
+        return codeDelivery;
     }
 
     try {

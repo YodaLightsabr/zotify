@@ -1,6 +1,6 @@
 # Zotify
 
-Queue music at UCI's Anteatery and Brandywine through Rockbot. Built with Express on Node 22.
+Queue music at UCI's Anteatery and Brandywine through Rockbot. Two apps: an Express API on Node 22 (`src/`) and a Next.js frontend built with React (`web/`).
 
 ## Setup
 
@@ -14,18 +14,31 @@ Older versions kept that data in `.cache.json`. The first time the server starts
 
 Login codes are emailed through [Resend](https://resend.com) when `RESEND_API_KEY` is set in `.env`; otherwise they're printed to the server console. See `.env.example` for the settings.
 
+## Ports and URLs
+
+The API and the frontend run separately and talk over CORS, with the session cookie sent cross-origin.
+
+| | Development | Production |
+| --- | --- | --- |
+| API (`src/`) | http://localhost:3001 | https://api.zotify.dev |
+| Frontend (`web/`) | http://localhost:3000 | https://zotify.dev |
+
+The API always listens on port 3001 and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. The API only accepts requests from the frontend's URL. Magic links and invite links in emails point at the frontend.
+
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Runs the server from `src/` and restarts it when files change |
-| `npm run typecheck` | Type checks everything without building |
-| `npm run build` | Compiles `src/` to `dist/` |
-| `npm start` | Runs the built server from `dist/` |
+| `npm run dev` | Runs the API from `src/` and restarts it when files change |
+| `npm run dev:web` | Runs the frontend with hot reloading |
+| `npm run typecheck` | Type checks both apps without building |
+| `npm run build` | Compiles `src/` to `dist/` and builds the frontend (`build:api` and `build:web` do one each) |
+| `npm start` | Runs the built API from `dist/` |
+| `npm run start:web` | Runs the built frontend |
 | `npm run backup` | Saves a copy of the database to `backups/` |
 | `npm run queue-songs` | Runs the `QueueSongs` script in `src/scripts/queue-songs.ts` |
 
-The server listens on port 3000, or `PORT` if it's set.
+In development, run `npm run dev` and `npm run dev:web` side by side.
 
 ## Layout
 
@@ -33,4 +46,6 @@ The server listens on port 3000, or `PORT` if it's set.
 - `src/routes/`: one file per API route
 - `src/`: Rockbot client, caching, search, queuing, voting and Spotify modules
 - `src/scripts/`: one-off scripts
-- `app/index.html`: the page, served as a static file
+- `web/app/`: the pages (home, sign in, private beta, invite links, My picks, admin)
+- `web/components/`: shared components, including the `Navbar` on the homepage, My picks and admin
+- `web/lib/`: the API client, the signed-in user, and formatting helpers

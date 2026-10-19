@@ -1,0 +1,26 @@
+/* My picks */
+
+/* Scoped to this page, since Next.js keeps global CSS loaded across navigation */
+.page-my-picks {
+    display: contents;
+
+    main {
+        width: 100%;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 20px 24px;
+    }
+
+    main { padding-top: 0; }
+
+    h1 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 0;
+    }
+
+    .intro { color: var(--muted); margin: 6px 0 24px; font-size: 0.95rem; }
+
+    .error { color: var(--error); }
+}

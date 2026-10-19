@@ -1,15 +1,15 @@
 import express, { type NextFunction, type Request, type Response } from "express";
-import { fileURLToPath } from "node:url";
-import { adminCache, adminHistory, adminPage, adminTestAccounts } from "./routes/admin.js";
+import { API_PORT, FRONTEND_URL } from "./config.js";
+import { adminCache, adminHistory, adminTestAccounts } from "./routes/admin.js";
 import { logout, me, requestCode, requireAdmin, requireAuth, requireMember, verifyCode } from "./routes/auth.js";
 import {
-    betaPage, createCodeRoute, decideRequestRoute, invitePage, inviteRoute, magicLinkPage, overviewRoute,
+    createCodeRoute, decideRequestRoute, inviteRoute, magicLinkRoute, overviewRoute,
     redeemCodeRoute, requestInviteRoute, revokeCodeRoute
 } from "./routes/beta.js";
 import { boost } from "./routes/boost.js";
 import { downvote, downvoteCheck } from "./routes/downvote.js";
 import { match } from "./routes/match.js";
-import { myPicks, myPicksPage } from "./routes/my-picks.js";
+import { myPicks } from "./routes/my-picks.js";
 import { queue } from "./routes/queue.js";
 import { queued } from "./routes/queued.js";
 import { search } from "./routes/search.js";
@@ -25,6 +25,24 @@ const app = express();
 // Trusting only local proxies lets session cookies be marked Secure without trusting headers from anyone else
 app.set("trust proxy", "loopback");
 
+// The frontend runs on its own origin (see config.ts), so it calls this API cross-origin with the session cookie.
+// Only that origin is allowed, and preflights cover JSON POSTs
+app.use((req, res, next) => {
+    if (req.headers.origin === FRONTEND_URL) {
+        res.set({ "Access-Control-Allow-Origin": FRONTEND_URL, "Access-Control-Allow-Credentials": "true" });
+    }
+
+    res.vary("Origin");
+
+    if (req.method === "OPTIONS") {
+        res.set({ "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Max-Age": "600" });
+        res.sendStatus(204);
+        return;
+    }
+
+    next();
+});
+
 app.use(express.json());
 
 // Open to everyone: the homepage's live queue, and signing in
@@ -34,6 +52,7 @@ app.post("/api/auth/request-code", requestCode);
 app.post("/api/auth/verify", verifyCode);
 app.get("/api/auth/me", me);
 app.post("/api/auth/logout", logout);
+app.post("/api/auth/magic", magicLinkRoute);
 
 // Signed in, but not approved yet: asking to join, or using an invite code
 app.post("/api/beta/request", requireAuth, requestInviteRoute);
@@ -62,21 +81,8 @@ app.post("/api/admin/invites", requireAdmin, inviteRoute);
 app.post("/api/admin/codes", requireAdmin, createCodeRoute);
 app.post("/api/admin/codes/revoke", requireAdmin, revokeCodeRoute);
 
-// The pages live in app/ at the project root, which is one level up from both src/ (dev) and dist/ (build)
-const appDirectory = fileURLToPath(new URL("../app", import.meta.url));
-
-app.get("/login", (_req, res) => res.sendFile("login.html", { root: appDirectory }));
-app.get("/admin", adminPage(appDirectory));
-app.get("/beta", betaPage(appDirectory));
-app.get("/my-picks", myPicksPage(appDirectory));
-app.get("/my-picks.html", (_req, res) => res.redirect("/my-picks"));
-app.get("/invite/:code", invitePage);
-app.get("/login/magic", magicLinkPage);
-app.get("/beta.html", (_req, res) => res.redirect("/beta"));
-// The admin page is only reachable through /admin, never as a plain file
-app.get("/admin.html", (_req, res) => res.redirect("/admin"));
-
-app.use(express.static(appDirectory));
+// Pages are the frontend's job now; anyone opening the API in a browser is sent there
+app.get("/", (_req, res) => res.redirect(FRONTEND_URL));
 
 // Anything a route didn't handle, like a request with a malformed JSON body, gets a JSON error like the routes return
 app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -85,8 +91,6 @@ app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
     res.status(status).json({ error: status < 500 ? "Bad request" : "Something went wrong. Please try again." });
 });
 
-const port = Number(process.env.PORT ?? 3000);
-
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}/`);
+app.listen(API_PORT, () => {
+    console.log(`API running at http://localhost:${API_PORT}/ for ${FRONTEND_URL}`);
 });

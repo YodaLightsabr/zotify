@@ -73,7 +73,8 @@ export async function requestLoginCode(email) {
     await cache.set(["loginCodes"], codes);
     if (isTestAccount(email)) {
         console.log(`Login code for test account ${email}: ${code}`);
-        return "console";
+        // Report the same delivery as anyone else would get, so the sign-in page doesn't reveal it's a test account
+        return codeDelivery;
     }
     try {
         await sendLoginCode(email, code, CODE_TTL_MS / 60000);

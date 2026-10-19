@@ -1,4 +1,5 @@
 import type { VenueName } from "./accounts.js";
+import { events } from "./events.js";
 import type { StoredPlaylist } from "./playlists.js";
 import { findTrack } from "./trackMatch.js";
 import { enqueue } from "./zotifyQueue.js";
@@ -72,6 +73,7 @@ export function startPlaylistQueueJob(playlist: StoredPlaylist, venue: VenueName
     };
 
     jobs.set(jobKey(playlist.id, venue), job);
+    events.emit("playlistJobChanged", job);
 
     runJob(job)
         .catch(error => {
@@ -81,6 +83,7 @@ export function startPlaylistQueueJob(playlist: StoredPlaylist, venue: VenueName
         .finally(() => {
             for (const track of job.tracks) if (track.outcome === "waiting" || track.outcome === "working") track.outcome = "failed";
             job.finishedAt = Date.now();
+            events.emit("playlistJobChanged", job);
         });
 
     return job;
@@ -92,6 +95,7 @@ async function runJob(job: PlaylistQueueJob) {
     for (const track of job.tracks) {
         track.outcome = "working";
         await queueTrack(job.venue, track, seen, job.startedBy);
+        events.emit("playlistJobChanged", job);
     }
 }
 

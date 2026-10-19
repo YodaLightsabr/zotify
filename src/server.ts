@@ -19,7 +19,7 @@ import { venueQueue } from "./routes/venue-queue.js";
 import { vote } from "./routes/vote.js";
 import { voteCapacity } from "./routes/vote-capacity.js";
 import { zotifyQueue } from "./routes/zotify-queue.js";
-import { startZotifyQueue } from "./zotifyQueue.js";
+import { startLive } from "./live.js";
 
 const app = express();
 
@@ -98,7 +98,9 @@ app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
     res.status(status).json({ error: status < 500 ? "Bad request" : "Something went wrong. Please try again." });
 });
 
-app.listen(API_PORT, () => {
+const server = app.listen(API_PORT, () => {
     console.log(`API running at http://localhost:${API_PORT}/ for ${FRONTEND_URL}`);
-    startZotifyQueue();
 });
+
+// Live updates for pages, on the same port
+startLive(server);

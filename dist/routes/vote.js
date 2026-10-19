@@ -1,3 +1,4 @@
+import { events } from "../events.js";
 import { castVotes, markVoted } from "../votes.js";
 import { parseVenue, parseVoteCount } from "./params.js";
 /**
@@ -31,6 +32,7 @@ export async function vote(req, res) {
             res.status(502).json({ ...result, error: "None of the votes went through. Please try again." });
             return;
         }
+        events.emit("venueChanged", venueName);
         res.json(result);
     }
     catch (error) {

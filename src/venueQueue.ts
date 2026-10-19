@@ -1,6 +1,6 @@
 import { getHomeAccount, type VenueName } from "./accounts.js";
 import type { QueueEntry, VenueQueue } from "./client.js";
-import type { QueuedSong } from "./queued.js";
+import { getRecentlyQueued, type QueuedSong } from "./queued.js";
 
 // Rockbot's app reloads this screen every 20 seconds, so reuse a fetch for a little less than that
 const CACHE_MS = 15_000;
@@ -47,6 +47,27 @@ export function isSameSong(entry: QueueEntry, song: { id?: string, name: string,
 
 export function queueEntries(queue: VenueQueue): QueueEntry[] {
     return [...(queue.nowPlaying ? [queue.nowPlaying] : []), ...queue.onDeck, ...queue.comingUp];
+}
+
+/**
+ * A venue's queue as pages show it: each entry marked when Zotify queued it, and the playing song's time left
+ * counted from now rather than from when it was fetched
+ */
+export async function describeVenueQueue(venueName: VenueName, queue: VenueQueue, fetchedAt: number) {
+    const queued = await getRecentlyQueued(venueName);
+    const mark = (entry: QueueEntry) => ({ ...entry, zotify: isFromZotify(entry, queued) });
+    const elapsed = Math.floor((Date.now() - fetchedAt) / 1000);
+
+    return {
+        nowPlaying: queue.nowPlaying && {
+            ...mark(queue.nowPlaying),
+            secondsRemaining: queue.nowPlaying.secondsRemaining !== undefined
+                ? Math.max(0, queue.nowPlaying.secondsRemaining - elapsed)
+                : undefined
+        },
+        onDeck: queue.onDeck.map(mark),
+        comingUp: queue.comingUp.map(mark)
+    };
 }
 
 /** Whether Zotify queued this entry, using the pick ID saved when it was queued */

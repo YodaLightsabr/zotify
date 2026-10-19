@@ -16,7 +16,7 @@ import { venueQueue } from "./routes/venue-queue.js";
 import { vote } from "./routes/vote.js";
 import { voteCapacity } from "./routes/vote-capacity.js";
 import { zotifyQueue } from "./routes/zotify-queue.js";
-import { startZotifyQueue } from "./zotifyQueue.js";
+import { startLive } from "./live.js";
 const app = express();
 // Behind Cloudflare Tunnel, cloudflared connects from this machine and says the visitor used HTTPS.
 // Trusting only local proxies lets session cookies be marked Secure without trusting headers from anyone else
@@ -82,8 +82,9 @@ app.use((error, _req, res, _next) => {
         console.error("Unhandled error:", error);
     res.status(status).json({ error: status < 500 ? "Bad request" : "Something went wrong. Please try again." });
 });
-app.listen(API_PORT, () => {
+const server = app.listen(API_PORT, () => {
     console.log(`API running at http://localhost:${API_PORT}/ for ${FRONTEND_URL}`);
-    startZotifyQueue();
 });
+// Live updates for pages, on the same port
+startLive(server);
 //# sourceMappingURL=server.js.map

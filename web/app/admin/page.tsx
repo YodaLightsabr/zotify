@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PickHistory, { type Pick } from "@/components/PickHistory";
 import { getJson, goToLogin, postJson } from "@/lib/api";
 import { cx, plural, shortEmail, VENUES } from "@/lib/format";
+import { useLiveVenue } from "@/lib/live";
 import { useUser } from "@/lib/user";
 import "./admin.css";
 
@@ -77,45 +78,42 @@ function useEvery20s(callback: () => void) {
     }, [callback]);
 }
 
-// Now playing at both venues
-
-interface VenueCard { label: string, error?: string, nowPlaying?: { name: string, artist: string, secondsRemaining?: number } | null, queued?: number }
-
-const loadVenues = () => Promise.all(VENUES.map(async ([venue, label]): Promise<VenueCard> => {
-    try {
-        const { response, data } = await getJson("/api/venue-queue", { venue });
-        if (!response.ok) throw new Error(`Couldn't load the queue (${response.status})`);
-        return { label, nowPlaying: data.nowPlaying, queued: data.onDeck.length + data.comingUp.length };
-    } catch (error) {
-        return { label, error: (error as Error).message };
-    }
-})).then(cards => ({ cards, updatedAt: Date.now() }));
+// Now playing at both venues, live
 
 function NowPlaying() {
-    const { data, reload } = useLoad(loadVenues);
-    useEvery20s(reload);
+    const anteatery = useLiveVenue("anteatery");
+    const brandywine = useLiveVenue("brandywine");
+    const lives = [anteatery, brandywine];
+    const updatedAt = Math.max(0, ...lives.map(live => live?.receivedAt ?? 0));
 
     return (
         <section className="panel" aria-labelledby="playing-title">
             <div className="panel-header">
                 <h2 id="playing-title">Now playing</h2>
-                <span className="muted">{data && `Updated ${new Date(data.updatedAt).toLocaleTimeString()}`}</span>
+                <span className="muted">{updatedAt > 0 && `Updated ${new Date(updatedAt).toLocaleTimeString()}`}</span>
             </div>
             <div className="venues">
-                {data?.cards.map(card => (
-                    <div className="venue" key={card.label}>
-                        <div className="label">{card.label}</div>
-                        {card.error ? <div className="error">{card.error}</div>
-                            : !card.nowPlaying ? <div className="muted">Nothing playing</div>
-                            : <>
-                                <div className="song">{card.nowPlaying.name}</div>
-                                <div className="artist">{card.nowPlaying.artist}</div>
-                                <div className="time">
-                                    {card.nowPlaying.secondsRemaining !== undefined && `${formatTime(card.nowPlaying.secondsRemaining)} left · `}{card.queued} queued
-                                </div>
-                            </>}
-                    </div>
-                ))}
+                {VENUES.map(([venue, label], i) => {
+                    const live = lives[i];
+                    const playing = live?.queue?.nowPlaying;
+
+                    return (
+                        <div className="venue" key={venue}>
+                            <div className="label">{label}</div>
+                            {!live ? <div className="muted">Loading…</div>
+                                : !live.queue ? <div className="error">{live.error}</div>
+                                : !playing ? <div className="muted">Nothing playing</div>
+                                : <>
+                                    <div className="song">{playing.name}</div>
+                                    <div className="artist">{playing.artist}</div>
+                                    <div className="time">
+                                        {playing.secondsRemaining !== undefined && `${formatTime(playing.secondsRemaining)} left · `}
+                                        {live.queue.onDeck.length + live.queue.comingUp.length} queued
+                                    </div>
+                                </>}
+                        </div>
+                    );
+                })}
             </div>
         </section>
     );

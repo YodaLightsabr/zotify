@@ -1,4 +1,5 @@
 import { checkDownvote, DownvoteRefusedError, downvotePick, ZOTIFY_DOWNVOTES } from "../downvotes.js";
+import { events } from "../events.js";
 import { parseVenue, queryParam } from "./params.js";
 /** Admin only. Whether a pick can be downvoted, and why not if it can't */
 export async function downvoteCheck(req, res) {
@@ -34,7 +35,9 @@ export async function downvote(req, res) {
         return;
     }
     try {
-        res.json(await downvotePick(venueName, pickId, res.locals.session.email, overrideReason));
+        const result = await downvotePick(venueName, pickId, res.locals.session.email, overrideReason);
+        events.emit("venueChanged", venueName);
+        res.json(result);
     }
     catch (error) {
         if (error instanceof DownvoteRefusedError) {

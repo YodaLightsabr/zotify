@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#002244">
+    <title>Offline · Zotify</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body {
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            box-sizing: border-box;
+            background: #002244;
+            color: #ffffff;
+            font-family: system-ui, sans-serif;
+            text-align: center;
+        }
+        img { width: 72px; height: 72px; }
+        h1 { font-size: 1.4rem; margin: 20px 0 6px; }
+        p { color: #c6beb5; margin: 0 0 20px; }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 999px;
+            background: #fecc07;
+            color: #002244;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <img src="/icon.svg" alt="">
+        <h1>You're offline</h1>
+        <p>Zotify needs a connection to show what's playing.</p>
+        <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import { events } from "./events.js";
 import { findTrack } from "./trackMatch.js";
 import { enqueue } from "./zotifyQueue.js";
 // Finished jobs are kept for this long, so the playlist page can show how the last one went
@@ -26,6 +27,7 @@ export function startPlaylistQueueJob(playlist, venue, email) {
         tracks: playlist.tracks.map(track => ({ title: track.title, artist: track.artist, outcome: "waiting" }))
     };
     jobs.set(jobKey(playlist.id, venue), job);
+    events.emit("playlistJobChanged", job);
     runJob(job)
         .catch(error => {
         console.error(`Queuing playlist ${playlist.id} at ${venue} failed:`, error);
@@ -36,6 +38,7 @@ export function startPlaylistQueueJob(playlist, venue, email) {
             if (track.outcome === "waiting" || track.outcome === "working")
                 track.outcome = "failed";
         job.finishedAt = Date.now();
+        events.emit("playlistJobChanged", job);
     });
     return job;
 }
@@ -44,6 +47,7 @@ async function runJob(job) {
     for (const track of job.tracks) {
         track.outcome = "working";
         await queueTrack(job.venue, track, seen, job.startedBy);
+        events.emit("playlistJobChanged", job);
     }
 }
 /** Finds one track on Rockbot and adds it to Zotify's queue if it can be queued. Sets the track's outcome */

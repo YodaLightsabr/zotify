@@ -9,14 +9,13 @@ import VoteDialog from "@/components/home/VoteDialog";
 import { Busy } from "@/components/Spinner";
 import { fetchOrThrow, getJson, postJson, runWithConcurrency, type Venue } from "@/lib/api";
 import { plural, VENUE_LABELS, VENUES } from "@/lib/format";
+import { setPlaylistJob, useLivePlaylistJob, type Outcome, type QueueJob } from "@/lib/live";
 import { useMember } from "@/lib/useMember";
 import "../../home.css";
 import "./playlist.css";
 
 // Only this many track searches run at once, to go easy on Rockbot
 const MATCH_CONCURRENCY = 3;
-// How often a running "Queue all" job is checked on
-const JOB_POLL_MS = 2000;
 
 /** Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot */
 const fetchMatch = async (track: PlaylistTrack, venue: Venue) =>
@@ -26,17 +25,6 @@ const fetchMatch = async (track: PlaylistTrack, venue: Venue) =>
 type Matching =
     | { kind: "matching", states: TrackState[], finished: number }
     | { kind: "matched", songs: Song[], notFound: NotFound[] };
-
-type Outcome = "waiting" | "working" | "queued" | "not-found" | "unavailable" | "already-queued" | "played-recently" | "duplicate" | "failed";
-
-/** The server's background job queuing every song it can (see src/playlistQueue.ts) */
-interface QueueJob {
-    venue: Venue;
-    startedAt: number;
-    finishedAt: number | null;
-    stoppedEarly: string | null;
-    tracks: { title: string, artist: string, outcome: Outcome, error?: string }[];
-}
 
 const OUTCOME_LABELS: Record<Outcome, string> = {
     "waiting": "Waiting",
@@ -186,32 +174,21 @@ const Page = ({ children }: { children: React.ReactNode }) => (
 
 /** "Queue all": starts the server queuing every song it can, then follows along until it's done */
 function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playlist, venue: Venue, available: number | null, onFinished: () => void }) {
-    const [job, setJob] = useState<QueueJob | null | undefined>(undefined);
+    // Live from the server, including jobs someone else started
+    const job = useLivePlaylistJob(playlist.id, venue);
     const [starting, setStarting] = useState(false);
     const [error, setError] = useState("");
     const running = !!job && !job.finishedAt;
+
+    // Once a job finishes while we're watching, look the songs up again so they show as queued
     const finishedRef = useRef(onFinished);
-    finishedRef.current = onFinished;
-
-    const check = useCallback(async () => {
-        const { response, data } = await getJson<QueueJob | null>(`/api/playlists/${playlist.id}/queue`, { venue });
-        if (response.ok) setJob(data);
-        return response.ok ? data : null;
-    }, [playlist.id, venue]);
-
-    // Pick up a job that's already running, e.g. after a reload or one someone else started
-    useEffect(() => { check().catch(() => setJob(null)); }, [check]);
+    useEffect(() => { finishedRef.current = onFinished; });
+    const wasRunning = useRef(false);
 
     useEffect(() => {
-        if (!running) return;
-
-        const timer = setInterval(async () => {
-            const latest = await check().catch(() => null);
-            if (latest?.finishedAt) finishedRef.current();
-        }, JOB_POLL_MS);
-
-        return () => clearInterval(timer);
-    }, [running, check]);
+        if (wasRunning.current && job?.finishedAt) finishedRef.current();
+        wasRunning.current = running;
+    }, [job, running]);
 
     async function start() {
         if (!confirm(`Queue every song from "${playlist.name}" that can be played at ${VENUE_LABELS[venue]}? They'll play in playlist order, after anything already waiting.`)) return;
@@ -222,7 +199,7 @@ function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playli
         try {
             const { response, data } = await postJson<QueueJob & { error?: string }>(`/api/playlists/${playlist.id}/queue`, { venue });
             if (!response.ok) throw new Error(data?.error ?? `Couldn't start queuing (${response.status})`);
-            setJob(data);
+            setPlaylistJob(playlist.id, venue, data);
         } catch (error) {
             setError((error as Error).message);
         } finally {

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { getFailures, getWaiting } from "../zotifyQueue.js";
+import { describeZotifyQueue } from "../zotifyQueue.js";
 import { parseVenue, queryParam } from "./params.js";
 
 /**
@@ -14,19 +14,5 @@ export function zotifyQueue(req: Request, res: Response) {
         return;
     }
 
-    const email = res.locals.session.email;
-    const song = (row: ReturnType<typeof getWaiting>[number]) => ({
-        id: row.id,
-        songId: row.song_id,
-        name: row.name,
-        artist: row.artist,
-        ...(row.cover ? { cover: row.cover } : {}),
-        requestedAt: row.requested_at,
-        mine: row.requested_by === email
-    });
-
-    res.json({
-        waiting: getWaiting(venueName).map(song),
-        failures: getFailures(venueName).map(row => ({ ...song(row), failedAt: row.failed_at, attempts: row.attempts, error: row.last_error }))
-    });
+    res.json(describeZotifyQueue(venueName, res.locals.session.email));
 }

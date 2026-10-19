@@ -1,24 +1,22 @@
 import { RockbotClient } from "./client.js";
 import { db } from "./db.js";
+import { events } from "./events.js";
 import { getRecentlyQueued } from "./queued.js";
 import { NoAccountsError, requestSong } from "./requestSong.js";
 import { getVenueQueue, isFromZotify, queueEntries } from "./venueQueue.js";
 import { castVotes, markVoted } from "./votes.js";
 // Zotify's own queue. Every song people queue waits here first, in order, and is only requested on Rockbot once fewer than
-// MAX_IN_ROCKBOT of Zotify's songs are waiting there. Keeping only a few in Rockbot at once keeps cooldowns short and
+// MAX_IN_ROCKBOT of Zotify's songs are waiting there. live.ts runs processSoon after each poll of Rockbot's queue. Keeping only a few in Rockbot at once keeps cooldowns short and
 // keeps Zotify's songs in the order people asked for them.
 export const MAX_IN_ROCKBOT = 3;
 // The first try plus two retries
 const MAX_ATTEMPTS = 3;
 // How long to wait before each retry. The song at the front holds its place meanwhile, so order is kept
 const RETRY_DELAYS_MS = [30_000, 60_000];
-// Rockbot's queue changes as songs play, so check this often whether there's room
-const CHECK_INTERVAL_MS = 20_000;
 // Songs we just requested may not show in Rockbot's queue straight away, so count them as waiting there for this long
 const UNSEEN_PICK_MS = 2 * 60_000;
 // Failures are shown on the homepage for this long
 const SHOW_FAILURES_MS = 2 * 60 * 60_000;
-const VENUES = ["anteatery", "brandywine"];
 const insert = db.prepare("INSERT INTO zotify_queue (venue, song_id, name, artist, cover, requested_by, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
 const selectWaiting = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' ORDER BY id");
 const selectWaitingSong = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' AND song_id = ?");
@@ -46,14 +44,19 @@ export function enqueue(venue, song, requestedBy) {
     const waiting = getWaiting(venue);
     const entry = waiting.find(row => row.song_id === song.id);
     // The queue changed, so see whether it can go into Rockbot right away
+    if (!existing)
+        events.emit("zotifyQueueChanged", venue);
     processSoon(venue);
     return { requestedAt: entry.requested_at, position: waiting.indexOf(entry) + 1, alreadyWaiting: !!existing };
 }
 // Picks we requested that have since shown up in Rockbot's queue. Once seen, a pick that's gone has played or been removed
 const seenPicks = new Set();
-/** How many of Zotify's songs are waiting in Rockbot's queue (not counting the one playing) */
+/**
+ * How many of Zotify's songs are waiting in Rockbot's queue (not counting the one playing). Uses the live poller's latest fetch
+ * when it's recent, so this doesn't add requests to Rockbot; picks Rockbot isn't showing yet are counted separately below
+ */
 async function zotifySongsInRockbot(venue) {
-    const [queue, queued] = await Promise.all([getVenueQueue(venue, { fresh: true }).queue, getRecentlyQueued(venue)]);
+    const [queue, queued] = await Promise.all([getVenueQueue(venue).queue, getRecentlyQueued(venue)]);
     const waiting = [...queue.onDeck, ...queue.comingUp].filter(entry => isFromZotify(entry, queued)).length;
     // Picks we requested moments ago that Rockbot isn't showing yet
     const shown = new Set(queueEntries(queue).map(entry => entry.pickId));
@@ -82,6 +85,8 @@ async function release(row) {
     const song = { id: row.song_id, name: row.name, artist: row.artist, ...(row.cover ? { cover: row.cover } : {}) };
     const { pickId } = await requestSong(row.venue, song, row.requested_by ?? undefined);
     markReleased.run(pickId, Date.now(), row.id);
+    events.emit("zotifyQueueChanged", row.venue);
+    events.emit("venueChanged", row.venue);
     // Mark first so the periodic top-up doesn't vote on it at the same time. The song is in Rockbot's queue whatever happens here
     markVoted(row.venue, pickId);
     castVotes(row.venue, pickId, song).catch(error => console.error(`Could not vote for "${song.name}" from Zotify's queue:`, error));
@@ -112,6 +117,7 @@ async function processVenue(venue) {
             if (giveUp) {
                 console.error(`Giving up on "${row.name}" from Zotify's queue at ${venue} after ${attempts} attempt(s):`, error);
                 markFailed.run(attempts, reason, Date.now(), row.id);
+                events.emit("zotifyQueueChanged", venue);
                 // The next song can take its place
                 continue;
             }
@@ -138,10 +144,20 @@ export function processSoon(venue) {
         } while (again.has(venue));
     })().finally(() => running.delete(venue));
 }
-/** Starts checking both venues on a schedule */
-export function startZotifyQueue() {
-    for (const venue of VENUES)
-        processSoon(venue);
-    setInterval(() => VENUES.forEach(processSoon), CHECK_INTERVAL_MS);
+/** What a signed-in person sees of Zotify's queue at a venue. Who asked for each song is left out, apart from whether it was them */
+export function describeZotifyQueue(venue, email) {
+    const song = (row) => ({
+        id: row.id,
+        songId: row.song_id,
+        name: row.name,
+        artist: row.artist,
+        ...(row.cover ? { cover: row.cover } : {}),
+        requestedAt: row.requested_at,
+        mine: !!email && row.requested_by === email
+    });
+    return {
+        waiting: getWaiting(venue).map(song),
+        failures: getFailures(venue).map(row => ({ ...song(row), failedAt: row.failed_at, attempts: row.attempts, error: row.last_error }))
+    };
 }
 //# sourceMappingURL=zotifyQueue.js.map

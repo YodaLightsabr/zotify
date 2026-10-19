@@ -25,9 +25,19 @@ The API and the frontend run separately and talk over CORS, with the session coo
 
 The API always listens on port 3001 and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. The API only accepts requests from the frontend's URL. Magic links and invite links in emails point at the frontend.
 
+## Live updates
+
+Pages don't poll. The frontend keeps one socket.io connection open for the whole visit (`web/lib/live.tsx`), and the API (`src/live.ts`, on port 3001 too) pushes updates to it:
+
+- **Venue queues:** the API fetches each venue's queue from Rockbot every 15 seconds, but only while someone is watching that venue or Zotify has songs waiting there, and sends each fetch to everyone watching. Votes, boosts and songs moving into Rockbot trigger an extra fetch a couple of seconds later.
+- **Zotify's queue and its failures:** sent to approved members as soon as anything changes.
+- **Playlist "queue all" progress:** sent as each track is done.
+
+The connection is opened with the session cookie, and signing in or out reconnects. The HTTP routes (`/api/venue-queue`, `/api/zotify-queue`, `/api/playlists/:id/queue`) still work and share the same Rockbot fetch.
+
 ## The Zotify queue
 
-Queuing a song (the Queue button, Request again, or a whole playlist) adds it to Zotify's own first-in, first-out queue for that venue, kept in the database. Every 20 seconds, and whenever something is added, the API checks Rockbot's queue: while fewer than 3 of Zotify's songs are waiting there, it requests the next one and upvotes it with every account. Keeping only a few in Rockbot at once keeps cooldowns short and keeps songs in the order people asked for them.
+Queuing a song (the Queue button, Request again, or a whole playlist) adds it to Zotify's own first-in, first-out queue for that venue, kept in the database. After each poll of Rockbot's queue (below), and whenever something is added, the API checks: while fewer than 3 of Zotify's songs are waiting there, it requests the next one and upvotes it with every account. Keeping only a few in Rockbot at once keeps cooldowns short and keeps songs in the order people asked for them.
 
 A song that can't be requested is retried twice, 30 and 60 seconds apart, holding its place in line meanwhile. After that (or straight away, if Rockbot says it was played too recently) it's marked failed and the next song goes. Signed-in people see the waiting songs on the homepage between On deck and Coming up, and a warning by "Up next" lists recent failures. The rules live in `src/zotifyQueue.ts`.
 

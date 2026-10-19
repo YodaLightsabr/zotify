@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { events } from "../events.js";
 import { castVotes, markVoted } from "../votes.js";
 import { parseVenue, parseVoteCount } from "./params.js";
 
@@ -40,6 +41,7 @@ export async function vote(req: Request, res: Response) {
             return;
         }
 
+        events.emit("venueChanged", venueName);
         res.json(result);
     } catch (error) {
         console.error(`Error voting for pick ${pickId} at ${venueName}:`, error);

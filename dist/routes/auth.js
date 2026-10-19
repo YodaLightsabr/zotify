@@ -2,7 +2,10 @@ import { betaStatus, isApproved } from "../beta.js";
 import { AuthError, signInEmail, endSession, getSession, isAdmin, requestLoginCode, SESSION_TTL_MS, verifyLoginCode } from "../auth.js";
 const SESSION_COOKIE = "zotify_session";
 function sessionToken(req) {
-    for (const part of (req.headers.cookie ?? "").split(";")) {
+    return tokenFromCookies(req.headers.cookie);
+}
+function tokenFromCookies(cookieHeader) {
+    for (const part of (cookieHeader ?? "").split(";")) {
         const [name, ...value] = part.trim().split("=");
         if (name === SESSION_COOKIE)
             return decodeURIComponent(value.join("="));
@@ -24,6 +27,10 @@ export function setSessionCookie(req, res, token) {
         maxAge: SESSION_TTL_MS,
         path: "/"
     });
+}
+/** The signed-in session for a Cookie header, e.g. from a socket's handshake */
+export function sessionFromCookies(cookieHeader) {
+    return getSession(tokenFromCookies(cookieHeader));
 }
 /** The signed-in session for a request, if there is one */
 export function currentSession(req) {

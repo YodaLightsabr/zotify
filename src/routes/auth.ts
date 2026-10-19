@@ -5,7 +5,11 @@ import { AuthError, signInEmail, endSession, getSession, isAdmin, requestLoginCo
 const SESSION_COOKIE = "zotify_session";
 
 function sessionToken(req: Request) {
-    for (const part of (req.headers.cookie ?? "").split(";")) {
+    return tokenFromCookies(req.headers.cookie);
+}
+
+function tokenFromCookies(cookieHeader: string | undefined) {
+    for (const part of (cookieHeader ?? "").split(";")) {
         const [name, ...value] = part.trim().split("=");
         if (name === SESSION_COOKIE) return decodeURIComponent(value.join("="));
     }
@@ -29,6 +33,11 @@ export function setSessionCookie(req: Request, res: Response, token: string) {
         maxAge: SESSION_TTL_MS,
         path: "/"
     });
+}
+
+/** The signed-in session for a Cookie header, e.g. from a socket's handshake */
+export function sessionFromCookies(cookieHeader: string | undefined) {
+    return getSession(tokenFromCookies(cookieHeader));
 }
 
 /** The signed-in session for a request, if there is one */

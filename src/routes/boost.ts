@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { events } from "../events.js";
 import { markBoosted } from "../queued.js";
 import { getVenueQueue, queueEntries } from "../venueQueue.js";
 import { castVotes } from "../votes.js";
@@ -58,6 +59,7 @@ export async function boost(req: Request, res: Response) {
             return Date.now();
         });
 
+        events.emit("venueChanged", venueName);
         res.json({ ...votes, boostedAt });
     } catch (error) {
         console.error(`Error boosting pick ${pickId} at ${venueName}:`, error);

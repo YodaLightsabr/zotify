@@ -4,16 +4,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { QueueGroup, QueueRow } from "@/components/home/SongParts";
 import { Loading, Message, SongResults } from "@/components/home/Results";
-import type { OpenVote, QueueEntry, Song, VenueQueue } from "@/components/home/types";
+import type { OpenVote, QueueEntry, Song } from "@/components/home/types";
 import VoteDialog from "@/components/home/VoteDialog";
 import { FailuresButton, FailuresDialog, WaitingRow, type ZotifyQueue } from "@/components/home/ZotifyQueue";
-import { fetchOrThrow, getJson, goToLogin, postJson, type Venue } from "@/lib/api";
+import { fetchOrThrow, goToLogin, postJson, type Venue } from "@/lib/api";
 import { cx, VENUE_LABELS, VENUES } from "@/lib/format";
+import { useLiveVenue, useLiveZotifyQueue, type LiveVenue } from "@/lib/live";
 import { useHomeReset } from "@/lib/navigation";
 import { useUser } from "@/lib/user";
 import "./home.css";
-
-const QUEUE_REFRESH_MS = 20_000;
 
 const SPOTIFY_PLAYLIST_LINK = /open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?playlist\/[A-Za-z0-9]{22}|spotify:playlist:[A-Za-z0-9]{22}/i;
 
@@ -44,9 +43,11 @@ function Home() {
     const queryInput = useRef<HTMLInputElement>(null);
     const isHome = output === null;
 
-    const queue = useVenueQueue(venue, isHome, !!user);
+    // Live while the homepage shows the queue; the server pushes every change
+    const live = useLiveVenue(venue, isHome);
+    const zotify = useLiveZotifyQueue(venue);
     const [showFailures, setShowFailures] = useState(false);
-    const failures = queue.state.kind === "loaded" ? queue.state.zotify?.failures ?? [] : [];
+    const failures = zotify?.failures ?? [];
 
     // Searching and voting need an approved account. Signed-out people sign in; signed-in people who aren't approved see the private beta screen
     const needsAccount = (next?: string) => {
@@ -100,8 +101,7 @@ function Home() {
         setSearching(false);
         setQuery("");
         queryInput.current?.focus();
-        if (isHome) queue.reload();
-        else setOutput(null);
+        setOutput(null);
     }
 
     useHomeReset(goHome);
@@ -173,7 +173,7 @@ function Home() {
                         {failures.length > 0 && <FailuresButton count={failures.length} onClick={() => setShowFailures(true)} />}
                     </div>
                     <div id="recent-list" aria-live="polite">
-                        {isHome && <QueueView state={queue.state} venue={venue} onVote={openVote} />}
+                        {isHome && <QueueView live={live} zotify={zotify} venue={venue} onVote={openVote} />}
                     </div>
                 </section>
 
@@ -184,7 +184,8 @@ function Home() {
 
             <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)}
                 // Show the new counts on the Up next screen
-                onVoted={() => { if (isHome) queue.reload({ quiet: true }); }} />
+                // The server sends the new counts to everyone watching
+                onVoted={() => {}} />
 
             <FailuresDialog failures={failures} venue={venue} open={showFailures} onClose={() => setShowFailures(false)} />
 
@@ -202,64 +203,14 @@ function OutputView({ output, onVote }: { output: Output, onVote: OpenVote }) {
     return <SongResults songs={output.songs} venue={output.venue} onVote={onVote} />;
 }
 
-// zotify is Zotify's own queue, only for signed-in people, and null if it couldn't be loaded
-type QueueState = { kind: "loading" } | { kind: "error", text: string } | { kind: "loaded", queue: VenueQueue, zotify: ZotifyQueue | null };
+/** The venue's queue, with Zotify's own between On deck and Coming up for members */
+function QueueView({ live, zotify, venue, onVote }: { live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, onVote: OpenVote }) {
+    if (!live) return <Loading />;
+    if (!live.queue) return <Message text={live.error ?? "Could not load the queue."} />;
 
-/** Zotify's own queue, for signed-in people. A failure here shouldn't hide the venue's queue */
-async function fetchZotifyQueue(venue: Venue) {
-    const { response, data } = await getJson<ZotifyQueue>("/api/zotify-queue", { venue }).catch(() => ({ response: null, data: null }));
-    return response?.ok ? data : null;
-}
-
-/**
- * The venue's queue, plus Zotify's own for signed-in people: loaded when the venue changes or the homepage shows again,
- * and refreshed every 20 seconds while visible
- */
-function useVenueQueue(venue: Venue, active: boolean, signedIn: boolean) {
-    const [state, setState] = useState<QueueState>({ kind: "loading" });
-    const loadId = useRef(0);
-
-    const reload = useCallback(async ({ quiet = false } = {}) => {
-        const id = ++loadId.current;
-        if (!quiet) setState({ kind: "loading" });
-
-        try {
-            const [queue, zotify] = await Promise.all([
-                fetchOrThrow<VenueQueue>("/api/venue-queue", { venue }, "Could not load the queue"),
-                signedIn ? fetchZotifyQueue(venue) : null
-            ]);
-            // Ignore stale responses if the venue changed or another load started
-            if (id === loadId.current) setState({ kind: "loaded", queue, zotify });
-        } catch (error) {
-            // Keep showing the last queue if a background refresh fails
-            if (id === loadId.current && !quiet) setState({ kind: "error", text: (error as Error).message || "Could not load the queue" });
-        }
-    }, [venue, signedIn]);
-
-    useEffect(() => {
-        if (!active) return;
-        reload();
-
-        const refresh = () => { if (!document.hidden) reload({ quiet: true }); };
-        const timer = setInterval(refresh, QUEUE_REFRESH_MS);
-        document.addEventListener("visibilitychange", refresh);
-
-        return () => {
-            clearInterval(timer);
-            document.removeEventListener("visibilitychange", refresh);
-        };
-    }, [active, reload]);
-
-    return { state, reload };
-}
-
-function QueueView({ state, venue, onVote }: { state: QueueState, venue: Venue, onVote: OpenVote }) {
-    if (state.kind === "loading") return <Loading />;
-    if (state.kind === "error") return <Message text={state.text} />;
-
-    const { nowPlaying, onDeck, comingUp } = state.queue;
+    const { nowPlaying, onDeck, comingUp } = live.queue;
     // Songs waiting in Zotify's queue for room in the venue's
-    const waiting = state.zotify?.waiting ?? [];
+    const waiting = zotify?.waiting ?? [];
     if (!nowPlaying && !onDeck.length && !comingUp.length && !waiting.length) return <Message text={`Nothing is playing at ${VENUE_LABELS[venue]} right now.`} />;
 
     const key = (entry: QueueEntry, i: number) => entry.pickId ?? `${entry.id}-${i}`;

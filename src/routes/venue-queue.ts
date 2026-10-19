@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
-import type { QueueEntry } from "../client.js";
 import { getRecentlyQueued } from "../queued.js";
-import { getVenueQueue, isFromZotify, queueEntries } from "../venueQueue.js";
+import { describeVenueQueue, getVenueQueue, isFromZotify, queueEntries } from "../venueQueue.js";
 import { refreshVotes } from "../votes.js";
 import { parseVenue, queryParam } from "./params.js";
 
+/** A venue's queue over HTTP. Pages get it live over the socket instead (see live.ts); this shares the same Rockbot fetch */
 export async function venueQueue(req: Request, res: Response) {
     const venueName = parseVenue(queryParam(req, "venue"));
 
@@ -16,25 +16,11 @@ export async function venueQueue(req: Request, res: Response) {
     try {
         const { queue: queuePromise, fetchedAt } = getVenueQueue(venueName);
         const [queue, queued] = await Promise.all([queuePromise, getRecentlyQueued(venueName)]);
-        const mark = (entry: QueueEntry) => ({ ...entry, zotify: isFromZotify(entry, queued) });
 
         // Top up votes on Zotify's picks in the background so the response isn't held up
         refreshVotes(venueName, queueEntries(queue).filter(entry => isFromZotify(entry, queued)));
 
-        // Account for time passed since the shared fetch
-        const elapsed = Math.floor((Date.now() - fetchedAt) / 1000);
-        const nowPlaying = queue.nowPlaying && {
-            ...mark(queue.nowPlaying),
-            secondsRemaining: queue.nowPlaying.secondsRemaining !== undefined
-                ? Math.max(0, queue.nowPlaying.secondsRemaining - elapsed)
-                : undefined
-        };
-
-        res.json({
-            nowPlaying,
-            onDeck: queue.onDeck.map(mark),
-            comingUp: queue.comingUp.map(mark)
-        });
+        res.json(await describeVenueQueue(venueName, queue, fetchedAt));
     } catch (error) {
         console.error(`Error loading the queue at ${venueName}:`, error);
         res.status(502).json({ error: "Could not load the queue. Please try again." });

@@ -1,3 +1,4 @@
+import { events } from "../events.js";
 import { markBoosted } from "../queued.js";
 import { getVenueQueue, queueEntries } from "../venueQueue.js";
 import { castVotes } from "../votes.js";
@@ -47,6 +48,7 @@ export async function boost(req, res) {
             console.error(`Could not record boost for "${entry.name}":`, error);
             return Date.now();
         });
+        events.emit("venueChanged", venueName);
         res.json({ ...votes, boostedAt });
     }
     catch (error) {

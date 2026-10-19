@@ -20,8 +20,8 @@ The API and the frontend run separately and talk over CORS, with the session coo
 
 | | Development | Production |
 | --- | --- | --- |
-| API (`src/`) | http://localhost:3001 | https://api.zotify.dev |
-| Frontend (`web/`) | http://localhost:3000 | https://zotify.dev |
+| API (`src/`) | http://localhost:3001 | https://api.zotify.app |
+| Frontend (`web/`) | http://localhost:3000 | https://zotify.app |
 
 The API always listens on port 3001 and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. The API only accepts requests from the frontend's URL. Magic links and invite links in emails point at the frontend.
 

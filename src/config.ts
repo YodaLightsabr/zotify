@@ -3,5 +3,5 @@
 const production = process.env.NODE_ENV === "production";
 
 export const API_PORT = 3001;
-export const FRONTEND_URL = production ? "https://zotify.dev" : "http://localhost:3000";
-export const API_URL = production ? "https://api.zotify.dev" : "http://localhost:3001";
+export const FRONTEND_URL = production ? "https://zotify.app" : "http://localhost:3000";
+export const API_URL = production ? "https://api.zotify.app" : "http://localhost:3001";

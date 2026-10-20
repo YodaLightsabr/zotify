@@ -1,0 +1,45 @@
+/* The bottom tab bar on phones (components/TabBar.tsx) */
+
+.tab-bar { display: none; }
+
+@media (max-width: 640px) {
+    :root {
+        /* How much the tab bar covers, so fixed things like the homepage's welcome note can sit above it */
+        --tab-bar-height: calc(56px + env(safe-area-inset-bottom));
+    }
+
+    /* Room at the bottom of every page so nothing ends up under the bar */
+    body { padding-bottom: var(--tab-bar-height); }
+
+    .tab-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        display: flex;
+        /* Clear of the home indicator on iPhones */
+        padding-bottom: env(safe-area-inset-bottom);
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+    }
+
+    .tab {
+        flex: 1;
+        height: 56px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab.current { color: var(--accent); }
+
+    .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 10px; }
+}

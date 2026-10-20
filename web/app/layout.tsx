@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Navbar from "@/components/Navbar";
 import NowPlayingBar from "@/components/NowPlayingBar";
 import ServiceWorker from "@/components/ServiceWorker";
+import TabBar from "@/components/TabBar";
 import { LiveProvider } from "@/lib/live";
 import { NavigationProvider } from "@/lib/navigation";
 import { UserProvider } from "@/lib/user";
@@ -15,7 +16,8 @@ export const metadata: Metadata = {
     appleWebApp: { capable: true, title: "Zotify", statusBarStyle: "black" }
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#002244" };
+// viewportFit lets the tab bar reach the bottom edge of iPhones, padded clear of the home indicator
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#002244", viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -37,6 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             {children}
                             {/* Everywhere but the homepage, which shows the queue itself */}
                             <NowPlayingBar />
+                            {/* Phones only: navigation along the bottom */}
+                            <TabBar />
                         </NavigationProvider>
                     </LiveProvider>
                 </UserProvider>

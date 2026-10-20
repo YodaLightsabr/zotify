@@ -34,6 +34,9 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    /* The page reaches the screen edges on iPhones (viewportFit in layout.tsx), so keep clear of the notch in landscape */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 .logo {

@@ -11,7 +11,7 @@ import "./navbar.css";
 
 /**
  * The bar across the top of every page, rendered once by the root layout: the logo, then who's signed in and where they can go.
- * It stays mounted between pages, so the account links never reload or flash
+ * It stays mounted between pages, so the account links never reload or flash. On phones the links move to the bottom TabBar
  */
 export default function Navbar() {
     const { user, signOut } = useUser();
@@ -36,7 +36,7 @@ export default function Navbar() {
                     <a className="account-link" href="/login" onClick={event => { event.preventDefault(); goToLogin(); }}>Sign in</a>
                 )}
                 {user && <>
-                    <span className="account-email" title={user.email}>{shortEmail(user.email)}</span>
+                    <Link className="account-email" href="/account" title={`${user.email} · Account`}>{shortEmail(user.email)}</Link>
                     {user.approved && link("/my-picks", "My picks")}
                     {user.admin && link("/admin", "Admin")}
                     {!user.approved && link("/beta", "Join")}

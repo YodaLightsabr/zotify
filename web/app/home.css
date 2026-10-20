@@ -12,7 +12,8 @@
     .welcome-note {
         position: fixed;
         left: 50%;
-        bottom: 24px;
+        /* Above the tab bar on phones */
+        bottom: calc(24px + var(--tab-bar-height, 0px));
         transform: translateX(-50%);
         padding: 12px 20px;
         border-radius: 999px;

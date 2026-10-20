@@ -1,0 +1,62 @@
+/* The account page */
+
+/* Scoped to this page, since Next.js keeps global CSS loaded across navigation */
+.page-account {
+    display: contents;
+
+    main {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 0 24px 24px;
+    }
+
+    h1 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 0 0 20px;
+    }
+
+    .panel {
+        padding: 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .field-label {
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .field-value { margin-top: 2px; font-weight: 600; overflow-wrap: anywhere; }
+    .field-value .muted { color: var(--muted); font-weight: 400; }
+
+    .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+
+    .button {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: none;
+        color: var(--text);
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .button:hover { border-color: var(--accent); }
+    .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .button.sign-out { color: var(--error); border-color: var(--error); }
+}

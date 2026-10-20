@@ -20,6 +20,7 @@ header {
 
 .account-email {
     color: var(--muted);
+    text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -38,3 +39,10 @@ header {
 }
 
 .account-link:hover { border-color: var(--accent); }
+
+.account-email:hover { color: var(--text); }
+
+/* Phones get the bottom tab bar instead, so the navbar keeps just the logo */
+@media (max-width: 640px) {
+    .account { display: none; }
+}

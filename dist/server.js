@@ -15,7 +15,7 @@ import { status } from "./routes/status.js";
 import { venueQueue } from "./routes/venue-queue.js";
 import { vote } from "./routes/vote.js";
 import { voteCapacity } from "./routes/vote-capacity.js";
-import { removeFromZotifyQueue, reorderZotifyQueue, zotifyQueue } from "./routes/zotify-queue.js";
+import { clearZotifyQueue, removeFromZotifyQueue, reorderZotifyQueue, zotifyQueue } from "./routes/zotify-queue.js";
 import { startLive } from "./live.js";
 const app = express();
 // Behind Cloudflare Tunnel, cloudflared connects from this machine and says the visitor used HTTPS.
@@ -70,6 +70,7 @@ app.get("/api/admin/history", requireAdmin, adminHistory);
 app.get("/api/admin/downvote", requireAdmin, downvoteCheck);
 app.post("/api/admin/downvote", requireAdmin, downvote);
 app.post("/api/admin/zotify-queue/reorder", requireAdmin, reorderZotifyQueue);
+app.post("/api/admin/zotify-queue/clear", requireAdmin, clearZotifyQueue);
 app.get("/api/admin/beta", requireAdmin, overviewRoute);
 app.post("/api/admin/requests/decide", requireAdmin, decideRequestRoute);
 app.post("/api/admin/invites", requireAdmin, inviteRoute);

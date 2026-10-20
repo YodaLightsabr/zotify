@@ -7,7 +7,7 @@ import { Loading, Message, SongResults } from "@/components/home/Results";
 import type { OpenVote, QueueEntry, Song } from "@/components/home/types";
 import QueueSkeleton from "@/components/home/QueueSkeleton";
 import VoteDialog from "@/components/home/VoteDialog";
-import { FailuresButton, FailuresDialog, WaitingList, type ZotifyQueue } from "@/components/home/ZotifyQueue";
+import { ClearButton, FailuresButton, FailuresDialog, WaitingList, type ZotifyQueue } from "@/components/home/ZotifyQueue";
 import { fetchOrThrow, goToLogin, postJson, type Venue } from "@/lib/api";
 import { cx, VENUE_LABELS, VENUES } from "@/lib/format";
 import { useLiveVenue, useLiveZotifyQueue, type LiveVenue } from "@/lib/live";
@@ -220,7 +220,7 @@ function QueueView({ live, zotify, venue, admin, onVote }: { live: LiveVenue | u
     return <>
         {nowPlaying && <QueueGroup title="Now playing"><ul className="results"><QueueRow entry={nowPlaying} venue={venue} onVote={onVote} nowPlaying /></ul></QueueGroup>}
         {onDeck.length > 0 && <QueueGroup title="On deck"><ul className="results">{onDeck.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
-        {waiting.length > 0 && <QueueGroup title="Zotify queue"><WaitingList waiting={waiting} venue={venue} admin={admin} /></QueueGroup>}
+        {waiting.length > 0 && <QueueGroup title="Zotify queue" action={admin && <ClearButton venue={venue} count={waiting.length} />}><WaitingList waiting={waiting} venue={venue} admin={admin} /></QueueGroup>}
         {comingUp.length > 0 && <QueueGroup title="Coming up"><ul className="results">{comingUp.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
     </>;
 }

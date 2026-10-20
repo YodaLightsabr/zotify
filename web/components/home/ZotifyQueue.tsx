@@ -108,6 +108,28 @@ const ICONS = {
     remove: icon(<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>)
 };
 
+/** Admins only: empties Zotify's queue at the venue, after asking */
+export function ClearButton({ venue, count }: { venue: Venue, count: number }) {
+    const [clearing, setClearing] = useState(false);
+
+    async function clear() {
+        if (!confirm(`Take all ${plural(count, "song")} out of Zotify's queue at ${VENUE_LABELS[venue]}? This can't be undone.`)) return;
+        setClearing(true);
+
+        try {
+            // The server sends the emptied queue to everyone
+            const { response, data } = await postJson("/api/admin/zotify-queue/clear", { venue });
+            if (!response.ok) throw new Error(data?.error ?? `Couldn't clear the queue (${response.status})`);
+        } catch (error) {
+            alert((error as Error).message);
+        } finally {
+            setClearing(false);
+        }
+    }
+
+    return <button type="button" className="clear-queue" disabled={clearing} onClick={clear}>{clearing ? "Clearing…" : "Clear"}</button>;
+}
+
 /** The little warning by the "Up next" heading when songs couldn't be queued */
 export function FailuresButton({ count, onClick }: { count: number, onClick: () => void }) {
     const label = `${plural(count, "song")} couldn't be queued`;

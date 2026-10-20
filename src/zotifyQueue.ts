@@ -61,6 +61,7 @@ const selectWaiting = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND
 const selectRow = db.prepare("SELECT * FROM zotify_queue WHERE id = ?");
 const setPosition = db.prepare("UPDATE zotify_queue SET position = ? WHERE id = ?");
 const markRemoved = db.prepare("UPDATE zotify_queue SET status = 'removed' WHERE id = ? AND status = 'waiting'");
+const markAllRemoved = db.prepare("UPDATE zotify_queue SET status = 'removed' WHERE venue = ? AND status = 'waiting'");
 const selectWaitingSong = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' AND song_id = ?");
 const selectRecentReleases = db.prepare("SELECT pick_id FROM zotify_queue WHERE venue = ? AND status = 'released' AND released_at > ?");
 const selectFailures = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'failed' AND failed_at > ? ORDER BY failed_at DESC");
@@ -123,6 +124,13 @@ export function remove(id: number, email: string, admin: boolean) {
     markRemoved.run(id);
     events.emit("zotifyQueueChanged", row.venue);
     return row.venue;
+}
+
+/** Admins only: takes every waiting song out of the venue's queue. Returns how many there were */
+export function clear(venue: VenueName) {
+    const { changes } = markAllRemoved.run(venue);
+    if (changes) events.emit("zotifyQueueChanged", venue);
+    return Number(changes);
 }
 
 /**

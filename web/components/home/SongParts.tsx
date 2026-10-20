@@ -96,6 +96,12 @@ function Progress({ duration, secondsRemaining }: { duration: number, secondsRem
     );
 }
 
-export function QueueGroup({ title, children }: { title: string, children: React.ReactNode }) {
-    return <div className="queue-group"><h3>{title}</h3>{children}</div>;
+/** A titled section of the queue. action goes beside the title, e.g. the Zotify queue's Clear button */
+export function QueueGroup({ title, action, children }: { title: string, action?: React.ReactNode, children: React.ReactNode }) {
+    return (
+        <div className="queue-group">
+            {action ? <div className="queue-group-heading"><h3>{title}</h3>{action}</div> : <h3>{title}</h3>}
+            {children}
+        </div>
+    );
 }

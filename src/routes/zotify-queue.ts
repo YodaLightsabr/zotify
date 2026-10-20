@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { isAdmin } from "../auth.js";
-import { describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
+import { clear, describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
 import { parseVenue, queryParam } from "./params.js";
 
 /**
@@ -63,4 +63,18 @@ export function removeFromZotifyQueue(req: Request, res: Response) {
     } catch (error) {
         sendQueueError(res, error, `Error removing song ${id} from Zotify's queue:`);
     }
+}
+
+/** Admin only. Body: { venue }. Takes every waiting song out of Zotify's queue there */
+export function clearZotifyQueue(req: Request, res: Response) {
+    const venueName = parseVenue(req.body?.venue);
+
+    if (!venueName) {
+        res.status(400).json({ error: "Missing venue" });
+        return;
+    }
+
+    const removed = clear(venueName);
+    console.log(`${res.locals.session.email} cleared Zotify's queue at ${venueName} (${removed} songs)`);
+    res.json({ removed });
 }

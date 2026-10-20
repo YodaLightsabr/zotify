@@ -146,6 +146,31 @@
 
     .queue-group .results { margin-top: 0; }
 
+    .queue-group-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .queue-group-heading h3 { margin: 0; }
+
+    /* Admins only: empties the Zotify queue */
+    .clear-queue {
+        padding: 3px 12px;
+        border: 1px solid var(--error);
+        border-radius: 999px;
+        background: none;
+        color: var(--error);
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .clear-queue:hover:not(:disabled) { background: rgba(247, 141, 45, 0.12); }
+    .clear-queue:disabled { opacity: 0.5; cursor: default; }
+
     .song.zotify { border-color: var(--accent); }
 
     .now-playing { flex-wrap: wrap; }
@@ -404,6 +429,9 @@
 
     /* The vote counter (VoteCounter.tsx): arrows above and below the number */
     .vote-counter {
+        /* Clicking the arrows quickly shouldn't highlight the number */
+        user-select: none;
+        -webkit-user-select: none;
         flex-shrink: 0;
         display: flex;
         flex-direction: column;

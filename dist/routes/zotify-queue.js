@@ -1,5 +1,5 @@
 import { isAdmin } from "../auth.js";
-import { describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
+import { clear, describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
 import { parseVenue, queryParam } from "./params.js";
 /**
  * ?venue=. Zotify's queue at a venue for signed-in people: songs waiting for room in Rockbot's queue, front first,
@@ -52,5 +52,16 @@ export function removeFromZotifyQueue(req, res) {
     catch (error) {
         sendQueueError(res, error, `Error removing song ${id} from Zotify's queue:`);
     }
+}
+/** Admin only. Body: { venue }. Takes every waiting song out of Zotify's queue there */
+export function clearZotifyQueue(req, res) {
+    const venueName = parseVenue(req.body?.venue);
+    if (!venueName) {
+        res.status(400).json({ error: "Missing venue" });
+        return;
+    }
+    const removed = clear(venueName);
+    console.log(`${res.locals.session.email} cleared Zotify's queue at ${venueName} (${removed} songs)`);
+    res.json({ removed });
 }
 //# sourceMappingURL=zotify-queue.js.map

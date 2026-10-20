@@ -20,6 +20,16 @@ interface SearchResult {
     requestable: boolean;
 }
 
+// Searches used to be cached with every song unrequestable when Rockbot left out the "unavailable" heading, which it does
+// when everything can be requested. Drop cached searches where nothing was requestable, once, so they're fetched again
+if (!db.prepare("SELECT 1 FROM meta WHERE key = 'droppedUnrequestableSearches'").get()) {
+    transaction(() => {
+        const { changes } = db.prepare(`DELETE FROM searches WHERE results NOT LIKE '%"requestable":true%'`).run();
+        db.prepare("INSERT INTO meta (key, value) VALUES ('droppedUnrequestableSearches', ?)").run(JSON.stringify({ at: Date.now(), dropped: changes }));
+        if (changes) console.log(`Dropped ${changes} cached searches where nothing was requestable, so they're searched again`);
+    });
+}
+
 export function normalizeQuery(query: string) {
     return query.trim().toLowerCase().replace(/\s+/g, " ");
 }

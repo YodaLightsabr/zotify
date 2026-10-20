@@ -200,8 +200,9 @@ export class Venue {
         assertScreen(response, `search for "${query}"`);
 
         const blocks = filterLeafBlocks(response, (block) => block.action?.path === "/v4/dj/song/details");
+        // Songs after this heading can't be requested here. When every result can be, Rockbot leaves the heading out
         const delimiterIndex = findLeafBlock(response, (block) => block.txt1?.text === "UNAVAILABLE AT THIS VENUE")?.getIndex?.();
-        const songs = blocks.map((block) => Song.fromSearchBlock(this.client, block, delimiterIndex!));
+        const songs = blocks.map((block) => Song.fromSearchBlock(this.client, block, delimiterIndex));
 
         return songs;
     }
@@ -355,7 +356,8 @@ export class Song {
         this.requestable = requestable;
     }
 
-    static fromSearchBlock(client: RockbotClient, block: Block, delimiterIndex: number): Song {
+    /** delimiterIndex is where the "UNAVAILABLE AT THIS VENUE" heading is; undefined when there isn't one, so everything is requestable */
+    static fromSearchBlock(client: RockbotClient, block: Block, delimiterIndex: number | undefined): Song {
         // Search results carry album art when Rockbot has it, otherwise the artist's photo; url_fix.key says which
         const { albumId, artistId } = imageIds(block.img1, block.img2);
 
@@ -363,7 +365,7 @@ export class Song {
             name: block.txt1.text,
             artist: block.txt2.text,
             album: albumId ? new Album(client, albumId) : undefined,
-            requestable: block.getIndex() < delimiterIndex
+            requestable: delimiterIndex === undefined || block.getIndex() < delimiterIndex
         });
 
         if (artistId) song.artistObject = new Artist(client, artistId);

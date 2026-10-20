@@ -23,13 +23,19 @@ export async function downvoteCheck(req: Request, res: Response) {
 }
 
 /**
- * Admin only. Body: { pickId, venue, overrideReason? }. Downvotes a pick if every rule allows it; 409 with the reason if not.
- * overrideReason gets past karma protection only, and is recorded
+ * Admin only. Body: { pickId, venue, count?, overrideReason? }. Downvotes a pick from count accounts (1 to ZOTIFY_DOWNVOTES, all of
+ * them by default) if every rule allows it; 409 with the reason if not. overrideReason gets past karma protection only, and is recorded
  */
 export async function downvote(req: Request, res: Response) {
     const pickId = typeof req.body?.pickId === "string" || typeof req.body?.pickId === "number" ? String(req.body.pickId) : "";
     const venueName = parseVenue(req.body?.venue);
     const overrideReason = typeof req.body?.overrideReason === "string" ? req.body.overrideReason.trim() : undefined;
+    const count = req.body?.count ?? ZOTIFY_DOWNVOTES;
+
+    if (!Number.isInteger(count) || count < 1 || count > ZOTIFY_DOWNVOTES) {
+        res.status(400).json({ error: `Downvote with 1 to ${ZOTIFY_DOWNVOTES} accounts.` });
+        return;
+    }
 
     if (!pickId || !venueName) {
         res.status(400).json({ error: "Missing pick ID or venue" });
@@ -42,7 +48,7 @@ export async function downvote(req: Request, res: Response) {
     }
 
     try {
-        const result = await downvotePick(venueName, pickId, res.locals.session.email, overrideReason);
+        const result = await downvotePick(venueName, pickId, res.locals.session.email, overrideReason, count);
         events.emit("venueChanged", venueName);
         res.json(result);
     } catch (error) {

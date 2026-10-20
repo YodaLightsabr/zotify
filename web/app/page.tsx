@@ -7,7 +7,7 @@ import { Loading, Message, SongResults } from "@/components/home/Results";
 import type { OpenVote, QueueEntry, Song } from "@/components/home/types";
 import QueueSkeleton from "@/components/home/QueueSkeleton";
 import VoteDialog from "@/components/home/VoteDialog";
-import { FailuresButton, FailuresDialog, WaitingRow, type ZotifyQueue } from "@/components/home/ZotifyQueue";
+import { FailuresButton, FailuresDialog, WaitingList, type ZotifyQueue } from "@/components/home/ZotifyQueue";
 import { fetchOrThrow, goToLogin, postJson, type Venue } from "@/lib/api";
 import { cx, VENUE_LABELS, VENUES } from "@/lib/format";
 import { useLiveVenue, useLiveZotifyQueue, type LiveVenue } from "@/lib/live";
@@ -174,7 +174,7 @@ function Home() {
                         {failures.length > 0 && <FailuresButton count={failures.length} onClick={() => setShowFailures(true)} />}
                     </div>
                     <div id="recent-list" aria-live="polite">
-                        {isHome && <QueueView live={live} zotify={zotify} venue={venue} onVote={openVote} />}
+                        {isHome && <QueueView live={live} zotify={zotify} venue={venue} admin={!!user?.admin} onVote={openVote} />}
                     </div>
                 </section>
 
@@ -186,7 +186,8 @@ function Home() {
             <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)}
                 // Show the new counts on the Up next screen
                 // The server sends the new counts to everyone watching
-                onVoted={() => {}} />
+                onVoted={() => {}}
+                onArtist={artist => { setQuery(artist); search(artist, venue); }} />
 
             <FailuresDialog failures={failures} venue={venue} open={showFailures} onClose={() => setShowFailures(false)} />
 
@@ -205,7 +206,7 @@ function OutputView({ output, onVote }: { output: Output, onVote: OpenVote }) {
 }
 
 /** The venue's queue, with Zotify's own between On deck and Coming up for members */
-function QueueView({ live, zotify, venue, onVote }: { live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, onVote: OpenVote }) {
+function QueueView({ live, zotify, venue, admin, onVote }: { live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, admin: boolean, onVote: OpenVote }) {
     if (!live) return <QueueSkeleton />;
     if (!live.queue) return <Message text={live.error ?? "Could not load the queue."} />;
 
@@ -219,7 +220,7 @@ function QueueView({ live, zotify, venue, onVote }: { live: LiveVenue | undefine
     return <>
         {nowPlaying && <QueueGroup title="Now playing"><ul className="results"><QueueRow entry={nowPlaying} venue={venue} onVote={onVote} nowPlaying /></ul></QueueGroup>}
         {onDeck.length > 0 && <QueueGroup title="On deck"><ul className="results">{onDeck.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
-        {waiting.length > 0 && <QueueGroup title="Zotify queue"><ul className="results">{waiting.map(song => <WaitingRow key={song.id} song={song} />)}</ul></QueueGroup>}
+        {waiting.length > 0 && <QueueGroup title="Zotify queue"><WaitingList waiting={waiting} venue={venue} admin={admin} /></QueueGroup>}
         {comingUp.length > 0 && <QueueGroup title="Coming up"><ul className="results">{comingUp.map((entry, i) => <QueueRow key={key(entry, i)} entry={entry} venue={venue} onVote={onVote} />)}</ul></QueueGroup>}
     </>;
 }

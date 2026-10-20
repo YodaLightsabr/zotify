@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { Venue } from "@/lib/api";
-import { plural, VENUE_LABELS } from "@/lib/format";
+import { useEffect, useRef, useState } from "react";
+import { postJson, type Venue } from "@/lib/api";
+import { cx, plural, VENUE_LABELS } from "@/lib/format";
 import { SongBackdrop, SongCover } from "./SongParts";
 
 export interface ZotifyQueueSong {
@@ -32,22 +32,81 @@ export interface ZotifyQueue {
 
 const time = (timestamp: number) => new Date(timestamp).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
-/** A song waiting in Zotify's queue. It isn't in the venue's queue yet, so there's nothing to vote on */
-export function WaitingRow({ song }: { song: ZotifyQueueSong }) {
-    return (
-        <li className="song zotify">
-            <SongCover song={{ cover: song.cover }} />
-            <SongBackdrop song={{ cover: song.cover }} />
-            <div className="meta">
-                <div className="title-row">
-                    <div className="name">{song.name}</div>
-                    {song.mine && <span className="badge" title={`You queued this at ${time(song.requestedAt)}`}>Yours</span>}
-                </div>
-                <div className="artist">{song.artist}</div>
-            </div>
-        </li>
-    );
+/**
+ * Songs waiting in Zotify's queue, front first. They aren't in the venue's queue yet, so there's nothing to vote on.
+ * Admins can move songs up and down and remove any of them; everyone can remove their own
+ */
+export function WaitingList({ waiting, venue, admin }: { waiting: ZotifyQueueSong[], venue: Venue, admin: boolean }) {
+    const [busy, setBusy] = useState<number | null>(null);
+    const [error, setError] = useState("");
+
+    // The server sends the updated queue to everyone once it's changed
+    async function act(id: number, request: () => Promise<{ response: Response, data: any }>) {
+        setBusy(id);
+        setError("");
+
+        try {
+            const { response, data } = await request();
+            if (!response.ok) throw new Error(data?.error ?? `That didn't work (${response.status})`);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    const move = (index: number, by: number) => {
+        const ids = waiting.map(song => song.id);
+        [ids[index], ids[index + by]] = [ids[index + by], ids[index]];
+        act(waiting[index].id, () => postJson("/api/admin/zotify-queue/reorder", { venue, ids }));
+    };
+
+    const remove = (song: ZotifyQueueSong) => {
+        if (!confirm(`Take "${song.name}" out of the queue?`)) return;
+        act(song.id, () => postJson("/api/zotify-queue/remove", { id: song.id }));
+    };
+
+    return <>
+        <ul className="results">
+            {waiting.map((song, i) => (
+                <li className={cx("song zotify", busy === song.id && "busy-row")} key={song.id}>
+                    <SongCover song={{ cover: song.cover }} />
+                    <SongBackdrop song={{ cover: song.cover }} />
+                    <div className="meta">
+                        <div className="title-row">
+                            <div className="name">{song.name}</div>
+                            {song.mine && <span className="badge" title={`You queued this at ${time(song.requestedAt)}`}>Yours</span>}
+                        </div>
+                        <div className="artist">{song.artist}</div>
+                    </div>
+                    <div className="waiting-actions">
+                        {admin && <>
+                            <button type="button" className="row-icon" title="Move up" aria-label={`Move ${song.name} up`}
+                                disabled={i === 0 || busy !== null} onClick={() => move(i, -1)}>{ICONS.up}</button>
+                            <button type="button" className="row-icon" title="Move down" aria-label={`Move ${song.name} down`}
+                                disabled={i === waiting.length - 1 || busy !== null} onClick={() => move(i, 1)}>{ICONS.down}</button>
+                        </>}
+                        {(admin || song.mine) && (
+                            <button type="button" className="row-icon remove" title="Remove from the queue" aria-label={`Remove ${song.name} from the queue`}
+                                disabled={busy !== null} onClick={() => remove(song)}>{ICONS.remove}</button>
+                        )}
+                    </div>
+                </li>
+            ))}
+        </ul>
+        {error && <p className="message error-text" role="alert">{error}</p>}
+    </>;
 }
+
+const icon = (path: React.ReactNode) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{path}</svg>
+);
+
+const ICONS = {
+    up: icon(<path d="m6 15 6-6 6 6" />),
+    down: icon(<path d="m6 9 6 6 6-6" />),
+    remove: icon(<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>)
+};
 
 /** The little warning by the "Up next" heading when songs couldn't be queued */
 export function FailuresButton({ count, onClick }: { count: number, onClick: () => void }) {

@@ -82,7 +82,8 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
 
     -- Zotify's own first-in, first-out queue at each venue. Songs wait here until there's room for them in Rockbot's queue.
-    -- status: waiting, released (requested on Rockbot as pick_id) or failed (after its retries, with last_error)
+    -- status: waiting, released (requested or boosted on Rockbot as pick_id), failed (after its retries, with last_error)
+    -- or removed. position orders the waiting songs, so admins can rearrange them
     CREATE TABLE IF NOT EXISTS zotify_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         venue TEXT NOT NULL,
@@ -98,11 +99,17 @@ db.exec(`
         next_attempt_at INTEGER,
         pick_id TEXT,
         released_at INTEGER,
-        failed_at INTEGER
+        failed_at INTEGER,
+        position REAL
     );
 
     CREATE INDEX IF NOT EXISTS zotify_queue_status ON zotify_queue (venue, status, id);
 `);
+
+// Databases from before the Zotify queue could be rearranged don't have its position column. Songs keep the order they were added in
+if (!(db.prepare("PRAGMA table_info(zotify_queue)").all() as { name: string }[]).some(column => column.name === "position")) {
+    db.exec("ALTER TABLE zotify_queue ADD COLUMN position REAL; UPDATE zotify_queue SET position = id;");
+}
 
 /** Runs fn in a transaction: all of it lands, or none of it does */
 export function transaction<T>(fn: () => T): T {

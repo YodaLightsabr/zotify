@@ -104,10 +104,10 @@ export async function checkDownvote(venue: VenueName, pickId: string): Promise<D
 }
 
 /**
- * Downvotes a pick from ZOTIFY_DOWNVOTES accounts, once, if every rule allows it. An admin can get past karma protection
- * (and only that) by giving a reason, which is recorded. Throws DownvoteRefusedError otherwise
+ * Downvotes a pick from up to ZOTIFY_DOWNVOTES accounts (count of them), once, if every rule allows it. An admin can get past
+ * karma protection (and only that) by giving a reason, which is recorded. Throws DownvoteRefusedError otherwise
  */
-export async function downvotePick(venue: VenueName, pickId: string, adminEmail: string, overrideReason?: string): Promise<VoteResult> {
+export async function downvotePick(venue: VenueName, pickId: string, adminEmail: string, overrideReason?: string, count = ZOTIFY_DOWNVOTES): Promise<VoteResult> {
     const check = await checkDownvote(venue, pickId);
     const overriding = !check.allowed && check.overridable && !!overrideReason;
 
@@ -117,7 +117,7 @@ export async function downvotePick(venue: VenueName, pickId: string, adminEmail:
     inProgress.add(key);
 
     try {
-        const result = await castVotes(venue, pickId, check.entry, ZOTIFY_DOWNVOTES, "down");
+        const result = await castVotes(venue, pickId, check.entry, Math.min(Math.max(1, count), ZOTIFY_DOWNVOTES), "down");
 
         // Record it unless nothing at all went through, in which case it can be tried again
         if (result.confirmed !== 0 || !result.requested) {

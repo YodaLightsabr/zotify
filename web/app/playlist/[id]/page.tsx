@@ -161,7 +161,8 @@ function PlaylistView() {
                     onVote={(song, songVenue) => setVoteTarget({ song, venue: songVenue })} />}
             </div>
 
-            <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)} onVoted={() => {}} />
+            <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)} onVoted={() => {}}
+                onArtist={artist => router.push(`/?${new URLSearchParams({ q: artist, venue })}`)} />
         </Page>
     );
 }

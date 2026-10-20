@@ -68,6 +68,27 @@
 
     .recent-heading { display: flex; align-items: center; gap: 10px; }
 
+    /* Moving and removing songs in Zotify's queue (WaitingList in ZotifyQueue.tsx) */
+    .waiting-actions { flex-shrink: 0; display: flex; gap: 4px; }
+
+    .row-icon {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+        color: var(--muted);
+        cursor: pointer;
+    }
+
+    .row-icon:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+    .row-icon.remove:not(:disabled):hover { color: var(--error); border-color: var(--error); }
+    .row-icon:disabled { opacity: 0.35; cursor: default; }
+    .song.busy-row { opacity: 0.6; }
+
     /* The warning by "Up next" when songs couldn't be queued */
     .failures-button {
         display: inline-flex;
@@ -373,55 +394,89 @@
 
     .vote-dialog-status:empty { display: none; }
 
-    .vote-dialog-body:not(:empty) {
+    /* The vote counter beside what it's set to */
+    .vote-dialog-body {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        align-items: center;
+        gap: 18px;
         margin-top: 16px;
     }
 
-    .vote-count-label {
+    /* The vote counter (VoteCounter.tsx): arrows above and below the number */
+    .vote-counter {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 6px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+    }
+
+    .vote-arrow {
+        width: 36px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+    }
+
+    .vote-arrow.up:not(:disabled):hover { color: var(--accent); background: rgba(254, 204, 7, 0.12); }
+    .vote-arrow.down:not(:disabled):hover { color: var(--error); background: rgba(247, 141, 45, 0.12); }
+    .vote-arrow:disabled { opacity: 0.25; cursor: default; }
+    .vote-arrow:focus-visible { outline: 2px solid var(--accent); }
+
+    .vote-value {
+        min-width: 44px;
+        padding: 4px 0;
+        text-align: center;
+        font-family: system-ui, sans-serif;
+        font-variant-numeric: tabular-nums;
+        font-size: 1.3rem;
+        font-weight: 700;
+        border-radius: 8px;
+    }
+
+    .vote-value:focus-visible { outline: 2px solid var(--accent); }
+    .vote-value.positive, .vote-summary-text.positive { color: var(--accent); }
+    .vote-value.negative, .vote-summary-text.negative { color: var(--error); }
+
+    .vote-summary { flex: 1; min-width: 0; }
+
+    .vote-summary-text {
         display: flex;
         align-items: center;
         gap: 8px;
+        margin: 0;
         font-weight: 600;
     }
 
-    .vote-count-label .spinner { margin: 0; }
+    .vote-summary-text .spinner { margin: 0; }
 
-    .vote-dialog-body input[type="range"] {
-        width: 100%;
-        accent-color: var(--accent);
+    .vote-hint { margin: 6px 0 0; color: var(--muted); font-size: 0.8rem; }
+
+    .error-text { color: var(--error); }
+
+    /* The artist in the song details searches for them */
+    .artist-link {
+        display: block;
+        max-width: 100%;
+        padding: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
     }
 
-    .downvote-section {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-top: 20px;
-        padding-top: 16px;
-        border-top: 1px solid var(--border);
-    }
-
-    .downvote-title {
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--muted);
-    }
-
-    .downvote-note {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 4px 0 0;
-        font-size: 0.85rem;
-        color: var(--muted);
-    }
-
-    .downvote-note .spinner { margin: 0; }
+    .artist-link:hover { color: var(--text); text-decoration: underline; }
 
     .override-reason {
         width: 100%;
@@ -435,7 +490,6 @@
     }
 
     .override-reason::placeholder { color: var(--placeholder); }
-    .downvote-note.error-text { color: var(--error); }
 
     .queue-btn.danger { color: var(--error); border-color: var(--error); flex-shrink: 0; }
     .queue-btn.danger.confirming { color: var(--on-accent); background: var(--error); }

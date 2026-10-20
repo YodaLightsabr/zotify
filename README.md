@@ -39,6 +39,8 @@ The connection is opened with the session cookie, and signing in or out reconnec
 
 Queuing a song (the Queue button, Request again, or a whole playlist) adds it to Zotify's own first-in, first-out queue for that venue, kept in the database. After each poll of Rockbot's queue (below), and whenever something is added, the API checks: while fewer than 3 of Zotify's songs are waiting there, it requests the next one and upvotes it with every account. Keeping only a few in Rockbot at once keeps cooldowns short and keeps songs in the order people asked for them.
 
+If someone else requests the same song on Rockbot while it waits, Zotify boosts their pick with every account instead of requesting it again; that doesn't use up one of the 3 places. Admins can move waiting songs up and down and remove any of them, and everyone can remove their own.
+
 A song that can't be requested is retried twice, 30 and 60 seconds apart, holding its place in line meanwhile. After that (or straight away, if Rockbot says it was played too recently) it's marked failed and the next song goes. Signed-in people see the waiting songs on the homepage between On deck and Coming up, and a warning by "Up next" lists recent failures. The rules live in `src/zotifyQueue.ts`.
 
 ## Scripts

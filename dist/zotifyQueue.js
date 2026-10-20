@@ -1,9 +1,10 @@
 import { RockbotClient } from "./client.js";
-import { db } from "./db.js";
+import { db, transaction } from "./db.js";
 import { events } from "./events.js";
-import { getRecentlyQueued } from "./queued.js";
+import { recordPick } from "./history.js";
+import { getRecentlyQueued, markBoosted } from "./queued.js";
 import { NoAccountsError, requestSong } from "./requestSong.js";
-import { getVenueQueue, isFromZotify, queueEntries } from "./venueQueue.js";
+import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
 import { castVotes, markVoted } from "./votes.js";
 // Zotify's own queue. Every song people queue waits here first, in order, and is only requested on Rockbot once fewer than
 // MAX_IN_ROCKBOT of Zotify's songs are waiting there. live.ts runs processSoon after each poll of Rockbot's queue. Keeping only a few in Rockbot at once keeps cooldowns short and
@@ -17,8 +18,24 @@ const RETRY_DELAYS_MS = [30_000, 60_000];
 const UNSEEN_PICK_MS = 2 * 60_000;
 // Failures are shown on the homepage for this long
 const SHOW_FAILURES_MS = 2 * 60 * 60_000;
-const insert = db.prepare("INSERT INTO zotify_queue (venue, song_id, name, artist, cover, requested_by, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-const selectWaiting = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' ORDER BY id");
+/** Changing Zotify's queue wasn't allowed, or the song has already left it. status is the HTTP status to answer with */
+export class ZotifyQueueError extends Error {
+    status;
+    constructor(message, status = 400) {
+        super(message);
+        this.name = "ZotifyQueueError";
+        this.status = status;
+    }
+}
+// New songs go to the back of the line
+const insert = db.prepare(`
+    INSERT INTO zotify_queue (venue, song_id, name, artist, cover, requested_by, requested_at, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM zotify_queue WHERE venue = ?))
+`);
+const selectWaiting = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' ORDER BY position, id");
+const selectRow = db.prepare("SELECT * FROM zotify_queue WHERE id = ?");
+const setPosition = db.prepare("UPDATE zotify_queue SET position = ? WHERE id = ?");
+const markRemoved = db.prepare("UPDATE zotify_queue SET status = 'removed' WHERE id = ? AND status = 'waiting'");
 const selectWaitingSong = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'waiting' AND song_id = ?");
 const selectRecentReleases = db.prepare("SELECT pick_id FROM zotify_queue WHERE venue = ? AND status = 'released' AND released_at > ?");
 const selectFailures = db.prepare("SELECT * FROM zotify_queue WHERE venue = ? AND status = 'failed' AND failed_at > ? ORDER BY failed_at DESC");
@@ -39,7 +56,7 @@ export function enqueue(venue, song, requestedBy) {
     if (!existing) {
         // Only keep real image URLs since this gets rendered back on the page
         const cover = song.cover?.startsWith("https://") ? song.cover : null;
-        insert.run(venue, song.id, song.name, song.artist, cover, requestedBy ?? null, Date.now());
+        insert.run(venue, song.id, song.name, song.artist, cover, requestedBy ?? null, Date.now(), venue);
     }
     const waiting = getWaiting(venue);
     const entry = waiting.find(row => row.song_id === song.id);
@@ -51,12 +68,32 @@ export function enqueue(venue, song, requestedBy) {
 }
 // Picks we requested that have since shown up in Rockbot's queue. Once seen, a pick that's gone has played or been removed
 const seenPicks = new Set();
+/** Puts the venue's waiting songs in this order. ids must be exactly the songs waiting there now */
+export function reorder(venue, ids) {
+    const waiting = getWaiting(venue).map(row => row.id);
+    if (ids.length !== waiting.length || new Set(ids).size !== ids.length || !ids.every(id => waiting.includes(id))) {
+        throw new ZotifyQueueError("The queue changed while you were rearranging it. Please try again.", 409);
+    }
+    transaction(() => ids.forEach((id, i) => setPosition.run(i + 1, id)));
+    events.emit("zotifyQueueChanged", venue);
+}
+/** Takes a waiting song out of Zotify's queue. Anyone can remove their own songs; admins can remove anyone's */
+export function remove(id, email, admin) {
+    const row = selectRow.get(id);
+    if (!row || row.status !== "waiting")
+        throw new ZotifyQueueError("That song isn't waiting in the queue anymore.", 404);
+    if (!admin && row.requested_by !== email)
+        throw new ZotifyQueueError("You can only remove songs you queued.", 403);
+    markRemoved.run(id);
+    events.emit("zotifyQueueChanged", row.venue);
+    return row.venue;
+}
 /**
  * How many of Zotify's songs are waiting in Rockbot's queue (not counting the one playing). Uses the live poller's latest fetch
  * when it's recent, so this doesn't add requests to Rockbot; picks Rockbot isn't showing yet are counted separately below
  */
-async function zotifySongsInRockbot(venue) {
-    const [queue, queued] = await Promise.all([getVenueQueue(venue).queue, getRecentlyQueued(venue)]);
+async function zotifySongsInRockbot(venue, queue) {
+    const queued = await getRecentlyQueued(venue);
     const waiting = [...queue.onDeck, ...queue.comingUp].filter(entry => isFromZotify(entry, queued)).length;
     // Picks we requested moments ago that Rockbot isn't showing yet
     const shown = new Set(queueEntries(queue).map(entry => entry.pickId));
@@ -91,6 +128,33 @@ async function release(row) {
     markVoted(row.venue, pickId);
     castVotes(row.venue, pickId, song).catch(error => console.error(`Could not vote for "${song.name}" from Zotify's queue:`, error));
 }
+/**
+ * For a song someone else requested on Rockbot while it waited here: upvotes their pick with every account instead of requesting
+ * it again, like the Boost button. If it's already playing, there's nothing left to do
+ */
+async function boostInstead(row, entry, playing) {
+    const song = { id: row.song_id, name: row.name, artist: row.artist, ...(row.cover ? { cover: row.cover } : {}) };
+    if (!playing) {
+        markVoted(row.venue, entry.pickId);
+        await castVotes(row.venue, entry.pickId, song);
+        await markBoosted(row.venue, { ...song, pickId: entry.pickId })
+            .catch(error => console.error(`Could not record boost for "${row.name}":`, error));
+    }
+    markReleased.run(entry.pickId, Date.now(), row.id);
+    await recordPick({
+        pickId: entry.pickId,
+        songId: row.song_id,
+        name: row.name,
+        artist: row.artist,
+        ...(row.cover ? { cover: row.cover } : {}),
+        venue: row.venue,
+        requestedAt: Date.now(),
+        requestedBy: row.requested_by ?? undefined
+    }).catch(error => console.error(`Could not add "${row.name}" to the pick history:`, error));
+    console.log(`"${row.name}" was already in Rockbot's queue at ${row.venue}, so Zotify ${playing ? "left it" : "boosted it"} instead of requesting it again`);
+    events.emit("zotifyQueueChanged", row.venue);
+    events.emit("venueChanged", row.venue);
+}
 /** Moves songs from the front of Zotify's queue into Rockbot's while there's room, in order */
 async function processVenue(venue) {
     const waiting = getWaiting(venue);
@@ -99,13 +163,24 @@ async function processVenue(venue) {
     // The front song is waiting to be retried, and nothing behind it goes first
     if (waiting[0].next_attempt_at && waiting[0].next_attempt_at > Date.now())
         return;
-    let room = MAX_IN_ROCKBOT - await zotifySongsInRockbot(venue);
+    const queue = await getVenueQueue(venue).queue;
+    let room = MAX_IN_ROCKBOT - await zotifySongsInRockbot(venue, queue);
     for (const row of waiting) {
-        if (room <= 0)
-            break;
         if (row.next_attempt_at && row.next_attempt_at > Date.now())
             break;
+        // Removed while earlier songs were being requested
+        if (selectRow.get(row.id)?.status !== "waiting")
+            continue;
+        // Someone else requested it on Rockbot while it waited here, so add our votes to theirs instead.
+        // That doesn't need room, so it happens even when Rockbot already has as many of Zotify's songs as it should
+        const existing = queueEntries(queue).find(entry => isSameSong(entry, { id: row.song_id, name: row.name, artist: row.artist }));
+        if (!existing && room <= 0)
+            break;
         try {
+            if (existing) {
+                await boostInstead(row, existing, existing === queue.nowPlaying);
+                continue;
+            }
             await release(row);
             room--;
         }

@@ -37,7 +37,9 @@
 
 .now-playing-name.muted { color: var(--muted); font-weight: 400; }
 
+/* Clarity City has no tabular figures, so the countdown uses the system font to keep a steady width as it ticks */
 .now-playing-time {
     flex-shrink: 0;
+    font-family: system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
 }

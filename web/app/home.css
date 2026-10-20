@@ -141,6 +141,24 @@
         color: var(--muted);
     }
 
+    /* Placeholder rows while the queue loads (QueueSkeleton.tsx) */
+    .song.skeleton { border-color: transparent; }
+
+    .skeleton-block, .skeleton-line {
+        background: linear-gradient(90deg, var(--surface-2) 0%, rgba(255, 255, 255, 0.18) 50%, var(--surface-2) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s ease-in-out infinite;
+        opacity: 0.55;
+    }
+
+    .skeleton-line { height: 12px; border-radius: 999px; }
+    .skeleton-line.short { height: 10px; margin-top: 8px; }
+    .progress-placeholder { flex: 1; height: 6px; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .skeleton-block, .skeleton-line { animation: none; }
+    }
+
     .vote.up.active { color: var(--accent); }
     .vote.down.active { color: var(--error); }
 
@@ -561,4 +579,9 @@
         .search button { padding: 12px 16px; }
         .search svg { display: none; }
     }
+}
+
+@keyframes shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
 }

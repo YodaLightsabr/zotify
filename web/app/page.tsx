@@ -5,6 +5,7 @@ import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "re
 import { QueueGroup, QueueRow } from "@/components/home/SongParts";
 import { Loading, Message, SongResults } from "@/components/home/Results";
 import type { OpenVote, QueueEntry, Song } from "@/components/home/types";
+import QueueSkeleton from "@/components/home/QueueSkeleton";
 import VoteDialog from "@/components/home/VoteDialog";
 import { FailuresButton, FailuresDialog, WaitingRow, type ZotifyQueue } from "@/components/home/ZotifyQueue";
 import { fetchOrThrow, goToLogin, postJson, type Venue } from "@/lib/api";
@@ -205,7 +206,7 @@ function OutputView({ output, onVote }: { output: Output, onVote: OpenVote }) {
 
 /** The venue's queue, with Zotify's own between On deck and Coming up for members */
 function QueueView({ live, zotify, venue, onVote }: { live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, onVote: OpenVote }) {
-    if (!live) return <Loading />;
+    if (!live) return <QueueSkeleton />;
     if (!live.queue) return <Message text={live.error ?? "Could not load the queue."} />;
 
     const { nowPlaying, onDeck, comingUp } = live.queue;

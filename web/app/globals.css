@@ -57,6 +57,9 @@ body {
 }
 
 .spinner {
+    /* Spinner.tsx renders a span, which ignores width and height while it's inline */
+    display: inline-block;
+    vertical-align: middle;
     width: 22px;
     height: 22px;
     border: 3px solid var(--border);

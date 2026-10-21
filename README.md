@@ -43,6 +43,31 @@ If someone else requests the same song on Rockbot while it waits, Zotify boosts 
 
 A song that can't be requested is retried twice, 30 and 60 seconds apart, holding its place in line meanwhile. After that (or straight away, if Rockbot says it was played too recently) it's marked failed and the next song goes. Signed-in people see the waiting songs on the homepage between On deck and Coming up, and a warning by "Up next" lists recent failures. The rules live in `src/zotifyQueue.ts`.
 
+## Running on a server
+
+`deploy/install.sh` sets Zotify up on a Linux server with systemd: the API and the frontend run as services that start on boot and restart if they crash, and a timer checks GitHub every minute and deploys new commits on `main`. Cloudflare Tunnel (or anything else) points at ports 3000 and 3001 as before.
+
+```bash
+git clone https://github.com/YodaLightsabr/zotify.git ~/zotify-setup
+sudo ~/zotify-setup/deploy/install.sh --import ~/zotify
+```
+
+`--import` copies `.env`, `.accounts.json` and the database from an existing checkout; stop whatever's running Zotify there first. Node 22.9+ is found from your shell (nvm works), or pass `--node-bin`. Everything lives in `/srv/zotify`:
+
+- `releases/<commit>/`: each deploy is built in its own folder, and `current` only switches to it once the build works, so a broken commit never takes the site down. The newest 3 are kept.
+- `shared/`: `.env`, `.accounts.json`, `zotify.db` and `backups/`, used by every release
+- `repo/`: the clone deploys are made from
+
+A commit that fails to build is skipped until the next push. Useful commands:
+
+| Command | What it does |
+| --- | --- |
+| `journalctl -fu zotify-deploy` | Follow deploys as they happen |
+| `journalctl -fu zotify-api` (or `zotify-web`) | Follow the API's (or frontend's) logs |
+| `sudo systemctl restart zotify-api zotify-web` | Restart both |
+| `sudo -u <user> bash -c 'set -a; . /etc/default/zotify; /srv/zotify/repo/deploy/deploy.sh --force'` | Rebuild and redeploy the latest commit now |
+| `sudo systemctl stop zotify-deploy.timer`, then `ln -sfn releases/<commit> /srv/zotify/current && sudo systemctl restart zotify-api zotify-web` | Roll back to an earlier release. The timer has to stop first, or it redeploys the latest commit within a minute; `sudo systemctl start zotify-deploy.timer` turns deploys back on |
+
 ## Scripts
 
 | Command | What it does |

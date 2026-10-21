@@ -3,7 +3,7 @@ import { db } from "../db.js";
 import { DAYS_AHEAD, NEAR_TERM_DAYS, NEAR_TERM_REFRESH_MS, NIGHTLY_SYNC_HOUR } from "./config.js";
 import { fetchLocation, fetchMealPeriods, fetchMenu, fetchStoreConfig } from "./elevate.js";
 import { isHidden, toMenuItem } from "./items.js";
-import { getReference, prune, saveLocation, saveMenu, saveReference } from "./store.js";
+import { getReference, saveLocation, saveMenu, saveReference } from "./store.js";
 /** Schools set up for Zotify Meals, with the venues it reads menus for */
 export function diningSchools() {
     const schools = db.prepare("SELECT id, dining_config FROM schools WHERE dining_config IS NOT NULL ORDER BY position").all();
@@ -30,8 +30,6 @@ export function datesFrom(timezone, days) {
     const today = todayIn(timezone);
     return Array.from({ length: days }, (_, i) => addDays(today, i));
 }
-// Past menus are kept this many days, so yesterday's can still be looked up
-const KEEP_PAST_DAYS = 3;
 const hourIn = (timezone) => Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(new Date()));
 async function syncReference(school) {
     const [config, periods] = await Promise.all([fetchStoreConfig(school.config), fetchMealPeriods(school.config)]);
@@ -112,7 +110,6 @@ export async function syncSchool(school, { near = false } = {}) {
                 console.error(`Zotify Meals couldn't sync ${location.key} for ${school.id}:`, error.message);
             }
         }
-        prune(school.id, addDays(dates[0], -KEEP_PAST_DAYS));
         console.log(`Zotify Meals ${near ? "refreshed" : "synced"} ${school.id}: ${fetched} menus${failed ? `, ${failed} failed` : ""} in ${Math.round((Date.now() - started) / 1000)}s`);
         await setStatus(school.id, {
             [near ? "lastNearTermSync" : "lastFullSync"]: Date.now(),

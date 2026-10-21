@@ -3,10 +3,11 @@ import { db } from "../db.js";
 import { DAYS_AHEAD, NEAR_TERM_DAYS, NEAR_TERM_REFRESH_MS, NIGHTLY_SYNC_HOUR, type DiningConfig } from "./config.js";
 import { fetchLocation, fetchMealPeriods, fetchMenu, fetchStoreConfig } from "./elevate.js";
 import { isHidden, toMenuItem, type Labels } from "./items.js";
-import { getReference, prune, saveLocation, saveMenu, saveReference, type DiningLocation, type Reference } from "./store.js";
+import { getReference, saveLocation, saveMenu, saveReference, type DiningLocation, type Reference } from "./store.js";
 
 // Keeps every school's menus fresh: the next two weeks nightly (and on first start), and today and tomorrow every hour,
-// since menus can change on the day. A failed request leaves what was saved before in place, so the API keeps answering
+// since menus can change on the day. A failed request leaves what was saved before in place, so the API keeps answering.
+// Menus are never deleted, so past days stay available as a history
 
 export interface DiningSchool {
     id: string;
@@ -59,8 +60,6 @@ export function datesFrom(timezone: string, days: number) {
     return Array.from({ length: days }, (_, i) => addDays(today, i));
 }
 
-// Past menus are kept this many days, so yesterday's can still be looked up
-const KEEP_PAST_DAYS = 3;
 
 const hourIn = (timezone: string) => Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(new Date()));
 
@@ -158,7 +157,6 @@ export async function syncSchool(school: DiningSchool, { near = false } = {}) {
             }
         }
 
-        prune(school.id, addDays(dates[0], -KEEP_PAST_DAYS));
 
         console.log(`Zotify Meals ${near ? "refreshed" : "synced"} ${school.id}: ${fetched} menus${failed ? `, ${failed} failed` : ""} in ${Math.round((Date.now() - started) / 1000)}s`);
         await setStatus(school.id, {

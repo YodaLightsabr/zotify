@@ -14,7 +14,8 @@ import { getSchool } from "../schools.js";
 //   GET /api/meals/:school/status                    when menus were last fetched
 //   GET /api/meals/:school/items/:sku                one item, and where and when it's served
 //   GET /api/meals/:school/:location                 a dining hall's stations and hours for the next two weeks
-//   GET /api/meals/:school/:location/:date           a day's menu: today, tomorrow or YYYY-MM-DD
+//   GET /api/meals/:school/:location/:date           a day's menu: today, tomorrow, yesterday or YYYY-MM-DD, past or future,
+//                                                    as long as it was saved
 //       ?period=lunch (or 25)   one meal period
 //       ?exclude=milk,peanuts   leave out items tagged with, or whose ingredients mention, these allergens
 //       ?diet=vegan             only items with these diet tags
@@ -63,6 +64,7 @@ export function mealsSchool(req: Request, res: Response) {
     const found = schoolFor(req, res);
     if (!found) return;
     const { school, reference } = found;
+    const dates = getDates(school.id);
 
     cached(res, 3600);
     res.json({
@@ -75,8 +77,10 @@ export function mealsSchool(req: Request, res: Response) {
             const saved = getLocation(school.id, location.id);
             return { id: location.id, name: saved?.name ?? location.id, menusPublishedThrough: saved?.menusThrough ?? null };
         }),
-        // The dates with menus kept, from a few days ago to two weeks ahead
-        dates: getDates(school.id)
+        // Every date with menus kept: everything since Zotify Meals started, through two weeks ahead
+        firstDate: dates[0] ?? null,
+        lastDate: dates.at(-1) ?? null,
+        dates
     });
 }
 
@@ -155,8 +159,8 @@ export function mealsDay(req: Request, res: Response) {
 
     const today = todayIn(reference.timezone);
     const requested = String(req.params.date).toLowerCase();
-    const date = requested === "today" ? today : requested === "tomorrow" ? addDays(today, 1) : requested;
-    if (!DATE.test(date)) return void res.status(400).json({ error: "Use a date like 2026-10-21, or today or tomorrow." });
+    const date = requested === "today" ? today : requested === "tomorrow" ? addDays(today, 1) : requested === "yesterday" ? addDays(today, -1) : requested;
+    if (!DATE.test(date)) return void res.status(400).json({ error: "Use a date like 2026-10-21, or today, tomorrow or yesterday." });
 
     const menus = getMenus(school.id, location.id, date);
     const hours = hoursOn(location.schedule, date);
@@ -183,8 +187,9 @@ export function mealsDay(req: Request, res: Response) {
                 stations: entry.stations.map(station => ({ ...station, items: station.items.filter(item => keep(item, exclude, diets)) }))
                     .filter(station => station.items.length || (!exclude.length && !diets.length))
             })),
-        // When none of the date's menus have been fetched, e.g. it's further ahead than two weeks
+        // When none of the date's menus were ever fetched: further ahead than two weeks, or before Zotify Meals started
         fetched: menus.length > 0,
+        past: date < today,
         transitionNote: TRANSITION_NOTE
     });
 }

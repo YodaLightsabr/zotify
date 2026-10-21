@@ -3,7 +3,8 @@ import type { ScheduleEntry } from "./elevate.js";
 import type { MenuItem } from "./items.js";
 
 // Zotify Meals' copy of each school's menus, in the meal_* tables (see db.ts). Everything the API answers with comes from
-// here, so answers are instant and keep working when the dining site is down
+// here, so answers are instant and keep working when the dining site is down. Nothing is ever deleted, so it's also a
+// history of what was served
 
 export interface Reference {
     timezone: string;
@@ -53,6 +54,14 @@ export function saveMenu(schoolId: string, venueId: string, date: string, period
     `);
 
     transaction(() => {
+        // A published menu is never replaced by "nothing published": the dining site can stop listing a meal once it's
+        // over, and the history should keep what was served
+        if (!stations) {
+            const saved = db.prepare("SELECT status FROM meal_menus WHERE school_id = ? AND venue_id = ? AND date = ? AND period_id = ?")
+                .get(schoolId, venueId, date, periodId) as { status: string } | undefined;
+            if (saved?.status === "menu") return;
+        }
+
         for (const item of items) saveItem.run(schoolId, item.sku, JSON.stringify(item), Date.now());
         db.prepare("INSERT OR REPLACE INTO meal_menus (school_id, venue_id, date, period_id, status, stations, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
             .run(schoolId, venueId, date, periodId, stations ? "menu" : "none", JSON.stringify(stations ?? []), Date.now());
@@ -87,16 +96,4 @@ export function getItemAppearances(schoolId: string, sku: string) {
 /** The dates with menus saved, for a school, earliest first */
 export function getDates(schoolId: string) {
     return (db.prepare("SELECT DISTINCT date FROM meal_menus WHERE school_id = ? ORDER BY date").all(schoolId) as { date: string }[]).map(row => row.date);
-}
-
-/** Drops menus from before a date, and items no menu uses anymore */
-export function prune(schoolId: string, before: string) {
-    transaction(() => {
-        db.prepare("DELETE FROM meal_menus WHERE school_id = ? AND date < ?").run(schoolId, before);
-        const used = new Set((db.prepare("SELECT stations FROM meal_menus WHERE school_id = ?").all(schoolId) as { stations: string }[])
-            .flatMap(row => (JSON.parse(row.stations) as StoredStation[]).flatMap(station => station.skus)));
-        const stale = (db.prepare("SELECT sku FROM meal_items WHERE school_id = ?").all(schoolId) as { sku: string }[]).filter(row => !used.has(row.sku));
-        const drop = db.prepare("DELETE FROM meal_items WHERE school_id = ? AND sku = ?");
-        for (const row of stale) drop.run(schoolId, row.sku);
-    });
 }

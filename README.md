@@ -36,14 +36,14 @@ Each school gets its own Zotify. The main school (UCI) is at zotify.app, and eve
 
 ## Zotify Meals
 
-A public, read-only REST API for dining hall menus at `api.zotify.app/api/meals`. No sign-in, CORS open to any site. Menus come from each school's mydininghub.com site, through the unofficial GraphQL API behind it (Aramark's "Elevate"; everything about it is in `src/meals/config.ts`). Zotify keeps its own copy in the database, so answers are instant and keep working if the dining site is down: the next two weeks are fetched nightly at 3 AM (and on first start), and today and tomorrow every hour, since menus change on the day.
+A public, read-only REST API for dining hall menus at `api.zotify.app/api/meals`. No sign-in, CORS open to any site. Menus come from each school's mydininghub.com site, through the unofficial GraphQL API behind it (Aramark's "Elevate"; everything about it is in `src/meals/config.ts`). Zotify keeps its own copy in the database, so answers are instant and keep working if the dining site is down: the next two weeks are fetched nightly at 3 AM (and on first start), and today and tomorrow every hour, since menus change on the day. Saved menus are never deleted, so past days can be looked up too, back to when Meals started; a menu that was published is never replaced by an empty answer.
 
 | Request | What it returns |
 | --- | --- |
 | `GET /api/meals` | Schools and their dining halls |
-| `GET /api/meals/uci` | Allergen and diet tag labels, meal periods, dining halls, and the dates kept |
+| `GET /api/meals/uci` | Allergen and diet tag labels, meal periods, dining halls, and every date kept (`firstDate` to `lastDate`) |
 | `GET /api/meals/uci/anteatery` | Stations, and hours for the next two weeks |
-| `GET /api/meals/uci/anteatery/today` | The day's meal periods with hours, stations and items (`today`, `tomorrow` or `YYYY-MM-DD`) |
+| `GET /api/meals/uci/anteatery/today` | The day's meal periods with hours, stations and items (`today`, `tomorrow`, `yesterday` or any `YYYY-MM-DD` with saved menus) |
 | `…/today?period=lunch` | One meal period (by name or ID) |
 | `…/today?exclude=milk,peanuts&diet=vegan` | Leaves out items with those allergens (tagged, or mentioned in the ingredients) and keeps those diet tags |
 | `GET /api/meals/uci/items/:sku` | One item, and where and when it's served |

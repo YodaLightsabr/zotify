@@ -20,6 +20,14 @@ export function saveMenu(schoolId, venueId, date, periodId, stations, items) {
         ON CONFLICT (school_id, sku) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
     `);
     transaction(() => {
+        // A published menu is never replaced by "nothing published": the dining site can stop listing a meal once it's
+        // over, and the history should keep what was served
+        if (!stations) {
+            const saved = db.prepare("SELECT status FROM meal_menus WHERE school_id = ? AND venue_id = ? AND date = ? AND period_id = ?")
+                .get(schoolId, venueId, date, periodId);
+            if (saved?.status === "menu")
+                return;
+        }
         for (const item of items)
             saveItem.run(schoolId, item.sku, JSON.stringify(item), Date.now());
         db.prepare("INSERT OR REPLACE INTO meal_menus (school_id, venue_id, date, period_id, status, stations, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
@@ -51,17 +59,5 @@ export function getItemAppearances(schoolId, sku) {
 /** The dates with menus saved, for a school, earliest first */
 export function getDates(schoolId) {
     return db.prepare("SELECT DISTINCT date FROM meal_menus WHERE school_id = ? ORDER BY date").all(schoolId).map(row => row.date);
-}
-/** Drops menus from before a date, and items no menu uses anymore */
-export function prune(schoolId, before) {
-    transaction(() => {
-        db.prepare("DELETE FROM meal_menus WHERE school_id = ? AND date < ?").run(schoolId, before);
-        const used = new Set(db.prepare("SELECT stations FROM meal_menus WHERE school_id = ?").all(schoolId)
-            .flatMap(row => JSON.parse(row.stations).flatMap(station => station.skus)));
-        const stale = db.prepare("SELECT sku FROM meal_items WHERE school_id = ?").all(schoolId).filter(row => !used.has(row.sku));
-        const drop = db.prepare("DELETE FROM meal_items WHERE school_id = ? AND sku = ?");
-        for (const row of stale)
-            drop.run(schoolId, row.sku);
-    });
 }
 //# sourceMappingURL=store.js.map

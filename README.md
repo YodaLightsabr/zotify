@@ -21,16 +21,16 @@ The API and the frontend run separately and talk over CORS, with the session coo
 | | Development | Production |
 | --- | --- | --- |
 | API (`src/`) | http://localhost:3001 | https://api.zotify.app |
-| Frontend (`web/`) | http://localhost:3000 | https://zotify.app |
+| Frontend (`web/`) | http://localhost:3000 | https://www.zotify.app |
 | API docs (`web/app/docs`) | http://docs.localhost:3000 | https://docs.zotify.app |
 
 The API always listens on port 3001 (`API_PORT` can move it, for testing) and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. Only schools' own sites get the session cookie; any other site can call the API with a token. Magic links and invite links in emails point at the frontend.
 
 ## Schools
 
-Each school gets its own Zotify. The main school (UCI) is at zotify.app, and every other school at a subdomain, like uf.zotify.app for the University of Florida. Site admins manage schools from the admin dashboard: each school's name, subdomain, email domain (so people can sign in with just their ID, like a UCInetID), wording, venues with their Rockbot IDs, and admins. The Rockbot accounts Zotify uses are managed there too; a venue can have a home account that only ever checks in there, or share the rest.
+Each school gets its own Zotify. The main school (UCI) is at www.zotify.app (zotify.app redirects there), and every other school at a subdomain, like uf.zotify.app for the University of Florida. Site admins manage schools from the admin dashboard: each school's name, subdomain, email domain (so people can sign in with just their ID, like a UCInetID), wording, venues with their Rockbot IDs, and admins. The Rockbot accounts Zotify uses are managed there too; a venue can have a home account that only ever checks in there, or share the rest.
 
-- `web/proxy.ts` works out the school from each request's host. Unknown subdomains go to zotify.app, so every `*.zotify.app` address (other than `api.`) can point at the frontend.
+- `web/proxy.ts` works out the school from each request's host. Unknown subdomains go to www.zotify.app, so every `*.zotify.app` address (other than `api.`) can point at the frontend.
 - API routes say which school they're about in their path: `/v1/venues/:venue/…` is that venue's school, and `/v1/schools/:school/…` that school. Membership and admin checks use it. Signing in still goes by the `Origin`, for the school's email domain.
 - One sign-in works at every school, but each school has its own private beta, members and admins. Site admins (in `src/auth.ts`) run every school.
 - Schools and venues live in the `schools` and `venues` tables, Rockbot accounts in `rockbot_accounts`. On first start, UCI's Anteatery and Brandywine and UF's The Eatery are added, `.accounts.json` is imported (and kept as a backup), and the existing beta becomes UCI's.
@@ -39,9 +39,9 @@ Each school gets its own Zotify. The main school (UCI) is at zotify.app, and eve
 
 Everything the pages do goes through the same API, under `/v1` (`src/server.ts` has every route). Zotify's own pages use the session cookie; everyone else uses a token in `Authorization: Bearer …`. Its docs are at docs.zotify.app (`web/app/docs`): hand-written guides, and a reference built from the OpenAPI description in `src/openapi.ts`, which is served at `/v1/openapi.json`. A route added to `server.ts` should be added there too, unless only Zotify's own pages use it.
 
-- **Developers:** site admins choose who's a developer, from the admin dashboard. Developers make personal access tokens and OAuth apps at zotify.app/developers.
+- **Developers:** site admins choose who's a developer, from the admin dashboard. Developers make personal access tokens and OAuth apps at www.zotify.app/developers.
 - **Personal access tokens** (`zotify_pat_…`) act as their developer, limited to their scopes, and last 7 to 365 days or forever. Taking someone off the developers list deletes their tokens.
-- **OAuth apps** sign other people in with the authorization code flow: zotify.app/oauth/authorize asks them, and `/v1/oauth/token` swaps the code for an hour-long access token (`zotify_at_…`) and a refresh token (`zotify_rt_…`) that changes on every use. Public apps (Raycast, desktop, mobile) must use PKCE; confidential ones get a client secret. People can sign out of apps from their account page. `src/routes/oauth.ts` has the details.
+- **OAuth apps** sign other people in with the authorization code flow: www.zotify.app/oauth/authorize asks them, and `/v1/oauth/token` swaps the code for an hour-long access token (`zotify_at_…`) and a refresh token (`zotify_rt_…`) that changes on every use. Public apps (Raycast, desktop, mobile) must use PKCE; confidential ones get a client secret. People can sign out of apps from their account page. `src/routes/oauth.ts` has the details.
 - **Scopes:** `music:read`, `music:write`, `meals:read`, `meals:write` and `admin` (listed in `src/developers.ts`). The guards in `src/routes/auth.ts` check them; sessions have every scope. Managing tokens and apps, and site admin, only work with the session cookie.
 - Each token, and each person signed in to an app, can make 300 requests a minute.
 - Tokens, client secrets and authorization codes are only stored as hashes, in the `developers`, `api_tokens`, `oauth_apps`, `oauth_codes` and `oauth_grants` tables.

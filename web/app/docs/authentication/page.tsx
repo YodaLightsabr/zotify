@@ -1,9 +1,8 @@
 import Code from "@/components/docs/Code";
-import { API_URL, INTERNAL_API_URL, SITE_DOMAIN, SITE_PROTOCOL } from "@/lib/config";
+import { API_URL, INTERNAL_API_URL, MAIN_HOST, MAIN_URL } from "@/lib/config";
 
 export const metadata = { title: "Authentication" };
 
-const SITE_URL = `${SITE_PROTOCOL}://${SITE_DOMAIN}`;
 
 /** The scopes, from the API itself so they're never out of date */
 async function getScopes(): Promise<Record<string, string>> {
@@ -49,7 +48,7 @@ export default async function Authentication() {
 
             <h2 id="personal-access-tokens">Personal access tokens</h2>
             <p>
-                For your own scripts and tools. Make them at <a href={`${SITE_URL}/developers`}>{SITE_DOMAIN}/developers</a> once a Zotify admin has made you a developer.
+                For your own scripts and tools. Make them at <a href={`${MAIN_URL}/developers`}>{MAIN_HOST}/developers</a> once a Zotify admin has made you a developer.
                 Pick their scopes and how long they last: 7, 30, 90 or 365 days, or no expiry. A token is shown once, when it&apos;s made; Zotify only keeps a hash of it.
             </p>
             <p>
@@ -60,7 +59,7 @@ export default async function Authentication() {
             <h2 id="oauth">OAuth apps</h2>
             <p>
                 For apps other people sign in to. Zotify uses OAuth 2.0&apos;s authorization code flow. Register an app at{" "}
-                <a href={`${SITE_URL}/developers`}>{SITE_DOMAIN}/developers</a> with the addresses it can send people back to (redirect URIs), and choose:
+                <a href={`${MAIN_URL}/developers`}>{MAIN_HOST}/developers</a> with the addresses it can send people back to (redirect URIs), and choose:
             </p>
             <ul>
                 <li><strong>Public</strong>, for apps that run on people&apos;s own devices and can&apos;t keep a secret: desktop and mobile apps, command-line tools, Raycast extensions. These must use PKCE.</li>
@@ -70,7 +69,7 @@ export default async function Authentication() {
 
             <h3>1. Send them to Zotify</h3>
             <p>Make a random <code>code_verifier</code> (43 to 128 characters), and its <code>code_challenge</code>: the base64url SHA-256 of it, without padding. Then open:</p>
-            <Code>{`${SITE_URL}/oauth/authorize
+            <Code>{`${MAIN_URL}/oauth/authorize
   ?client_id=zotify_app_…
   &redirect_uri=https%3A%2F%2Fexample.com%2Fcallback
   &response_type=code
@@ -160,7 +159,7 @@ export async function accessToken() {
     await client.setTokens(await fetchTokens({ grant_type: "refresh_token", refresh_token: tokens.refreshToken }));
   } else {
     const request = await client.authorizationRequest({
-      endpoint: "${SITE_URL}/oauth/authorize",
+      endpoint: "${MAIN_URL}/oauth/authorize",
       clientId: CLIENT_ID,
       scope: "music:read music:write",
     });

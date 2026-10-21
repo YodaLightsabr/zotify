@@ -1,8 +1,8 @@
 import { MAIN_SCHOOL_ID, db, transaction } from "./db.js";
-import { DOCS_SUBDOMAIN, MEALS_SUBDOMAIN, SITE_DOMAIN, siteUrl } from "./config.js";
+import { DOCS_SUBDOMAIN, MAIN_HOST, MEALS_SUBDOMAIN, SITE_DOMAIN, siteUrl } from "./config.js";
 
 // Schools and their venues, managed by site admins from the dashboard (see routes/schools.ts). Each school has its own
-// Zotify: the main school at zotify.app, every other one at a subdomain like uf.zotify.app
+// Zotify: the main school at www.zotify.app, every other one at a subdomain like uf.zotify.app
 
 export interface School {
     id: string;
@@ -100,12 +100,12 @@ export function getVenue(id: unknown) {
     return row ? toVenue(row) : null;
 }
 
-/** The school a frontend hostname belongs to, like zotify.app or uf.zotify.app. Null for any other host */
+/** The school a frontend hostname belongs to, like www.zotify.app or uf.zotify.app. Null for any other host */
 export function schoolForHost(host: string | undefined) {
     const name = host?.toLowerCase().trim();
     if (!name) return null;
-    // Zotify Meals (meals.zotify.app) is the main school's
-    if (name === SITE_DOMAIN || name === `${MEALS_SUBDOMAIN}.${SITE_DOMAIN}`) return mainSchool();
+    // zotify.app (which redirects to www) and Zotify Meals (meals.zotify.app) are the main school's
+    if (name === MAIN_HOST || name === SITE_DOMAIN || name === `${MEALS_SUBDOMAIN}.${SITE_DOMAIN}`) return mainSchool();
     if (!name.endsWith(`.${SITE_DOMAIN}`)) return null;
 
     const row = selectBySubdomain.get(name.slice(0, -SITE_DOMAIN.length - 1)) as SchoolRow | undefined;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoMark } from "@/components/Logo";
 import { goToLogin } from "@/lib/api";
-import { SITE_PROTOCOL, SITE_DOMAIN } from "@/lib/config";
+import { MAIN_URL } from "@/lib/config";
 import { cx } from "@/lib/format";
 import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
@@ -24,7 +24,7 @@ export default function MealsHeader() {
             <nav className="meals-nav" aria-label="Zotify Meals">
                 {link("/", "Menus")}
                 {link("/favorites", "Favorites")}
-                <a className="meals-nav-link subtle" href={`${SITE_PROTOCOL}://${SITE_DOMAIN}`}>Zotify ↗</a>
+                <a className="meals-nav-link subtle" href={MAIN_URL}>Zotify ↗</a>
                 {user === null && (
                     <a className="meals-nav-link signin" href="/login" onClick={event => { event.preventDefault(); goToLogin(); }}>Sign in</a>
                 )}

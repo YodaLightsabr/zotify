@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import SuffixInput from "@/components/SuffixInput";
-import { SITE_DOMAIN } from "@/lib/config";
+import { MAIN_HOST, SITE_DOMAIN } from "@/lib/config";
 import type { SchoolInfo } from "@/lib/school";
 import { loadAccounts, type RockbotAccount } from "./RockbotAccounts";
 import { adminGet, adminPost, adminSend, FormMessage, Loading, Rows, SmallButton, useLoad } from "./shared";
 
-// Schools, their venues and admins, for site admins. Each school's Zotify is zotify.app (the main school) or a subdomain of
+// Schools, their venues and admins, for site admins. Each school's Zotify is www.zotify.app (the main school) or a subdomain of
 // it. Changes reach the schools' sites within about 30 seconds, since the frontend checks the list of schools that often
 
 interface AdminVenue { id: string, schoolId: string, name: string, rockbotId: string, homeAccount: string | null }
@@ -113,7 +113,7 @@ function SchoolForm({ school, onSaved }: { school?: AdminSchool, onSaved: () => 
                 <label>
                     Address
                     {main
-                        ? <input type="text" value={SITE_DOMAIN} disabled />
+                        ? <input type="text" value={MAIN_HOST} disabled />
                         : <SuffixInput compact suffix={`.${SITE_DOMAIN}`} placeholder="uf" required autoCapitalize="none" spellCheck={false} {...field("subdomain")} />}
                 </label>
                 <label>Name<input type="text" required placeholder="University of Florida" {...field("name")} /></label>

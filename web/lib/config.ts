@@ -6,9 +6,12 @@ export const API_URL = production ? "https://api.zotify.app" : "http://localhost
 // The frontend's own server reaches the API directly, since both run on the same machine
 export const INTERNAL_API_URL = "http://localhost:3001";
 
-// Each school's Zotify is the main domain or a subdomain of it, like uf.zotify.app (uf.localhost:3000 in development)
+// Each school's Zotify is a subdomain of the site's domain, like uf.zotify.app (uf.localhost:3000 in development). The main
+// school is at www.zotify.app (localhost:3000 in development), and zotify.app itself redirects there (see proxy.ts)
 export const SITE_DOMAIN = production ? "zotify.app" : "localhost:3000";
 export const SITE_PROTOCOL = production ? "https" : "http";
+export const MAIN_HOST = production ? `www.${SITE_DOMAIN}` : SITE_DOMAIN;
+export const MAIN_URL = `${SITE_PROTOCOL}://${MAIN_HOST}`;
 
 // Zotify Meals' dashboard: meals.zotify.app, served from the pages under app/meals (see proxy.ts)
 export const MEALS_HOST = `meals.${SITE_DOMAIN}`;

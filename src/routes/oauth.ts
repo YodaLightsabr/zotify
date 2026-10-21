@@ -8,7 +8,7 @@ import {
 // OAuth 2.0 for apps made by developers: the authorization code flow, with PKCE (RFC 7636) required for public apps like
 // Raycast extensions, refresh tokens that change on every use, and revocation (RFC 7009).
 //
-//   1. The app sends people to zotify.app/oauth/authorize?client_id=…&redirect_uri=…&response_type=code&scope=…&state=…
+//   1. The app sends people to www.zotify.app/oauth/authorize?client_id=…&redirect_uri=…&response_type=code&scope=…&state=…
 //      &code_challenge=…&code_challenge_method=S256. That page (web/app/(zotify)/oauth) checks the request with GET
 //      /v1/oauth/authorize, asks them, and sends their answer to POST /v1/oauth/authorize, which says where to send them back
 //   2. The app swaps the code for tokens at POST /v1/oauth/token, and later swaps refresh tokens for new ones there

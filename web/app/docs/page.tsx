@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Code from "@/components/docs/Code";
-import { API_URL, SITE_DOMAIN, SITE_PROTOCOL } from "@/lib/config";
+import { API_URL, MAIN_HOST, MAIN_URL } from "@/lib/config";
 
 export const metadata = { title: { absolute: "Zotify API" } };
 
-const DEVELOPERS_URL = `${SITE_PROTOCOL}://${SITE_DOMAIN}/developers`;
+const DEVELOPERS_URL = `${MAIN_URL}/developers`;
 
 /** The docs' front page: what the API does, and a first few requests */
 export default function GettingStarted() {
@@ -29,7 +29,7 @@ export default function GettingStarted() {
 
             <h2>Get a token</h2>
             <p>
-                Tokens come from <a href={DEVELOPERS_URL}>{SITE_DOMAIN}/developers</a>, once a Zotify admin has made you a developer.
+                Tokens come from <a href={DEVELOPERS_URL}>{MAIN_HOST}/developers</a>, once a Zotify admin has made you a developer.
                 There are two kinds:
             </p>
             <ul>

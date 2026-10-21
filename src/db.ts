@@ -105,13 +105,13 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS zotify_queue_status ON zotify_queue (venue, status, id);
 
-    -- Each school gets its own Zotify: zotify.app for the main school, or a subdomain like uf.zotify.app.
+    -- Each school gets its own Zotify: www.zotify.app for the main school, or a subdomain like uf.zotify.app.
     -- email_domain turns a bare ID like "panteater" into panteater@uci.edu; id_label is what those IDs are called there
     CREATE TABLE IF NOT EXISTS schools (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         short_name TEXT NOT NULL,
-        -- NULL for the main school, which lives at zotify.app itself
+        -- NULL for the main school, which lives at www.zotify.app
         subdomain TEXT UNIQUE,
         email_domain TEXT,
         id_label TEXT,

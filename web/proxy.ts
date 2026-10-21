@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DOCS_HOST, DOCS_URL, INTERNAL_API_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
+import { DOCS_HOST, DOCS_URL, INTERNAL_API_URL, MAIN_HOST, MAIN_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN } from "./lib/config";
 import { SCHOOL_HEADER } from "./lib/currentSchool";
 import type { SchoolInfo } from "./lib/school";
 
 // Every *.zotify.app address comes to this server. This works out which school's Zotify a request is for from its host:
-// zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and any other subdomain is sent
-// to zotify.app. The school is handed to the pages in a request header, so they render as that school from the start.
+// www.zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and zotify.app itself and any
+// other subdomain are sent to www.zotify.app. The school is handed to the pages in a request header, so they render as that school from the start.
 // meals.zotify.app is Zotify Meals, the main school's, served from the pages under app/meals, and docs.zotify.app is the API's
 // docs, from app/docs
 
@@ -69,15 +69,18 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(`${DOCS_URL}${pathname.slice("/docs".length) || "/"}${search}`);
     }
 
-    if (host.endsWith(`.${SITE_DOMAIN}`)) {
+    // zotify.app itself goes to www, keeping the path (in development, the main school is at localhost itself)
+    if (host === SITE_DOMAIN && host !== MAIN_HOST) return NextResponse.redirect(`${MAIN_URL}${pathname}${search}`);
+
+    if (host !== MAIN_HOST && host.endsWith(`.${SITE_DOMAIN}`)) {
         const subdomain = host.slice(0, -SITE_DOMAIN.length - 1);
         school = list.find(candidate => candidate.subdomain === subdomain);
 
-        // Not a school's subdomain, like www or a typo
-        if (!school) return NextResponse.redirect(`${SITE_PROTOCOL}://${SITE_DOMAIN}/`);
+        // Not a school's subdomain, like a typo
+        if (!school) return NextResponse.redirect(`${MAIN_URL}/`);
     }
 
-    // Any other host (zotify.app itself, or the server's own address) is the main school
+    // Any other host (www.zotify.app, or the server's own address) is the main school
     if (!school) return new NextResponse("No school is set up yet.", { status: 503 });
 
     headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(school)));

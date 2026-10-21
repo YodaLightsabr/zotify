@@ -111,13 +111,13 @@ const schemas: Record<string, Schema> = {
         id: string("Used in paths, like /v1/schools/uci.", "uci"),
         name: string(undefined, "UC Irvine"),
         shortName: string(undefined, "UCI"),
-        subdomain: nullable(string("The school's Zotify is at this subdomain of zotify.app; null for zotify.app itself.")),
+        subdomain: nullable(string("The school's Zotify is at this subdomain of zotify.app; null for the main school, at www.zotify.app.")),
         emailDomain: nullable(string("People sign in with an email at this domain.", "uci.edu")),
         idLabel: nullable(string("What the school calls the part before the @.", "UCInetID")),
         idPlaceholder: nullable(string()),
         tagline: nullable(string()),
         footer: nullable(string()),
-        url: string("Where the school's Zotify is.", "https://zotify.app"),
+        url: string("Where the school's Zotify is.", "https://www.zotify.app"),
         venues: array(object({ id: string(undefined, "anteatery"), name: string(undefined, "The Anteatery") }), "Its venues, in the order Zotify shows them.")
     }),
     QueueEntry: object({
@@ -698,7 +698,7 @@ export const spec = {
             personalAccessToken: {
                 type: "http",
                 scheme: "bearer",
-                description: `A personal access token from zotify.app/developers, like zotify_pat_…, in the Authorization header. Developers only. Tokens last ${TOKEN_LIFETIMES.filter(Boolean).join(", ")} days, or never expire.`
+                description: `A personal access token from www.zotify.app/developers, like zotify_pat_…, in the Authorization header. Developers only. Tokens last ${TOKEN_LIFETIMES.filter(Boolean).join(", ")} days, or never expire.`
             },
             oauth: {
                 type: "oauth2",

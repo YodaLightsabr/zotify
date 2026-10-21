@@ -19,8 +19,8 @@ The menu bar's "Add Song…" item does the same with empty text.
 ## Signing in
 
 - **OAuth with PKCE**, through `OAuthService` from `@raycast/utils`, against the public Zotify app registered at
-  zotify.app/developers with the redirect URI `https://raycast.com/redirect?packageName=Extension`. Raycast shows its own
-  sign-in overlay ("Connect your Zotify account"), opens zotify.app/oauth/authorize, and comes back with the code.
+  www.zotify.app/developers with the redirect URI `https://raycast.com/redirect?packageName=Extension`. Raycast shows its own
+  sign-in overlay ("Connect your Zotify account"), opens www.zotify.app/oauth/authorize, and comes back with the code.
 - **Zotify Queue** is wrapped in `withAccessToken`, so it asks to sign in the first time it opens, with no screen of our own.
   Raycast adds a "Log out" preference automatically once tokens are saved.
 - **A personal access token** preference (optional, password field) skips OAuth, for developers.

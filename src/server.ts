@@ -41,7 +41,7 @@ const app = express();
 // Trusting only local proxies lets session cookies be marked Secure without trusting headers from anyone else
 app.set("trust proxy", "loopback");
 
-// Each school's frontend runs on its own origin (zotify.app, uf.zotify.app...), so it calls this API cross-origin with the
+// Each school's frontend runs on its own origin (www.zotify.app, uf.zotify.app...), so it calls this API cross-origin with the
 // session cookie: only schools' origins get credentials. Any other site can still call the API with a bearer token (or Zotify
 // Meals without one), but never with someone's cookie
 app.use((req, res, next) => {

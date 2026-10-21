@@ -5,9 +5,9 @@ import { getAccessToken, OAuthService } from "@raycast/utils";
 // never does, since it runs in the background where a sign-in window would come out of nowhere (see savedToken)
 
 export const API_URL = "https://api.zotify.app";
-export const SITE_URL = "https://zotify.app";
+export const SITE_URL = "https://www.zotify.app";
 
-// Zotify's public OAuth app for this extension, registered at zotify.app/developers with the redirect URI
+// Zotify's public OAuth app for this extension, registered at www.zotify.app/developers with the redirect URI
 // https://raycast.com/redirect?packageName=Extension. Client IDs aren't secret
 export const CLIENT_ID = "zotify_app_REPLACE_ME";
 

@@ -34,6 +34,29 @@ Each school gets its own Zotify. The main school (UCI) is at zotify.app, and eve
 - One sign-in works at every school, but each school has its own private beta, members and admins. Site admins (in `src/auth.ts`) run every school.
 - Schools and venues live in the `schools` and `venues` tables, Rockbot accounts in `rockbot_accounts`. On first start, UCI's Anteatery and Brandywine and UF's The Eatery are added, `.accounts.json` is imported (and kept as a backup), and the existing beta becomes UCI's.
 
+## Zotify Meals
+
+A public, read-only REST API for dining hall menus at `api.zotify.app/api/meals`. No sign-in, CORS open to any site. Menus come from each school's mydininghub.com site, through the unofficial GraphQL API behind it (Aramark's "Elevate"; everything about it is in `src/meals/config.ts`). Zotify keeps its own copy in the database, so answers are instant and keep working if the dining site is down: the next two weeks are fetched nightly at 3 AM (and on first start), and today and tomorrow every hour, since menus change on the day.
+
+| Request | What it returns |
+| --- | --- |
+| `GET /api/meals` | Schools and their dining halls |
+| `GET /api/meals/uci` | Allergen and diet tag labels, meal periods, dining halls, and the dates kept |
+| `GET /api/meals/uci/anteatery` | Stations, and hours for the next two weeks |
+| `GET /api/meals/uci/anteatery/today` | The day's meal periods with hours, stations and items (`today`, `tomorrow` or `YYYY-MM-DD`) |
+| `…/today?period=lunch` | One meal period (by name or ID) |
+| `…/today?exclude=milk,peanuts&diet=vegan` | Leaves out items with those allergens (tagged, or mentioned in the ingredients) and keeps those diet tags |
+| `GET /api/meals/uci/items/:sku` | One item, and where and when it's served |
+| `GET /api/meals/uci/status` | When menus were last fetched, and any failures |
+
+Each item has its nutrition, ingredients and diet tags, plus allergens in three parts, since the dining hall's tags aren't reliable on their own:
+
+- `tagged`: what the dining hall tagged
+- `incomplete`: allergens it says its information is incomplete for. This means unknown, not free of
+- `possibleFromIngredients`: allergens the ingredient text mentions that aren't tagged. Derived by keyword, so it can be wrong; soybean oil and coconut don't count (see `src/meals/items.ts`)
+
+Meal periods say whether the hours list them that day (`scheduled`); the dining site sometimes has menus for periods that aren't served. Between periods there's a 30–45 minute transition when the full menu may not be out. A school is set up for Meals with its dining site's store codes (`schools.dining_config`) and each dining hall's location key (`venues.dining_location_key`); UCI's Anteatery and Brandywine are set up on first start.
+
 ## Live updates
 
 Pages don't poll. The frontend keeps one socket.io connection open for the whole visit (`web/lib/live.tsx`), and the API (`src/live.ts`, on port 3001 too) pushes updates to it:

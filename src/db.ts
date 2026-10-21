@@ -152,6 +152,54 @@ db.exec(`
     );
 `);
 
+// Zotify Meals: menus from each school's dining site (see src/meals/). Each table is per school.
+// meal_reference: allergen and diet tag labels, meal periods and timezone
+// meal_locations: a dining hall's stations, meal periods and hours, keyed by the Zotify venue it is
+// meal_menus: which items each station serves for one date and meal period; status "none" means no menu was published
+// meal_items: each item once, by SKU, however many menus it's on
+db.exec(`
+    CREATE TABLE IF NOT EXISTS meal_reference (
+        school_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        fetched_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS meal_locations (
+        school_id TEXT NOT NULL,
+        venue_id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        fetched_at INTEGER NOT NULL,
+        PRIMARY KEY (school_id, venue_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS meal_menus (
+        school_id TEXT NOT NULL,
+        venue_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        period_id INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        stations TEXT NOT NULL,
+        fetched_at INTEGER NOT NULL,
+        PRIMARY KEY (school_id, venue_id, date, period_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS meal_items (
+        school_id TEXT NOT NULL,
+        sku TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (school_id, sku)
+    );
+`);
+
+// Which school's dining site and which of its locations Zotify Meals reads: schools.dining_config (JSON, see
+// src/meals/config.ts) and venues.dining_location_key, like "the-anteatery". Added after both tables existed
+for (const [table, column] of [["schools", "dining_config"], ["venues", "dining_location_key"]]) {
+    if (!(db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some(existing => existing.name === column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+    }
+}
+
 // Databases from before the Zotify queue could be rearranged don't have its position column. Songs keep the order they were added in
 if (!(db.prepare("PRAGMA table_info(zotify_queue)").all() as { name: string }[]).some(column => column.name === "position")) {
     db.exec("ALTER TABLE zotify_queue ADD COLUMN position REAL; UPDATE zotify_queue SET position = id;");
@@ -274,6 +322,14 @@ once("importedRockbotAccounts", () => {
 
     for (const account of accounts) add.run(account.username, account.email, account.refreshToken, account.key, account.password ?? null, Date.now());
     console.log(`Imported ${accounts.length} Rockbot accounts from .accounts.json, which was left as a backup`);
+});
+
+// UCI's dining site, and its two dining halls there
+once("seededDining", () => {
+    db.prepare("UPDATE schools SET dining_config = ? WHERE id = ?").run(
+        JSON.stringify({ storeCode: "ch_uci", storeViewCode: "ch_uci_en", clientPath: "ch/uci/en", campusUrlKey: "campus" }), MAIN_SCHOOL_ID);
+    db.prepare("UPDATE venues SET dining_location_key = 'the-anteatery' WHERE id = 'anteatery'").run();
+    db.prepare("UPDATE venues SET dining_location_key = 'brandywine' WHERE id = 'brandywine'").run();
 });
 
 // The beta's members and requests became per school. Everything from before is UCI's

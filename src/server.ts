@@ -9,6 +9,7 @@ import {
 import { boost } from "./routes/boost.js";
 import { downvote, downvoteCheck } from "./routes/downvote.js";
 import { match } from "./routes/match.js";
+import { mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus } from "./routes/meals.js";
 import { myPicks } from "./routes/my-picks.js";
 import { addPlaylist, myPlaylists, playlist, playlistQueueStatus, queuePlaylist } from "./routes/playlists.js";
 import { queue } from "./routes/queue.js";
@@ -25,6 +26,7 @@ import { vote } from "./routes/vote.js";
 import { voteCapacity } from "./routes/vote-capacity.js";
 import { clearZotifyQueue, removeFromZotifyQueue, reorderZotifyQueue, zotifyQueue } from "./routes/zotify-queue.js";
 import { startLive } from "./live.js";
+import { startMealsSync } from "./meals/sync.js";
 import { schoolForOrigin } from "./schools.js";
 
 const app = express();
@@ -36,7 +38,10 @@ app.set("trust proxy", "loopback");
 // Each school's frontend runs on its own origin (zotify.app, uf.zotify.app...), so it calls this API cross-origin with the
 // session cookie. Only schools' origins are allowed, and preflights cover JSON POSTs
 app.use((req, res, next) => {
-    if (schoolForOrigin(req.headers.origin)) {
+    // Zotify Meals is public and read-only, so any site can use it, without cookies
+    if (req.path.startsWith("/api/meals")) {
+        res.set("Access-Control-Allow-Origin", "*");
+    } else if (schoolForOrigin(req.headers.origin)) {
         res.set({ "Access-Control-Allow-Origin": req.headers.origin, "Access-Control-Allow-Credentials": "true" });
     }
 
@@ -69,6 +74,14 @@ app.get("/api/auth/me", me);
 app.post("/api/auth/logout", logout);
 app.post("/api/auth/magic", magicLinkRoute);
 app.get("/api/school", school);
+
+// Zotify Meals: public dining hall menus (see routes/meals.ts). More specific paths come before /:location
+app.get("/api/meals", mealsIndex);
+app.get("/api/meals/:school", mealsSchool);
+app.get("/api/meals/:school/status", mealsStatus);
+app.get("/api/meals/:school/items/:sku", mealsItem);
+app.get("/api/meals/:school/:location", mealsLocation);
+app.get("/api/meals/:school/:location/:date", mealsDay);
 app.get("/api/schools", schools);
 
 // Signed in, but not approved yet: asking to join, or using an invite code
@@ -135,3 +148,6 @@ const server = app.listen(API_PORT, () => {
 
 // Live updates for pages, on the same port
 startLive(server);
+
+// Keeps Zotify Meals' menus fresh: two weeks nightly and on first start, today and tomorrow hourly
+startMealsSync();

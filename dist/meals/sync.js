@@ -1,0 +1,156 @@
+import { cache } from "../cache.js";
+import { db } from "../db.js";
+import { DAYS_AHEAD, NEAR_TERM_DAYS, NEAR_TERM_REFRESH_MS, NIGHTLY_SYNC_HOUR } from "./config.js";
+import { fetchLocation, fetchMealPeriods, fetchMenu, fetchStoreConfig } from "./elevate.js";
+import { isHidden, toMenuItem } from "./items.js";
+import { getReference, prune, saveLocation, saveMenu, saveReference } from "./store.js";
+/** Schools set up for Zotify Meals, with the venues it reads menus for */
+export function diningSchools() {
+    const schools = db.prepare("SELECT id, dining_config FROM schools WHERE dining_config IS NOT NULL ORDER BY position").all();
+    return schools.map(school => ({
+        id: school.id,
+        config: JSON.parse(school.dining_config),
+        locations: db.prepare("SELECT id, dining_location_key AS key FROM venues WHERE school_id = ? AND dining_location_key IS NOT NULL ORDER BY position")
+            .all(school.id)
+    })).filter(school => school.locations.length);
+}
+const statusKey = (schoolId) => `mealsSync:${schoolId}`;
+export async function getStatus(schoolId) {
+    return await cache.get([statusKey(schoolId)]) ?? { running: false, lastFullSync: null, lastNearTermSync: null, lastError: null, menusFetched: 0, menusFailed: 0 };
+}
+async function setStatus(schoolId, change) {
+    await cache.set([statusKey(schoolId)], { ...await getStatus(schoolId), ...change });
+}
+/** A date (YYYY-MM-DD) some days before or after another */
+export const addDays = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+/** Today's date (YYYY-MM-DD) in a timezone */
+export const todayIn = (timezone) => new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+/** Today and the days after it, in a timezone */
+export function datesFrom(timezone, days) {
+    const today = todayIn(timezone);
+    return Array.from({ length: days }, (_, i) => addDays(today, i));
+}
+// Past menus are kept this many days, so yesterday's can still be looked up
+const KEEP_PAST_DAYS = 3;
+const hourIn = (timezone) => Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(new Date()));
+async function syncReference(school) {
+    const [config, periods] = await Promise.all([fetchStoreConfig(school.config), fetchMealPeriods(school.config)]);
+    const reference = {
+        timezone: config.timezone,
+        allergens: config.allergens_intolerances.map(({ value, label }) => ({ id: value, label })),
+        dietTags: config.menu_preferences.map(({ value, title, label, description }) => ({ id: value, label: title ?? label, description })),
+        mealPeriods: [...periods].sort((a, b) => a.position - b.position)
+    };
+    saveReference(school.id, reference);
+    return reference;
+}
+async function syncLocation(school, location) {
+    const { commerceAttributes, aemAttributes } = await fetchLocation(school.config, location.key);
+    const saved = {
+        id: location.id,
+        key: location.key,
+        name: commerceAttributes.name,
+        menusThrough: commerceAttributes.maxMenusDate,
+        mealPeriods: (commerceAttributes.meal_periods ?? []).map(({ id, name }) => ({ id, name })),
+        stations: (commerceAttributes.children ?? []).map(({ id, name }) => ({ id, name: name.trim() })),
+        schedule: aemAttributes?.hoursOfOperation?.schedule ?? null
+    };
+    saveLocation(school.id, saved);
+    return saved;
+}
+/** Fetches every meal period's menu for these dates at a location. Returns how many were fetched and how many failed */
+async function syncMenus(school, location, dates, labels) {
+    const tasks = dates
+        .filter(date => !location.menusThrough || date <= location.menusThrough)
+        .flatMap(date => location.mealPeriods.map(period => ({ date, period })));
+    let failed = 0;
+    // The Elevate client limits how many run at once
+    await Promise.all(tasks.map(async ({ date, period }) => {
+        try {
+            const menu = await fetchMenu(school.config, location.key, date, period.id);
+            const visible = (menu?.items ?? []).filter(product => !isHidden(product));
+            const skus = new Set(visible.map(product => product.sku));
+            const stations = menu?.stations
+                .map(station => ({ id: station.id, skus: station.skus.filter(sku => skus.has(sku)) }))
+                .filter(station => station.skus.length) ?? [];
+            saveMenu(school.id, location.id, date, period.id, stations.length ? stations : null, visible.map(product => toMenuItem(product, labels)));
+        }
+        catch (error) {
+            failed++;
+            console.warn(`Zotify Meals couldn't fetch ${location.name} on ${date} (${period.name}): ${error.message}`);
+        }
+    }));
+    return { fetched: tasks.length - failed, failed };
+}
+const labelsOf = (reference) => ({
+    allergens: Object.fromEntries(reference.allergens.map(({ id, label }) => [id, label])),
+    dietTags: Object.fromEntries(reference.dietTags.map(({ id, label }) => [id, label]))
+});
+// One sync at a time per school
+const running = new Set();
+/** Fetches a school's labels, locations, and menus for the next days. near limits it to the next couple of days' menus */
+export async function syncSchool(school, { near = false } = {}) {
+    if (running.has(school.id))
+        return;
+    running.add(school.id);
+    await setStatus(school.id, { running: true });
+    const started = Date.now();
+    let fetched = 0, failed = 0;
+    try {
+        // Labels and locations change rarely, so the hourly refresh reuses them
+        const reference = near ? getReference(school.id) ?? await syncReference(school) : await syncReference(school);
+        const dates = datesFrom(reference.timezone, near ? NEAR_TERM_DAYS : DAYS_AHEAD);
+        for (const location of school.locations) {
+            try {
+                const saved = await syncLocation(school, location);
+                const result = await syncMenus(school, saved, dates, labelsOf(reference));
+                fetched += result.fetched;
+                failed += result.failed;
+            }
+            catch (error) {
+                failed++;
+                console.error(`Zotify Meals couldn't sync ${location.key} for ${school.id}:`, error.message);
+            }
+        }
+        prune(school.id, addDays(dates[0], -KEEP_PAST_DAYS));
+        console.log(`Zotify Meals ${near ? "refreshed" : "synced"} ${school.id}: ${fetched} menus${failed ? `, ${failed} failed` : ""} in ${Math.round((Date.now() - started) / 1000)}s`);
+        await setStatus(school.id, {
+            [near ? "lastNearTermSync" : "lastFullSync"]: Date.now(),
+            ...(near ? {} : { lastNearTermSync: Date.now() }),
+            lastError: failed ? `${failed} menus couldn't be fetched` : null,
+            menusFetched: fetched,
+            menusFailed: failed
+        });
+    }
+    catch (error) {
+        console.error(`Zotify Meals couldn't sync ${school.id}:`, error);
+        await setStatus(school.id, { lastError: error.message });
+    }
+    finally {
+        running.delete(school.id);
+        await setStatus(school.id, { running: false });
+    }
+}
+/** Syncs each school when it's never been synced, nightly after NIGHTLY_SYNC_HOUR, and refreshes the next days hourly */
+export function startMealsSync() {
+    const check = async () => {
+        for (const school of diningSchools()) {
+            const status = await getStatus(school.id);
+            const timezone = getReference(school.id)?.timezone ?? "America/Los_Angeles";
+            const today = todayIn(timezone);
+            const lastFullDay = status.lastFullSync ? new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(status.lastFullSync)) : null;
+            if (!status.lastFullSync || (lastFullDay < today && hourIn(timezone) >= NIGHTLY_SYNC_HOUR)) {
+                await syncSchool(school);
+            }
+            else if (!status.lastNearTermSync || Date.now() - status.lastNearTermSync > NEAR_TERM_REFRESH_MS) {
+                await syncSchool(school, { near: true });
+            }
+        }
+    };
+    // A sync that was running when the server stopped isn't anymore
+    for (const school of diningSchools())
+        setStatus(school.id, { running: false });
+    check().catch(error => console.error("Zotify Meals sync check failed:", error));
+    setInterval(() => check().catch(error => console.error("Zotify Meals sync check failed:", error)), 5 * 60 * 1000);
+}
+//# sourceMappingURL=sync.js.map

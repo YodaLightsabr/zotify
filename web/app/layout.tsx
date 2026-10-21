@@ -15,9 +15,18 @@ export async function generateMetadata(): Promise<Metadata> {
     const school = await currentSchool();
     const venues = listOf(school.venues.map(venue => venue.name));
 
+    const description = `Queue music at ${school.shortName}${venues ? `'s ${venues}` : ""}.`;
+    // Link previews: each school's site describes itself, with its own image (app/og/route.tsx)
+    const title = school.subdomain ? `Zotify at ${school.shortName}` : "Zotify";
+    const image = { url: "/og", width: 1200, height: 630, alt: `Zotify for ${school.name}` };
+
     return {
-        title: { default: "Zotify", template: "%s · Zotify" },
-        description: `Queue music at ${school.shortName}${venues ? `'s ${venues}` : ""}.`,
+        // Makes the preview image's address absolute, on the school's own site
+        metadataBase: new URL(school.url),
+        title: { default: title, template: "%s · Zotify" },
+        description,
+        openGraph: { type: "website", siteName: "Zotify", title, description, url: "/", images: [image] },
+        twitter: { card: "summary_large_image", title, description, images: [image] },
         applicationName: "Zotify",
         // Added to the home screen on iPhone, it opens full screen like an app. The icon is app/apple-icon.png
         appleWebApp: { capable: true, title: "Zotify", statusBarStyle: "black" }

@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { postJson, type Venue } from "@/lib/api";
-import { cx, shortEmail, VENUE_LABELS } from "@/lib/format";
+import { cx } from "@/lib/format";
+import { useSchool } from "@/lib/school";
+import { useVenue } from "@/lib/venue";
 import { Busy } from "./Spinner";
 import "./pick-history.css";
 
@@ -78,6 +80,10 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
     const [done, setDone] = useState(false);
     const [status, setStatus] = useState({ text: "", error: false });
 
+    const school = useSchool();
+    // Requests go to the venue picked now, wherever the song played before
+    const [venue] = useVenue();
+
     // Into Zotify's queue, like the homepage's Queue button
     async function requestAgain() {
         setBusy("Queuing…");
@@ -86,7 +92,7 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
         try {
             const { response, data } = await postJson("/api/queue", {
                 song: { id: pick.songId, name: pick.name, artist: pick.artist, cover: pick.cover },
-                venue: pick.venue
+                venue
             });
 
             if (response.status === 409) {
@@ -108,7 +114,7 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
         }
     }
 
-    const who = showRequester && pick.requestedBy ? ` · ${shortEmail(pick.requestedBy)}` : "";
+    const who = showRequester && pick.requestedBy ? ` · ${school.shortEmail(pick.requestedBy)}` : "";
 
     return (
         <div className="history-row">
@@ -117,12 +123,13 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
                 {pick.cover ? <img src={pick.cover} alt="" loading="lazy" /> : <div className="no-cover">♪</div>}
                 <div className="title">
                     <span className="name">{pick.name}</span>
-                    <span className="details">{pick.artist} · {VENUE_LABELS[pick.venue] ?? pick.venue}{who}</span>
+                    <span className="details">{pick.artist} · {school.venueName(pick.venue)}{who}</span>
                 </div>
             </div>
             <div className="row-actions">
                 <span className={cx("row-status", status.error && "error")}>{status.text}</span>
-                <button type="button" className={cx("history-button", busy && "busy")} disabled={!!busy || done} onClick={requestAgain}>
+                <button type="button" className={cx("history-button", busy && "busy")} disabled={!!busy || done} onClick={requestAgain}
+                    title={`Queue it at ${school.venueName(venue)}`}>
                     {busy ? <Busy label={busy} /> : label}
                 </button>
             </div>

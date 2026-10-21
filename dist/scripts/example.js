@@ -4,7 +4,7 @@ const client = new RockbotClient({
     refreshToken: process.env.REFRESH_TOKEN,
     key: process.env.KEY,
 });
-const venue = client.anteatery;
+const venue = client.venue(RockbotClient.ANTEATERY, "Anteatery");
 const refresh = false;
 if (refresh) {
     console.log("\nRefreshing token...");

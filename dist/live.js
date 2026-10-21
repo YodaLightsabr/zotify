@@ -1,26 +1,26 @@
 import { Server } from "socket.io";
 import { isApproved } from "./beta.js";
-import { FRONTEND_URL } from "./config.js";
 import { events } from "./events.js";
 import { getPlaylistQueueJob } from "./playlistQueue.js";
 import { getRecentlyQueued } from "./queued.js";
 import { sessionFromCookies } from "./routes/auth.js";
+import { getVenue, getVenues, schoolForOrigin } from "./schools.js";
 import { describeVenueQueue, getVenueQueue, isFromZotify, queueEntries } from "./venueQueue.js";
 import { refreshVotes } from "./votes.js";
 import { describeZotifyQueue, getWaiting, processSoon } from "./zotifyQueue.js";
 // Live updates over socket.io. The server fetches each venue's queue from Rockbot once per poll and broadcasts it to every
 // page watching, instead of every page polling. Zotify's queue and playlist "queue all" progress are pushed as they change.
 //
+// Each connection belongs to the school whose site opened it (by its Origin), and can only watch that school's venues.
+//
 // Rooms:
-//   venue:{venue}             the venue's queue, for anyone
-//   zotify:{venue}            Zotify's own queue and its failures there, for approved members
-//   playlist:{id}:{venue}     a playlist's "queue all" progress there, for approved members
+//   venue:{venue}             the venue's queue, for anyone at its school's site
+//   zotify:{venue}            Zotify's own queue and its failures there, for the school's approved members
+//   playlist:{id}:{venue}     a playlist's "queue all" progress there, for the school's approved members
 // How often each venue's queue is fetched from Rockbot, while anyone is watching it or Zotify has songs waiting there
 const POLL_MS = 15_000;
 // After a vote or a request, Rockbot takes a moment to show it, so fetch again after this long
 const CHANGE_DELAY_MS = 2_000;
-const VENUES = ["anteatery", "brandywine"];
-const isVenue = (value) => VENUES.includes(value);
 const isPlaylistId = (value) => typeof value === "string" && /^[A-Za-z0-9]{22}$/.test(value);
 let io = null;
 // The latest broadcast for each venue, sent straight away to pages that start watching
@@ -98,6 +98,8 @@ function pollSoon(venue) {
     }, CHANGE_DELAY_MS));
 }
 function handleConnection(socket) {
+    // Only the school's own venues
+    const isVenue = (value) => getVenue(value)?.schoolId === socket.data.school;
     socket.on("watch", async ({ venue } = {}) => {
         if (!isVenue(venue))
             return;
@@ -131,15 +133,19 @@ function handleConnection(socket) {
 /** Starts socket.io on the API's HTTP server, and the polling that feeds it */
 export function startLive(server) {
     io = new Server(server, {
-        // The frontend is on its own origin and sends the session cookie with the handshake
-        cors: { origin: FRONTEND_URL, credentials: true }
+        // Each school's frontend is on its own origin and sends the session cookie with the handshake
+        cors: { origin: (origin, callback) => callback(null, !!schoolForOrigin(origin)), credentials: true }
     });
-    // Who's connecting decides what they can watch. Pages reconnect when someone signs in or out
+    // Who's connecting, and from which school's site, decides what they can watch. Pages reconnect when someone signs in or out
     io.use(async (socket, next) => {
         try {
+            const school = schoolForOrigin(socket.handshake.headers.origin);
+            if (!school)
+                return next(new Error("Connect from a school's Zotify"));
             const session = await sessionFromCookies(socket.handshake.headers.cookie);
             socket.data.email = session?.email ?? null;
-            socket.data.member = session ? await isApproved(session.email) : false;
+            socket.data.school = school.id;
+            socket.data.member = session ? await isApproved(session.email, school.id) : false;
             next();
         }
         catch (error) {
@@ -153,7 +159,7 @@ export function startLive(server) {
     events.on("playlistJobChanged", sendPlaylistJob);
     // Only venues someone is watching, or where Zotify has songs to move into Rockbot, are fetched
     const tick = () => {
-        for (const venue of VENUES) {
+        for (const { id: venue } of getVenues()) {
             if (watchers(`venue:${venue}`) || getWaiting(venue).length)
                 poll(venue);
         }

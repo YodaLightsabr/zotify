@@ -3,7 +3,7 @@ import { getRecentlyQueued } from "../queued.js";
 import { parseVenue, queryParam } from "./params.js";
 
 export async function queued(req: Request, res: Response) {
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
 
     if (!venueName) {
         res.status(400).json({ error: `Unknown venue "${queryParam(req, "venue")}"` });

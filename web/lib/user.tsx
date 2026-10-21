@@ -5,7 +5,10 @@ import { apiFetch, postJson } from "./api";
 
 export interface CurrentUser {
     email: string;
+    // Runs this school's Zotify
     admin: boolean;
+    // Runs every school's: schools, venues and Rockbot accounts
+    siteAdmin?: boolean;
     approved: boolean;
     request: { status: "pending" | "approved" | "rejected", requestedAt: number } | null;
 }

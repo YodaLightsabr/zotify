@@ -1,0 +1,37 @@
+/* A text field with fixed text after what's typed (components/SuffixInput.tsx) */
+
+.suffix-input {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.suffix-input:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(254, 204, 7, 0.2);
+}
+
+.suffix-input input {
+    min-width: 0;
+    width: 100%;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.suffix-input input::placeholder { color: var(--placeholder); opacity: 1; }
+
+.suffix-input .suffix {
+    padding-right: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.suffix-input.compact input { padding: 8px 12px; font-size: 0.9rem; }
+.suffix-input.compact .suffix { padding-right: 12px; font-size: 0.9rem; }

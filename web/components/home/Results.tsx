@@ -2,7 +2,8 @@
 
 import { Spinner } from "@/components/Spinner";
 import type { Venue } from "@/lib/api";
-import { otherVenue, VENUE_LABELS } from "@/lib/format";
+import { listOf } from "@/lib/format";
+import { useSchool } from "@/lib/school";
 import { QueueGroup } from "./SongParts";
 import { ResultRow, TrackRow } from "./ResultRow";
 import type { OpenVote, PlaylistTrack, Song } from "./types";
@@ -22,13 +23,17 @@ export function resultGroup(song: Song) {
 
 /** Songs grouped by whether they can be queued, used for searches and playlists. notFound lists playlist tracks Rockbot doesn't have */
 export function SongResults({ songs, venue, notFound = [], onVote }: { songs: Song[], venue: Venue, notFound?: NotFound[], onVote: OpenVote }) {
+    const school = useSchool();
     if (!songs.length && !notFound.length) return <Message text="No songs found. Try a different search." />;
+
+    // The school's other venues, which songs that can't be played here might be at
+    const others = school.venues.filter(other => other.id !== venue).map(other => other.name);
 
     const groups: [string, React.ReactNode[]][] = [
         ["cooldown", "On cooldown"],
         ["others", "Requested by others"],
         ["available", "Available to play"],
-        ["elsewhere", `Only available at ${VENUE_LABELS[otherVenue(venue)]}`],
+        ["elsewhere", `Only available at ${listOf(others)}`],
         ["unavailable", "Unavailable anywhere"]
     ].map(([key, title]) => [title, songs.filter(song => resultGroup(song) === key).map(song =>
         <ResultRow key={song.id} song={song} venue={venue} onVote={onVote} />)] as [string, React.ReactNode[]]);

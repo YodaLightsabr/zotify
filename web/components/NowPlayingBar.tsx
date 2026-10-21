@@ -2,24 +2,25 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatTime, VENUE_LABELS } from "@/lib/format";
-import { useLiveVenue, type LiveVenue } from "@/lib/live";
+import { formatTime } from "@/lib/format";
+import { useLiveVenues, type LiveVenue } from "@/lib/live";
+import { useSchool } from "@/lib/school";
 import "./now-playing-bar.css";
 
 /**
  * A thin bar along the bottom of every page except the homepage, which shows the queue itself:
- * the song playing at either venue, its album art and how long it has left. Rendered once by the root layout
+ * the song playing at any of the school's venues, its album art and how long it has left. Rendered once by the root layout
  */
 export default function NowPlayingBar() {
     const hidden = usePathname() === "/";
-    // Both venues stay live while the bar shows; the first one playing something wins
-    const anteatery = useLiveVenue("anteatery", !hidden);
-    const brandywine = useLiveVenue("brandywine", !hidden);
+    const school = useSchool();
+    // All the school's venues stay live while the bar shows; the first one playing something wins
+    const lives = useLiveVenues(school.venues.map(venue => venue.id), !hidden);
     const [now, setNow] = useState(() => Date.now());
 
-    const [venue, live] = anteatery?.queue?.nowPlaying ? ["anteatery", anteatery] as const
-        : brandywine?.queue?.nowPlaying ? ["brandywine", brandywine] as const
-        : [null, null];
+    const index = lives.findIndex(live => live?.queue?.nowPlaying);
+    const venue = index >= 0 ? school.venues[index] : null;
+    const live = index >= 0 ? lives[index] : null;
     const song = live?.queue?.nowPlaying;
     const endsAt = song?.secondsRemaining !== undefined && live ? endOf(live, song.secondsRemaining) : undefined;
 
@@ -32,12 +33,12 @@ export default function NowPlayingBar() {
 
     if (hidden) return null;
 
-    // Still waiting to hear from either venue
-    const loading = !song && (!anteatery || !brandywine);
+    // Still waiting to hear from the venues
+    const loading = !song && lives.some(live => !live);
 
     return (
         <div className="now-playing-bar" role="status" aria-live="polite"
-            title={song && venue ? `Now playing at ${VENUE_LABELS[venue]}: ${song.name} by ${song.artist}` : undefined}>
+            title={song && venue ? `Now playing at ${venue.name}: ${song.name} by ${song.artist}` : undefined}>
             {!song && !loading && <span className="now-playing-name muted">Nothing&apos;s playing right now</span>}
             {song && <>
                 {song.cover

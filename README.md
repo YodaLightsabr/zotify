@@ -8,7 +8,7 @@ Queue music at UCI's Anteatery and Brandywine through Rockbot. Two apps: an Expr
 npm install
 ```
 
-The server reads accounts from `.accounts.json` and keeps everything else (sessions, members, invite codes, cached searches, pick history) in a SQLite database, `.zotify.db`, both in the project root. Environment variables in `.env` are loaded if the file exists.
+The server keeps everything (Rockbot accounts, schools, sessions, members, invite codes, cached searches, pick history) in a SQLite database, `.zotify.db`, in the project root. Rockbot accounts used to be in `.accounts.json`, which is imported the first time. Environment variables in `.env` are loaded if the file exists.
 
 Older versions kept that data in `.cache.json`. The first time the server starts without a database, it imports `.cache.json` and then leaves it alone as a backup. Run `npm run backup` (after `npm run build`) to save a consistent copy of the database to `backups/`, even while the server is running.
 
@@ -24,6 +24,15 @@ The API and the frontend run separately and talk over CORS, with the session coo
 | Frontend (`web/`) | http://localhost:3000 | https://zotify.app |
 
 The API always listens on port 3001 and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. The API only accepts requests from the frontend's URL. Magic links and invite links in emails point at the frontend.
+
+## Schools
+
+Each school gets its own Zotify. The main school (UCI) is at zotify.app, and every other school at a subdomain, like uf.zotify.app for the University of Florida. Site admins manage schools from the admin dashboard: each school's name, subdomain, email domain (so people can sign in with just their ID, like a UCInetID), wording, venues with their Rockbot IDs, and admins. The Rockbot accounts Zotify uses are managed there too; a venue can have a home account that only ever checks in there, or share the rest.
+
+- `web/proxy.ts` works out the school from each request's host. Unknown subdomains go to zotify.app, so every `*.zotify.app` address (other than `api.`) can point at the frontend.
+- The API works out the school from each request's `Origin`, so one school's site can only reach its own venues, beta and history.
+- One sign-in works at every school, but each school has its own private beta, members and admins. Site admins (in `src/auth.ts`) run every school.
+- Schools and venues live in the `schools` and `venues` tables, Rockbot accounts in `rockbot_accounts`. On first start, UCI's Anteatery and Brandywine and UF's The Eatery are added, `.accounts.json` is imported (and kept as a backup), and the existing beta becomes UCI's.
 
 ## Live updates
 

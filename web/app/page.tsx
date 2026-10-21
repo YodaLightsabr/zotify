@@ -9,9 +9,11 @@ import QueueSkeleton from "@/components/home/QueueSkeleton";
 import VoteDialog from "@/components/home/VoteDialog";
 import { ClearButton, FailuresButton, FailuresDialog, WaitingList, type ZotifyQueue } from "@/components/home/ZotifyQueue";
 import { fetchOrThrow, goToLogin, postJson, type Venue } from "@/lib/api";
-import { cx, VENUE_LABELS, VENUES } from "@/lib/format";
+import { cx } from "@/lib/format";
 import { useLiveVenue, useLiveZotifyQueue, type LiveVenue } from "@/lib/live";
 import { useHomeReset } from "@/lib/navigation";
+import { useSchool } from "@/lib/school";
+import { useIsVenue, useVenue } from "@/lib/venue";
 import { useUser } from "@/lib/user";
 import "./home.css";
 
@@ -32,7 +34,10 @@ function Home() {
     const params = useSearchParams();
     const router = useRouter();
 
-    const [venue, setVenue] = useState<Venue>("anteatery");
+    const school = useSchool();
+    // Remembered between visits, and shared with the other pages
+    const [venue, setVenue] = useVenue();
+    const isVenue = useIsVenue();
     const [query, setQuery] = useState("");
     const [output, setOutput] = useState<Output | null>(null);
     const [searching, setSearching] = useState(false);
@@ -133,7 +138,7 @@ function Home() {
         }
 
         if (pendingQuery) {
-            const searchVenue = pendingVenue === "anteatery" || pendingVenue === "brandywine" ? pendingVenue : venue;
+            const searchVenue = isVenue(pendingVenue) ? pendingVenue : venue;
             setVenue(searchVenue);
 
             if (user) {
@@ -141,14 +146,14 @@ function Home() {
                 search(pendingQuery, searchVenue);
             }
         }
-    }, [user, params, search, venue]);
+    }, [user, params, search, venue, isVenue, setVenue]);
 
     return (
         <div className="page-home">
             <main className={cx(!isHome && "has-results")}>
                 <section className="hero">
                     <h1>Pick the <span>soundtrack</span>.</h1>
-                    <p>Zot your song into the queue.</p>
+                    <p>{school.tagline ?? "Get your song into the queue."}</p>
                 </section>
 
                 <form className="search" role="search" onSubmit={event => { event.preventDefault(); search(query, venue); }}>
@@ -161,20 +166,25 @@ function Home() {
                     <button type="submit" id="search-btn" disabled={searching}>Search</button>
                 </form>
 
-                <div className="venues" role="radiogroup" aria-label="Venue">
-                    {VENUES.map(([value, label]) => <Fragment key={value}>
-                        <input type="radio" name="venue" id={`venue-${value}`} value={value} checked={venue === value} onChange={() => changeVenue(value)} />
-                        <label htmlFor={`venue-${value}`}>{label}</label>
-                    </Fragment>)}
-                </div>
+                {/* Schools with one venue don't need a choice */}
+                {school.venues.length > 1 && (
+                    <div className="venues" role="radiogroup" aria-label="Venue">
+                        {school.venues.map(({ id, name }) => <Fragment key={id}>
+                            <input type="radio" name="venue" id={`venue-${id}`} value={id} checked={venue === id} onChange={() => changeVenue(id)} />
+                            <label htmlFor={`venue-${id}`}>{name}</label>
+                        </Fragment>)}
+                    </div>
+                )}
 
                 <section className="recent" aria-labelledby="recent-title">
                     <div className="recent-heading">
-                        <h2 id="recent-title">Up next at {VENUE_LABELS[venue]}</h2>
+                        <h2 id="recent-title">{venue ? `Up next at ${school.venueName(venue)}` : "Up next"}</h2>
                         {failures.length > 0 && <FailuresButton count={failures.length} onClick={() => setShowFailures(true)} />}
                     </div>
                     <div id="recent-list" aria-live="polite">
-                        {isHome && <QueueView live={live} zotify={zotify} venue={venue} admin={!!user?.admin} onVote={openVote} />}
+                        {isHome && (venue
+                            ? <QueueView live={live} zotify={zotify} venue={venue} venueName={school.venueName(venue)} admin={!!user?.admin} onVote={openVote} />
+                            : <Message text={`${school.shortName} doesn't have any venues on Zotify yet.`} />)}
                     </div>
                 </section>
 
@@ -184,14 +194,13 @@ function Home() {
             </main>
 
             <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)}
-                // Show the new counts on the Up next screen
                 // The server sends the new counts to everyone watching
                 onVoted={() => {}}
                 onArtist={artist => { setQuery(artist); search(artist, venue); }} />
 
             <FailuresDialog failures={failures} venue={venue} open={showFailures} onClose={() => setShowFailures(false)} />
 
-            <footer>Made with ♪ by Anteaters</footer>
+            <footer>{school.footer ?? "Made with ♪"}</footer>
 
             {welcome && <div className="welcome-note" role="status">You&apos;re in! Welcome to Zotify.</div>}
         </div>
@@ -206,14 +215,16 @@ function OutputView({ output, onVote }: { output: Output, onVote: OpenVote }) {
 }
 
 /** The venue's queue, with Zotify's own between On deck and Coming up for members */
-function QueueView({ live, zotify, venue, admin, onVote }: { live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, admin: boolean, onVote: OpenVote }) {
+function QueueView({ live, zotify, venue, venueName, admin, onVote }: {
+    live: LiveVenue | undefined, zotify: ZotifyQueue | undefined, venue: Venue, venueName: string, admin: boolean, onVote: OpenVote
+}) {
     if (!live) return <QueueSkeleton />;
     if (!live.queue) return <Message text={live.error ?? "Could not load the queue."} />;
 
     const { nowPlaying, onDeck, comingUp } = live.queue;
     // Songs waiting in Zotify's queue for room in the venue's
     const waiting = zotify?.waiting ?? [];
-    if (!nowPlaying && !onDeck.length && !comingUp.length && !waiting.length) return <Message text={`Nothing is playing at ${VENUE_LABELS[venue]} right now.`} />;
+    if (!nowPlaying && !onDeck.length && !comingUp.length && !waiting.length) return <Message text={`Nothing is playing at ${venueName} right now.`} />;
 
     const key = (entry: QueueEntry, i: number) => entry.pickId ?? `${entry.id}-${i}`;
 

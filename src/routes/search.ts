@@ -4,7 +4,7 @@ import { parseVenue, queryParam } from "./params.js";
 
 export async function search(req: Request, res: Response) {
     const query = queryParam(req, "q");
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
 
     if (!query) {
         res.status(400).json({ error: "Missing search query" });

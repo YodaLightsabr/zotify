@@ -1,9 +1,11 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { ADMIN_EMAILS, AuthError, createSession, isAdmin } from "./auth.js";
+import { AuthError, createSession, isAdmin, SITE_ADMIN_EMAILS } from "./auth.js";
 import { cache } from "./cache.js";
 import { sendRequestNotification, sendWelcomeEmail } from "./email.js";
+import { getSchool, getSchoolAdmins, getVenues, schoolUrl, type School } from "./schools.js";
 
-// Zotify is invite-only during the beta. Admins are always in; everyone else needs to be on the whitelist ("members")
+// Zotify is invite-only during the beta, separately at each school. A school's admins are always in there; everyone else
+// needs to be on that school's whitelist ("members"). One sign-in works at every school, but membership doesn't carry over
 
 export const MAGIC_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAGIC_LINK_DAYS = MAGIC_LINK_TTL_MS / (24 * 60 * 60 * 1000);
@@ -32,6 +34,8 @@ export interface JoinRequest {
 }
 
 export interface InviteCode {
+    // The school it lets people into
+    school: string;
     createdBy: string;
     createdAt: number;
     // Null means unlimited
@@ -42,14 +46,20 @@ export interface InviteCode {
 
 interface MagicLink {
     email: string;
+    // The school it signs them into
+    school: string;
     createdAt: number;
     expiresAt: number;
 }
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
-const readMembers = async (): Promise<Record<string, Member>> => (await cache.get(["members"])) ?? {};
-const readRequests = async (): Promise<Record<string, JoinRequest>> => (await cache.get(["joinRequests"])) ?? {};
+// Members and requests are kept per school, as kv sections like "members:uci"
+const membersKey = (schoolId: string) => `members:${schoolId}`;
+const requestsKey = (schoolId: string) => `joinRequests:${schoolId}`;
+
+const readMembers = async (schoolId: string): Promise<Record<string, Member>> => (await cache.get([membersKey(schoolId)])) ?? {};
+const readRequests = async (schoolId: string): Promise<Record<string, JoinRequest>> => (await cache.get([requestsKey(schoolId)])) ?? {};
 const readCodes = async (): Promise<Record<string, InviteCode>> => (await cache.get(["inviteCodes"])) ?? {};
 
 async function readMagicLinks(): Promise<Record<string, MagicLink>> {
@@ -58,81 +68,85 @@ async function readMagicLinks(): Promise<Record<string, MagicLink>> {
     return links;
 }
 
-export async function isApproved(email: string) {
-    return isAdmin(email) || !!(await readMembers())[email];
+// What sign-in calls people's IDs at a school, for messages like "Sign in with your UCInetID instead"
+const idName = (schoolId: string) => getSchool(schoolId)?.idLabel ?? "email address";
+
+export async function isApproved(email: string, schoolId: string) {
+    return isAdmin(email, schoolId) || !!(await readMembers(schoolId))[email];
 }
 
-/** Where someone stands, for the beta screen */
-export async function betaStatus(email: string) {
-    const approved = await isApproved(email);
-    const request = (await readRequests())[email];
+/** Where someone stands at a school, for the beta screen */
+export async function betaStatus(email: string, schoolId: string) {
+    const approved = await isApproved(email, schoolId);
+    const request = (await readRequests(schoolId))[email];
     return { approved, request: request ? { status: request.status, requestedAt: request.requestedAt } : null };
 }
 
-async function addMember(email: string, member: Member) {
-    const members = await readMembers();
+async function addMember(email: string, schoolId: string, member: Member) {
+    const members = await readMembers(schoolId);
 
     // Keep however they first got in
     if (!members[email]) {
         members[email] = member;
-        await cache.set(["members"], members);
+        await cache.set([membersKey(schoolId)], members);
     }
 
     // A pending request is settled by any other way in
-    const requests = await readRequests();
+    const requests = await readRequests(schoolId);
     if (requests[email]?.status === "pending") {
         requests[email] = { ...requests[email], status: "approved", decidedAt: Date.now(), decidedBy: member.approvedBy ?? member.code };
-        await cache.set(["joinRequests"], requests);
+        await cache.set([requestsKey(schoolId)], requests);
     }
 }
 
-/** A one-time link that signs this person in. Only a hash is stored */
-async function createMagicLink(email: string, baseUrl: string) {
+/** A one-time link that signs this person in at the school's Zotify. Only a hash is stored */
+async function createMagicLink(email: string, school: School) {
     const token = randomBytes(32).toString("base64url");
     const links = await readMagicLinks();
 
-    links[sha256(token)] = { email, createdAt: Date.now(), expiresAt: Date.now() + MAGIC_LINK_TTL_MS };
+    links[sha256(token)] = { email, school: school.id, createdAt: Date.now(), expiresAt: Date.now() + MAGIC_LINK_TTL_MS };
     await cache.set(["magicLinks"], links);
 
-    return `${baseUrl}/login/magic?${new URLSearchParams({ token })}`;
+    return `${schoolUrl(school)}/login/magic?${new URLSearchParams({ token })}`;
 }
 
-/** Uses up a magic link and starts a session for its owner. Returns the session token */
-export async function redeemMagicLink(token: string) {
+/** Uses up a magic link and starts a session for its owner. Returns the session token, and which school the link was for */
+export async function redeemMagicLink(token: string, schoolId: string) {
     const links = await readMagicLinks();
     const link = links[sha256(token)];
 
-    if (!link) throw new AuthError("That sign-in link has expired or was already used. Sign in with your UCInetID instead.");
+    if (!link) throw new AuthError(`That sign-in link has expired or was already used. Sign in with your ${idName(schoolId)} instead.`);
 
     // A link only works once
     delete links[sha256(token)];
     await cache.set(["magicLinks"], links);
 
-    return { email: link.email, token: await createSession(link.email) };
+    return { email: link.email, school: link.school, token: await createSession(link.email) };
 }
 
 // Requests
 
-/** Asks to join, once. Emails the admins */
-export async function requestInvite(email: string, baseUrl: string) {
-    if (await isApproved(email)) throw new AuthError("You're already in.", 409);
+/** Asks to join a school, once. Emails its admins and the site admins */
+export async function requestInvite(email: string, school: School) {
+    if (await isApproved(email, school.id)) throw new AuthError("You're already in.", 409);
 
-    const requests = await readRequests();
+    const requests = await readRequests(school.id);
     if (requests[email]) throw new AuthError("You've already asked for an invitation.", 409);
 
     requests[email] = { status: "pending", requestedAt: Date.now() };
-    await cache.set(["joinRequests"], requests);
+    await cache.set([requestsKey(school.id)], requests);
 
     // The request is saved either way; a failed notification just gets logged
-    await Promise.all(ADMIN_EMAILS.map(admin => sendRequestNotification(admin, email, `${baseUrl}/admin`)
+    const admins = [...new Set([...getSchoolAdmins(school.id), ...SITE_ADMIN_EMAILS])];
+    await Promise.all(admins.map(admin => sendRequestNotification(admin, email, `${schoolUrl(school)}/admin`, school.shortName)
         .catch(error => console.error(`Could not tell ${admin} about ${email}'s request:`, error))));
 
     return requests[email];
 }
 
 /** Approves or rejects a pending request. Approving emails them a magic link, unless silent */
-export async function decideRequest(email: string, decision: "approved" | "rejected", adminEmail: string, baseUrl: string, silent = false) {
-    const requests = await readRequests();
+export async function decideRequest(email: string, decision: "approved" | "rejected", adminEmail: string, school: School, silent = false) {
+    const requests = await readRequests(school.id);
     const request = requests[email];
 
     if (!request) throw new AuthError("There's no request from that account.", 404);
@@ -140,18 +154,22 @@ export async function decideRequest(email: string, decision: "approved" | "rejec
 
     if (decision === "rejected") {
         requests[email] = { ...request, status: "rejected", decidedAt: Date.now(), decidedBy: adminEmail };
-        await cache.set(["joinRequests"], requests);
+        await cache.set([requestsKey(school.id)], requests);
         return { emailed: false };
     }
 
-    await addMember(email, { joinedVia: "request", joinedAt: Date.now(), approvedBy: adminEmail, ...(silent ? { silent } : {}) });
-    return { emailed: silent ? false : await welcome(email, "approved", baseUrl) };
+    await addMember(email, school.id, { joinedVia: "request", joinedAt: Date.now(), approvedBy: adminEmail, ...(silent ? { silent } : {}) });
+    return { emailed: silent ? false : await welcome(email, "approved", school) };
 }
 
 /** Sends the "you're in" email with a magic link. Approval stands even if the email fails */
-async function welcome(email: string, reason: "invited" | "approved", baseUrl: string) {
+async function welcome(email: string, reason: "invited" | "approved", school: School) {
     try {
-        await sendWelcomeEmail(email, await createMagicLink(email, baseUrl), reason, MAGIC_LINK_DAYS);
+        await sendWelcomeEmail(email, await createMagicLink(email, school), reason, MAGIC_LINK_DAYS, {
+            shortName: school.shortName,
+            venueNames: getVenues(school.id).map(venue => venue.name),
+            idLabel: school.idLabel
+        });
         return true;
     } catch (error) {
         console.error(`Could not email ${email} that they're in:`, error);
@@ -161,12 +179,12 @@ async function welcome(email: string, reason: "invited" | "approved", baseUrl: s
 
 // Admin invites
 
-/** Adds someone to the whitelist. Unless silent, emails them a magic link */
-export async function inviteMember(email: string, adminEmail: string, silent: boolean, baseUrl: string) {
-    if (await isApproved(email)) throw new AuthError(`${email} is already in.`, 409);
+/** Adds someone to a school's whitelist. Unless silent, emails them a magic link */
+export async function inviteMember(email: string, adminEmail: string, silent: boolean, school: School) {
+    if (await isApproved(email, school.id)) throw new AuthError(`${email} is already in.`, 409);
 
-    await addMember(email, { joinedVia: "invite", joinedAt: Date.now(), approvedBy: adminEmail, silent });
-    return { emailed: silent ? false : await welcome(email, "invited", baseUrl) };
+    await addMember(email, school.id, { joinedVia: "invite", joinedAt: Date.now(), approvedBy: adminEmail, silent });
+    return { emailed: silent ? false : await welcome(email, "invited", school) };
 }
 
 // Invite codes
@@ -175,7 +193,8 @@ export function normalizeCode(input: unknown) {
     return typeof input === "string" ? input.toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
 }
 
-export async function createInviteCode(adminEmail: string, maxUses: number | null) {
+/** Makes an invite code for a school. Codes are unique across schools */
+export async function createInviteCode(adminEmail: string, maxUses: number | null, schoolId: string) {
     const codes = await readCodes();
     let code: string;
 
@@ -183,16 +202,16 @@ export async function createInviteCode(adminEmail: string, maxUses: number | nul
         code = Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
     } while (codes[code]);
 
-    codes[code] = { createdBy: adminEmail, createdAt: Date.now(), maxUses, uses: [] };
+    codes[code] = { school: schoolId, createdBy: adminEmail, createdAt: Date.now(), maxUses, uses: [] };
     await cache.set(["inviteCodes"], codes);
     return code;
 }
 
-export async function revokeInviteCode(code: string, adminEmail: string) {
+export async function revokeInviteCode(code: string, adminEmail: string, schoolId: string) {
     const codes = await readCodes();
     const invite = codes[normalizeCode(code)];
 
-    if (!invite) throw new AuthError("There's no such invite code.", 404);
+    if (!invite || invite.school !== schoolId) throw new AuthError("There's no such invite code.", 404);
     if (!invite.revokedAt) {
         invite.revokedAt = Date.now();
         await cache.set(["inviteCodes"], codes);
@@ -200,31 +219,33 @@ export async function revokeInviteCode(code: string, adminEmail: string) {
     }
 }
 
-/** Lets someone in with an invite code, and records the use. Already-approved people don't use one up */
-export async function redeemInviteCode(email: string, input: unknown) {
+/** Lets someone into a school with one of its invite codes, and records the use. Already-approved people don't use one up */
+export async function redeemInviteCode(email: string, input: unknown, schoolId: string) {
     const code = normalizeCode(input);
     const codes = await readCodes();
     const invite = codes[code];
 
-    if (!invite || invite.revokedAt) throw new AuthError("That invite code isn't valid.", 404);
-    if (await isApproved(email)) return { alreadyApproved: true };
+    // Another school's code doesn't work here
+    if (!invite || invite.revokedAt || invite.school !== schoolId) throw new AuthError("That invite code isn't valid.", 404);
+    if (await isApproved(email, schoolId)) return { alreadyApproved: true };
     if (invite.maxUses !== null && invite.uses.length >= invite.maxUses) throw new AuthError("That invite code has been used up.", 410);
 
     invite.uses.push({ email, usedAt: Date.now() });
     await cache.set(["inviteCodes"], codes);
-    await addMember(email, { joinedVia: "code", joinedAt: Date.now(), code });
+    await addMember(email, schoolId, { joinedVia: "code", joinedAt: Date.now(), code });
 
     return { alreadyApproved: false };
 }
 
-/** Everything the admin dashboard shows */
-export async function betaOverview() {
-    const [members, requests, codes] = await Promise.all([readMembers(), readRequests(), readCodes()]);
+/** Everything a school's admin dashboard shows */
+export async function betaOverview(schoolId: string) {
+    const [members, requests, codes] = await Promise.all([readMembers(schoolId), readRequests(schoolId), readCodes()]);
 
     return {
-        admins: ADMIN_EMAILS,
+        admins: [...new Set([...SITE_ADMIN_EMAILS, ...getSchoolAdmins(schoolId)])],
         members: Object.entries(members).map(([email, member]) => ({ email, ...member })).sort((a, b) => b.joinedAt - a.joinedAt),
         requests: Object.entries(requests).map(([email, request]) => ({ email, ...request })).sort((a, b) => b.requestedAt - a.requestedAt),
-        codes: Object.entries(codes).map(([code, invite]) => ({ code, ...invite })).sort((a, b) => b.createdAt - a.createdAt)
+        codes: Object.entries(codes).filter(([, invite]) => invite.school === schoolId)
+            .map(([code, invite]) => ({ code, ...invite })).sort((a, b) => b.createdAt - a.createdAt)
     };
 }

@@ -105,6 +105,12 @@
 
     .error { color: var(--error); }
 
+    .version { display: flex; flex-direction: column; gap: 6px; }
+    .version-commit { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .version-commit a.code { text-decoration: none; color: inherit; }
+    .version-commit a.code:hover { text-decoration: underline; }
+    .version-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     h3 {
         margin: 20px 0 8px;
         font-size: 0.75rem;
@@ -144,7 +150,7 @@
 
     .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
-    .inline-form input[type="text"], .inline-form input[type="number"] {
+    .inline-form > input[type="text"], .inline-form > input[type="number"], .inline-form > select {
         padding: 8px 12px;
         border: 1px solid var(--border);
         border-radius: 999px;
@@ -153,8 +159,61 @@
         font-size: 0.9rem;
     }
 
-    .inline-form input[type="number"] { width: 130px; }
+    .inline-form > input[type="number"] { width: 130px; }
+    .inline-form .suffix-input { border-radius: 999px; }
     .inline-form input::placeholder { color: var(--placeholder); }
+
+    /* Schools and Rockbot accounts (Schools.tsx, RockbotAccounts.tsx) */
+    .school-card {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.15);
+    }
+
+    .school-card h3:first-child { margin-top: 0; }
+
+    .row-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .row-header a { color: var(--placeholder); }
+
+    .stacked-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px 14px;
+    }
+
+    .form-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--muted);
+    }
+
+    .form-grid > label > input, .venue-fields input, .venue-fields select, .inline-form > select {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-weight: 400;
+    }
+
+    .form-grid > label > input:disabled { opacity: 0.6; }
+    .form-grid input::placeholder, .venue-fields input::placeholder { color: var(--placeholder); }
+
+    .form-actions { display: flex; gap: 8px; }
+
+    .venue-row { flex-wrap: wrap; }
+    .venue-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+    .venue-fields input { width: 160px; }
+    .rockbot-id { width: 110px !important; }
+    .code-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
     .checkbox { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
 

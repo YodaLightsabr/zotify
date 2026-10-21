@@ -104,6 +104,52 @@ db.exec(`
     );
 
     CREATE INDEX IF NOT EXISTS zotify_queue_status ON zotify_queue (venue, status, id);
+
+    -- Each school gets its own Zotify: zotify.app for the main school, or a subdomain like uf.zotify.app.
+    -- email_domain turns a bare ID like "panteater" into panteater@uci.edu; id_label is what those IDs are called there
+    CREATE TABLE IF NOT EXISTS schools (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        short_name TEXT NOT NULL,
+        -- NULL for the main school, which lives at zotify.app itself
+        subdomain TEXT UNIQUE,
+        email_domain TEXT,
+        id_label TEXT,
+        id_placeholder TEXT,
+        tagline TEXT,
+        footer TEXT,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    );
+
+    -- Dining halls with Rockbot. id is used throughout Zotify (queues, searches, history), so it never changes.
+    -- home_account is a Rockbot account that only ever checks in here, so it can always read the queue; optional
+    CREATE TABLE IF NOT EXISTS venues (
+        id TEXT PRIMARY KEY,
+        school_id TEXT NOT NULL REFERENCES schools (id),
+        name TEXT NOT NULL,
+        rockbot_id TEXT NOT NULL,
+        home_account TEXT,
+        position INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- The Rockbot accounts Zotify queues and votes with, shared by every venue
+    CREATE TABLE IF NOT EXISTS rockbot_accounts (
+        username TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        refresh_token TEXT NOT NULL,
+        key TEXT NOT NULL,
+        password TEXT,
+        added_at INTEGER NOT NULL
+    );
+
+    -- People who run a school's Zotify: its beta, requests and history. Site admins (auth.ts) run every school
+    CREATE TABLE IF NOT EXISTS school_admins (
+        school_id TEXT NOT NULL REFERENCES schools (id),
+        email TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (school_id, email)
+    );
 `);
 
 // Databases from before the Zotify queue could be rearranged don't have its position column. Songs keep the order they were added in
@@ -189,6 +235,63 @@ function importLegacyCache() {
 }
 
 importLegacyCache();
+
+// The first school, which everything before schools existed belongs to
+export const MAIN_SCHOOL_ID = "uci";
+
+/** Runs fn once per database, recorded in meta under key */
+function once(key: string, fn: () => void) {
+    if (db.prepare("SELECT 1 FROM meta WHERE key = ?").get(key)) return;
+
+    transaction(() => {
+        fn();
+        db.prepare("INSERT INTO meta (key, value) VALUES (?, ?)").run(key, JSON.stringify({ at: Date.now() }));
+    });
+}
+
+// UCI, whose venues keep the ids everything already uses, and the University of Florida
+once("seededSchools", () => {
+    const addSchool = db.prepare(`
+        INSERT OR IGNORE INTO schools (id, name, short_name, subdomain, email_domain, id_label, id_placeholder, tagline, footer, position, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const addVenue = db.prepare("INSERT OR IGNORE INTO venues (id, school_id, name, rockbot_id, home_account, position) VALUES (?, ?, ?, ?, ?, ?)");
+
+    addSchool.run(MAIN_SCHOOL_ID, "UC Irvine", "UCI", null, "uci.edu", "UCInetID", "panteater", "Zot your song into the queue.", "Made with ♪ by Anteaters", 0, Date.now());
+    addVenue.run("anteatery", MAIN_SCHOOL_ID, "Anteatery", "162285", "ant3eatery", 0);
+    addVenue.run("brandywine", MAIN_SCHOOL_ID, "Brandywine", "162286", "brandy2wine", 1);
+
+    addSchool.run("uf", "University of Florida", "UF", "uf", "ufl.edu", "GatorLink username", "albertgator", "Get your song into the queue.", "Made with ♪ by Gators", 1, Date.now());
+    addVenue.run("the-eatery", "uf", "The Eatery", "104128", null, 0);
+});
+
+// Rockbot accounts used to live in .accounts.json. Bring them in once; the file is left as a backup
+once("importedRockbotAccounts", () => {
+    if (!existsSync(".accounts.json")) return;
+
+    const add = db.prepare("INSERT OR IGNORE INTO rockbot_accounts (username, email, refresh_token, key, password, added_at) VALUES (?, ?, ?, ?, ?, ?)");
+    const accounts = JSON.parse(readFileSync(".accounts.json", "utf8")) as { username: string, email: string, refreshToken: string, key: string, password?: string }[];
+
+    for (const account of accounts) add.run(account.username, account.email, account.refreshToken, account.key, account.password ?? null, Date.now());
+    console.log(`Imported ${accounts.length} Rockbot accounts from .accounts.json, which was left as a backup`);
+});
+
+// The beta's members and requests became per school. Everything from before is UCI's
+once("schoolScopedBeta", () => {
+    for (const section of ["members", "joinRequests"]) {
+        db.prepare("UPDATE kv SET key = ? WHERE key = ?").run(`${section}:${MAIN_SCHOOL_ID}`, section);
+    }
+
+    // Invite codes and magic links stay in one place, each now saying which school it's for
+    for (const section of ["inviteCodes", "magicLinks"]) {
+        const row = db.prepare("SELECT value FROM kv WHERE key = ?").get(section) as { value: string } | undefined;
+        if (!row) continue;
+
+        const entries = JSON.parse(row.value) as Record<string, Record<string, unknown>>;
+        for (const entry of Object.values(entries)) entry.school ??= MAIN_SCHOOL_ID;
+        db.prepare("UPDATE kv SET value = ? WHERE key = ?").run(JSON.stringify(entries), section);
+    }
+});
 
 /** Everything, in the same shape .cache.json used to have. For the admin dashboard's cache view */
 export function snapshot() {

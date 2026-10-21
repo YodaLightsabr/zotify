@@ -20,7 +20,31 @@
         margin: 0;
     }
 
-    .intro { color: var(--muted); margin: 6px 0 24px; font-size: 0.95rem; }
+    .intro { color: var(--muted); margin: 6px 0 12px; font-size: 0.95rem; }
+
+    .venue-picker {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 24px;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .venue-option {
+        padding: 5px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: none;
+        color: var(--text);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .venue-option:hover { border-color: var(--accent); }
+    .venue-option.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
     .error { color: var(--error); }
 }

@@ -1,4 +1,4 @@
-import { getHomeAccount, getLiveAccounts, type VenueName } from "./accounts.js";
+import { getHomeAccount, getLiveAccounts, rockbotVenue, type VenueName } from "./accounts.js";
 import type { QueueEntry } from "./client.js";
 import { cache } from "./cache.js";
 import { getRecentlyBoosted, getRecentlyQueued } from "./queued.js";
@@ -84,7 +84,7 @@ export async function checkDownvote(venue: VenueName, pickId: string): Promise<D
 
     // Fresh from Rockbot, not the queue cache, since votes change quickly
     const [{ upvoters, downvoters }, accounts] = await Promise.all([
-        (await getHomeAccount(venue)).client[venue].fetchPickVotes(pickId),
+        rockbotVenue((await getHomeAccount(venue)).client, venue).fetchPickVotes(pickId),
         getLiveAccounts()
     ]);
     const ours = new Set(accounts.map(account => account.username.toLowerCase()));

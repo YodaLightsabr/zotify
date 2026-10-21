@@ -4,7 +4,7 @@ import { refreshVotes } from "../votes.js";
 import { parseVenue, queryParam } from "./params.js";
 /** A venue's queue over HTTP. Pages get it live over the socket instead (see live.ts); this shares the same Rockbot fetch */
 export async function venueQueue(req, res) {
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
     if (!venueName) {
         res.status(400).json({ error: `Unknown venue "${queryParam(req, "venue")}"` });
         return;

@@ -1,52 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PickHistory, { type Pick } from "@/components/PickHistory";
-import { getJson, goToLogin, postJson } from "@/lib/api";
-import { cx, plural, shortEmail, VENUES } from "@/lib/format";
-import { useLiveVenue } from "@/lib/live";
+import { goToLogin } from "@/lib/api";
+import { cx, plural } from "@/lib/format";
+import { useLiveVenues } from "@/lib/live";
+import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
+import RockbotAccounts from "./RockbotAccounts";
+import Schools from "./Schools";
+import { adminGet, adminPost, formatTime, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
 import "./admin.css";
 
-const when = (timestamp: number) => new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
-
-/** GET an admin route, throwing its error. A 401 means the session ended, so sign in again */
-async function adminGet<T>(path: string, what: string) {
-    const { response, data } = await getJson<T>(path);
-    if (response.status === 401) goToLogin("/admin");
-    if (!response.ok) throw new Error(`Couldn't load ${what} (${response.status})`);
-    return data;
-}
-
-/** POST an admin route, throwing its error */
-async function adminPost<T = any>(path: string, body: unknown) {
-    const { response, data } = await postJson<T>(path, body);
-    if (!response.ok) throw new Error((data as any)?.error ?? `Request failed (${response.status})`);
-    return data;
-}
-
-/** Loads something on mount and whenever reload() is called. Keeps showing the last value while reloading */
-function useLoad<T>(load: () => Promise<T>) {
-    const [state, setState] = useState<{ data?: T, error?: string }>({});
-
-    const reload = useCallback(async () => {
-        try {
-            setState({ data: await load() });
-        } catch (error) {
-            setState({ error: (error as Error).message });
-        }
-    }, [load]);
-
-    useEffect(() => { reload(); }, [reload]);
-    return { ...state, reload };
-}
-
-const Loading = ({ error }: { error?: string }) => error ? <span className="error">{error}</span> : <span className="muted">Loading…</span>;
 
 export default function AdminPage() {
     const { user } = useUser();
+    const school = useSchool();
     const router = useRouter();
 
     useEffect(() => {
@@ -57,12 +27,18 @@ export default function AdminPage() {
     return (
         <div className="page-admin">
             <main>
-                <h1>Admin</h1>
+                <h1>Admin · {school.shortName}</h1>
+                {/* This school's panels, then everything site admins manage across schools */}
                 {user?.admin && <>
+                    <Version />
                     <NowPlaying />
-                    <TestAccounts />
                     <Beta />
                     <History />
+                </>}
+                {user?.siteAdmin && <>
+                    <Schools />
+                    <RockbotAccounts />
+                    <TestAccounts />
                     <Cache />
                 </>}
             </main>
@@ -78,12 +54,61 @@ function useEvery20s(callback: () => void) {
     }, [callback]);
 }
 
-// Now playing at both venues, live
+// Which commit is running
+
+interface VersionInfo {
+    commit: string;
+    committedAt: string;
+    subject: string;
+    url: string | null;
+    deployedAt: string | null;
+    startedAt: string;
+}
+
+const loadVersion = () => adminGet<VersionInfo | null>("/api/admin/version", "the version");
+// Baked into the frontend when it was built (see web/next.config.ts)
+const FRONTEND_COMMIT = process.env.NEXT_PUBLIC_BUILD_COMMIT ?? "";
+
+const timestamp = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+function Version() {
+    const { data, error } = useLoad(loadVersion);
+
+    return (
+        <section className="panel" aria-labelledby="version-title">
+            <div className="panel-header">
+                <h2 id="version-title">Version</h2>
+            </div>
+            {data === undefined ? <Loading error={error} />
+                : data === null ? <p className="muted">The API couldn&apos;t tell which commit it&apos;s running.</p>
+                : <div className="version">
+                    <div className="version-commit">
+                        {data.url
+                            ? <a className="code" href={data.url} target="_blank" rel="noreferrer">{data.commit.slice(0, 7)}</a>
+                            : <span className="code">{data.commit.slice(0, 7)}</span>}
+                        <span className="version-subject">{data.subject}</span>
+                    </div>
+                    <div className="muted">
+                        Committed {timestamp(data.committedAt)}
+                        {data.deployedAt ? ` · deployed ${timestamp(data.deployedAt)}` : " · running from a checkout"}
+                        {` · API up since ${timestamp(data.startedAt)}`}
+                    </div>
+                    {/* Both are built from the same commit, so a difference means one of them didn't restart */}
+                    {FRONTEND_COMMIT && FRONTEND_COMMIT !== data.commit && (
+                        <div className="error">
+                            The frontend is running {FRONTEND_COMMIT.slice(0, 7)}, not {data.commit.slice(0, 7)}. Restart zotify-web, or reload this page if a deploy just finished.
+                        </div>
+                    )}
+                </div>}
+        </section>
+    );
+}
+
+// Now playing at each of the school's venues, live
 
 function NowPlaying() {
-    const anteatery = useLiveVenue("anteatery");
-    const brandywine = useLiveVenue("brandywine");
-    const lives = [anteatery, brandywine];
+    const school = useSchool();
+    const lives = useLiveVenues(school.venues.map(venue => venue.id));
     const updatedAt = Math.max(0, ...lives.map(live => live?.receivedAt ?? 0));
 
     return (
@@ -93,13 +118,13 @@ function NowPlaying() {
                 <span className="muted">{updatedAt > 0 && `Updated ${new Date(updatedAt).toLocaleTimeString()}`}</span>
             </div>
             <div className="venues">
-                {VENUES.map(([venue, label], i) => {
+                {school.venues.map(({ id, name }, i) => {
                     const live = lives[i];
                     const playing = live?.queue?.nowPlaying;
 
                     return (
-                        <div className="venue" key={venue}>
-                            <div className="label">{label}</div>
+                        <div className="venue" key={id}>
+                            <div className="label">{name}</div>
                             {!live ? <div className="muted">Loading…</div>
                                 : !live.queue ? <div className="error">{live.error}</div>
                                 : !playing ? <div className="muted">Nothing playing</div>
@@ -131,6 +156,7 @@ function minutesFromNow(timestamp: number) {
 }
 
 function TestAccounts() {
+    const school = useSchool();
     const { data, error, reload } = useLoad(loadTestAccounts);
     useEvery20s(reload);
 
@@ -144,7 +170,7 @@ function TestAccounts() {
             {!data ? <Loading error={error} /> : <Rows>
                 {data.map(({ email, activeCode }) => (
                     <div className="row" key={email}>
-                        <span className="who">{shortEmail(email)}</span>
+                        <span className="who">{school.shortEmail(email)}</span>
                         {activeCode
                             ? <span className="code-status active" title={`Requested ${when(activeCode.createdAt)}. Check the server console for the code.`}>
                                 Active code · expires in {minutesFromNow(activeCode.expiresAt)}
@@ -158,25 +184,6 @@ function TestAccounts() {
     );
 }
 
-const Rows = ({ children }: { children: React.ReactNode[] }) => children.length ? <div className="rows">{children}</div> : <p className="muted">None</p>;
-
-/** A small button that disables itself while its action runs, and shows any error */
-function SmallButton({ label, className, onClick }: { label: string, className?: string, onClick: () => Promise<unknown> }) {
-    const [busy, setBusy] = useState(false);
-
-    return (
-        <button type="button" className={cx("small", className)} disabled={busy} onClick={async () => {
-            setBusy(true);
-            try {
-                await onClick();
-            } catch (error) {
-                if ((error as Error).message !== "Cancelled") alert((error as Error).message);
-            } finally {
-                setBusy(false);
-            }
-        }}>{label}</button>
-    );
-}
 
 // Beta: requests, invites, invite codes and members
 
@@ -189,11 +196,9 @@ interface BetaOverview {
 
 const loadBeta = () => adminGet<BetaOverview>("/api/admin/beta", "the beta");
 
-function FormMessage({ message }: { message: { text: string, error?: boolean } }) {
-    return <p className={cx("form-message", message.error && "error")} role="status">{message.text}</p>;
-}
 
 function Beta() {
+    const school = useSchool();
     const { data, error, reload } = useLoad(loadBeta);
     const [inviteNetId, setInviteNetId] = useState("");
     const [silent, setSilent] = useState(false);
@@ -203,7 +208,7 @@ function Beta() {
 
     async function decide(email: string, decision: "approved" | "rejected", silent = false) {
         const result = await adminPost("/api/admin/requests/decide", { email, decision, silent });
-        if (decision === "approved" && !silent && !result.emailed) alert(`Approved ${shortEmail(email)}, but the email didn't send. They can still sign in normally.`);
+        if (decision === "approved" && !silent && !result.emailed) alert(`Approved ${school.shortEmail(email)}, but the email didn't send. They can still sign in normally.`);
         reload();
     }
 
@@ -212,7 +217,7 @@ function Beta() {
 
         try {
             const result = await adminPost("/api/admin/invites", { netid: inviteNetId, silent });
-            const who = shortEmail(result.email);
+            const who = school.shortEmail(result.email);
             setInviteMessage(silent ? { text: `Added ${who} without an email.`, error: false }
                 : result.emailed ? { text: `Invited ${who}. They've been emailed a sign-in link.`, error: false }
                 : { text: `Added ${who}, but the email didn't send.`, error: true });
@@ -250,7 +255,7 @@ function Beta() {
             {!data ? <Loading error={error} /> : <Rows>
                 {pending.map(request => (
                     <div className="row" key={request.email}>
-                        <div><span className="who">{shortEmail(request.email)}</span><span className="muted">  asked {when(request.requestedAt)}</span></div>
+                        <div><span className="who">{school.shortEmail(request.email)}</span><span className="muted">  asked {when(request.requestedAt)}</span></div>
                         <div className="actions">
                             <SmallButton label="Approve" className="primary-small" onClick={() => decide(request.email, "approved")} />
                             <SmallButton label="Approve silently" onClick={() => decide(request.email, "approved", true)} />
@@ -260,9 +265,9 @@ function Beta() {
                 ))}
             </Rows>}
 
-            <h3>Invite by UCInetID or email</h3>
+            <h3>Invite by {school.emailDomain && school.idLabel ? `${school.idLabel} or email` : "email"}</h3>
             <form className="inline-form" onSubmit={invite}>
-                <input type="text" placeholder="panteater" required autoCapitalize="none" spellCheck={false} aria-label="UCInetID or email address to invite"
+                <input type="text" placeholder={school.emailDomain ? school.idPlaceholder ?? "" : "you@example.com"} required autoCapitalize="none" spellCheck={false} aria-label="Who to invite"
                     value={inviteNetId} onChange={event => setInviteNetId(event.target.value)} />
                 <label className="checkbox"><input type="checkbox" checked={silent} onChange={event => setSilent(event.target.checked)} /> Silent (no email)</label>
                 <button className="small primary-small" type="submit">Invite</button>
@@ -283,12 +288,12 @@ function Beta() {
                             <span className="code">{code.code}</span>
                             <span className="muted">
                                 {"  "}{code.maxUses === null ? `${code.uses.length} used` : `${code.uses.length} / ${code.maxUses} used`}
-                                {code.revokedAt ? " · revoked" : ""} · by {shortEmail(code.createdBy)}
+                                {code.revokedAt ? " · revoked" : ""} · by {school.shortEmail(code.createdBy)}
                             </span>
                             {code.uses.length > 0 && (
                                 <details>
                                     <summary>Used by</summary>
-                                    {code.uses.map(use => <div key={use.email}>{shortEmail(use.email)}, {when(use.usedAt)}</div>)}
+                                    {code.uses.map(use => <div key={use.email}>{school.shortEmail(use.email)}, {when(use.usedAt)}</div>)}
                                 </details>
                             )}
                         </div>
@@ -313,17 +318,17 @@ function Beta() {
             {data && <Rows>
                 {[
                     ...data.admins.map(email => (
-                        <div className="row" key={`admin-${email}`}><span className="who">{shortEmail(email)}</span><span className="muted">admin</span></div>
+                        <div className="row" key={`admin-${email}`}><span className="who">{school.shortEmail(email)}</span><span className="muted">admin</span></div>
                     )),
                     ...data.members.map(member => {
                         const how = member.joinedVia === "code"
                             ? `code ${member.code}`
-                            : `${member.joinedVia}${member.approvedBy ? ` by ${shortEmail(member.approvedBy)}` : ""}${member.silent ? " (silent)" : ""}`;
-                        return <div className="row" key={`member-${member.email}`}><span className="who">{shortEmail(member.email)}</span><span className="muted">{how} · {when(member.joinedAt)}</span></div>;
+                            : `${member.joinedVia}${member.approvedBy ? ` by ${school.shortEmail(member.approvedBy)}` : ""}${member.silent ? " (silent)" : ""}`;
+                        return <div className="row" key={`member-${member.email}`}><span className="who">{school.shortEmail(member.email)}</span><span className="muted">{how} · {when(member.joinedAt)}</span></div>;
                     }),
                     ...rejected.map(request => (
                         <div className="row revoked" key={`rejected-${request.email}`}>
-                            <span className="who">{shortEmail(request.email)}</span><span className="muted">rejected · {request.decidedAt ? when(request.decidedAt) : ""}</span>
+                            <span className="who">{school.shortEmail(request.email)}</span><span className="muted">rejected · {request.decidedAt ? when(request.decidedAt) : ""}</span>
                         </div>
                     ))
                 ]}

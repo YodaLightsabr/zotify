@@ -40,19 +40,16 @@ export class RockbotClient {
         }
     }
 
-    constructor ({ token, refreshToken, key, debug }: { token: string, refreshToken: string, key: string, debug?: boolean }) {
+    constructor ({ token, refreshToken, key, debug }: { token?: string, refreshToken: string, key: string, debug?: boolean }) {
         this.token = token;
         this.refreshToken = refreshToken;
         this.key = key;
         this.debug = !!debug;
     }
 
-    get brandywine () {
-        return new Venue(this, RockbotClient.BRANDYWINE, { name: "Brandywine" });
-    }
-
-    get anteatery () {
-        return new Venue(this, RockbotClient.ANTEATERY, { name: "Anteatery" });
+    /** A venue on Rockbot by its ID, like 162285 for UCI's Anteatery. Zotify's venues are in the database (see schools.ts) */
+    venue (id: string, name?: string) {
+        return new Venue(this, id, { name });
     }
 
     async account () {

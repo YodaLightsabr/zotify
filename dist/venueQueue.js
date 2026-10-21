@@ -1,10 +1,10 @@
-import { getHomeAccount } from "./accounts.js";
+import { getHomeAccount, rockbotVenue } from "./accounts.js";
 import { getRecentlyQueued } from "./queued.js";
 // Rockbot's app reloads this screen every 20 seconds, so reuse a fetch for a little less than that
 const CACHE_MS = 15_000;
 const recentFetches = new Map();
 async function fetchVenueQueue(venueName) {
-    const venue = (await getHomeAccount(venueName)).client[venueName];
+    const venue = rockbotVenue((await getHomeAccount(venueName)).client, venueName);
     await venue.checkIn();
     return await venue.fetchQueue();
 }

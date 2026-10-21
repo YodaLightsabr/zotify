@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LogoMark } from "@/components/Logo";
 import type { Venue } from "@/lib/api";
 import { cx, formatTime, plural, timeAgo } from "@/lib/format";
 import type { OpenVote, QueueEntry, Song } from "./types";
@@ -62,7 +63,8 @@ export function QueueRow({ entry, venue, onVote, nowPlaying = false }: { entry: 
             <div className="meta">
                 <div className="title-row">
                     <div className="name">{entry.name || "Unknown song"}</div>
-                    {entry.zotify && <span className="badge" title="Queued with Zotify">Zotify</span>}
+                    {/* A mini logo marks songs Zotify queued */}
+                    {entry.zotify && <span className="zotify-mark" role="img" aria-label="Queued with Zotify" title="Queued with Zotify"><LogoMark className="zotify-mark-icon" /></span>}
                 </div>
                 <div className="artist">{entry.artist}</div>
             </div>

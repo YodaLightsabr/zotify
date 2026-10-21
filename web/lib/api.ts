@@ -1,6 +1,7 @@
 import { API_URL } from "./config";
 
-export type Venue = "anteatery" | "brandywine";
+/** A venue's id, like "anteatery". Each school has its own (see lib/school.tsx) */
+export type Venue = string;
 
 /** Where to send people who need to sign in, or who are signed in but not approved yet */
 export function goToLogin(next = currentPath(), notApproved = false) {

@@ -6,7 +6,7 @@ import { parseVenue } from "./params.js";
 export async function queue(req: Request, res: Response) {
     const body = req.body ?? {};
     const song = body.song;
-    const venueName = parseVenue(body.venue);
+    const venueName = parseVenue(body.venue, res);
 
     // Rockbot song IDs can come through as numbers, so accept either
     if (!["string", "number"].includes(typeof song?.id) || song.id === "") {

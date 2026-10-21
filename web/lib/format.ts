@@ -1,13 +1,9 @@
-import type { Venue } from "./api";
+// Venue names and short emails depend on the school, so they're in lib/school.tsx
 
-export const VENUES: [Venue, string][] = [["anteatery", "Anteatery"], ["brandywine", "Brandywine"]];
-export const VENUE_LABELS: Record<Venue, string> = { anteatery: "Anteatery", brandywine: "Brandywine" };
-export const otherVenue = (venue: Venue): Venue => venue === "anteatery" ? "brandywine" : "anteatery";
+// "A", "A and B", or "A, B and C"
+export const listOf = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0] ?? "";
 
 export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
-/** UCI accounts show just their UCInetID; other email addresses show in full */
-export const shortEmail = (email: string) => email.replace(/@uci\.edu$/i, "");
 
 export function timeAgo(timestamp: number) {
     const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));

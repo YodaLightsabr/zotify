@@ -1,7 +1,8 @@
-import { AuthError, signInEmail } from "../auth.js";
+import { AuthError, signInEmail, signInHint } from "../auth.js";
 import { betaOverview, betaStatus, createInviteCode, decideRequest, inviteMember, isApproved, normalizeCode, redeemInviteCode, redeemMagicLink, requestInvite, revokeInviteCode } from "../beta.js";
-import { FRONTEND_URL } from "../config.js";
+import { schoolUrl } from "../schools.js";
 import { setSessionCookie } from "./auth.js";
+import { requestSchool } from "./params.js";
 function sendError(res, error, context) {
     if (error instanceof AuthError) {
         res.status(error.status).json({ error: error.message });
@@ -15,13 +16,13 @@ const sessionEmail = (res) => res.locals.session.email;
 export async function magicLinkRoute(req, res) {
     const token = typeof req.body?.token === "string" ? req.body.token : "";
     if (!token) {
-        res.status(400).json({ error: "That sign-in link is incomplete. Sign in with your UCInetID instead." });
+        res.status(400).json({ error: `That sign-in link is incomplete. Sign in with your ${requestSchool(res).idLabel ?? "email address"} instead.` });
         return;
     }
     try {
-        const { email, token: sessionToken } = await redeemMagicLink(token);
+        const { email, school, token: sessionToken } = await redeemMagicLink(token, requestSchool(res).id);
         setSessionCookie(req, res, sessionToken);
-        res.json({ email, approved: await isApproved(email) });
+        res.json({ email, approved: await isApproved(email, school) });
     }
     catch (error) {
         sendError(res, error, "Error redeeming a magic link:");
@@ -31,7 +32,7 @@ export async function magicLinkRoute(req, res) {
 /** Asks for an invitation. Only once per account */
 export async function requestInviteRoute(req, res) {
     try {
-        const request = await requestInvite(sessionEmail(res), FRONTEND_URL);
+        const request = await requestInvite(sessionEmail(res), requestSchool(res));
         res.json({ request: { status: request.status, requestedAt: request.requestedAt } });
     }
     catch (error) {
@@ -45,8 +46,9 @@ export async function redeemCodeRoute(req, res) {
         return;
     }
     try {
-        await redeemInviteCode(sessionEmail(res), req.body.code);
-        res.json(await betaStatus(sessionEmail(res)));
+        const school = requestSchool(res).id;
+        await redeemInviteCode(sessionEmail(res), req.body.code, school);
+        res.json(await betaStatus(sessionEmail(res), school));
     }
     catch (error) {
         sendError(res, error, `Error redeeming an invite code for ${sessionEmail(res)}:`);
@@ -54,20 +56,21 @@ export async function redeemCodeRoute(req, res) {
 }
 // Admins
 export async function overviewRoute(req, res) {
-    const overview = await betaOverview();
+    const school = requestSchool(res);
+    const overview = await betaOverview(school.id);
     // Each code's shareable link, so the dashboard doesn't have to build it
-    res.json({ ...overview, codes: overview.codes.map(code => ({ ...code, url: `${FRONTEND_URL}/invite/${code.code}` })) });
+    res.json({ ...overview, codes: overview.codes.map(code => ({ ...code, url: `${schoolUrl(school)}/invite/${code.code}` })) });
 }
 /** Body: { email, decision: "approved" | "rejected", silent? }. Silent approvals don't email them */
 export async function decideRequestRoute(req, res) {
-    const email = signInEmail(req.body?.email);
+    const email = signInEmail(req.body?.email, requestSchool(res));
     const decision = req.body?.decision;
     if (!email || (decision !== "approved" && decision !== "rejected")) {
         res.status(400).json({ error: "Missing email or decision" });
         return;
     }
     try {
-        res.json(await decideRequest(email, decision, sessionEmail(res), FRONTEND_URL, req.body?.silent === true));
+        res.json(await decideRequest(email, decision, sessionEmail(res), requestSchool(res), req.body?.silent === true));
     }
     catch (error) {
         sendError(res, error, `Error deciding ${email}'s request:`);
@@ -75,13 +78,14 @@ export async function decideRequestRoute(req, res) {
 }
 /** Body: { netid, silent? }. Silent invites add them without an email */
 export async function inviteRoute(req, res) {
-    const email = signInEmail(req.body?.netid);
+    const school = requestSchool(res);
+    const email = signInEmail(req.body?.netid, school);
     if (!email) {
-        res.status(400).json({ error: "Enter a UCInetID or email address, like panteater." });
+        res.status(400).json({ error: signInHint(school) });
         return;
     }
     try {
-        res.json({ email, ...(await inviteMember(email, sessionEmail(res), req.body?.silent === true, FRONTEND_URL)) });
+        res.json({ email, ...(await inviteMember(email, sessionEmail(res), req.body?.silent === true, school)) });
     }
     catch (error) {
         sendError(res, error, `Error inviting ${email}:`);
@@ -95,8 +99,9 @@ export async function createCodeRoute(req, res) {
         return;
     }
     try {
-        const code = await createInviteCode(sessionEmail(res), maxUses);
-        res.json({ code, url: `${FRONTEND_URL}/invite/${code}` });
+        const school = requestSchool(res);
+        const code = await createInviteCode(sessionEmail(res), maxUses, school.id);
+        res.json({ code, url: `${schoolUrl(school)}/invite/${code}` });
     }
     catch (error) {
         sendError(res, error, "Error creating an invite code:");
@@ -105,7 +110,7 @@ export async function createCodeRoute(req, res) {
 /** Body: { code } */
 export async function revokeCodeRoute(req, res) {
     try {
-        await revokeInviteCode(String(req.body?.code ?? ""), sessionEmail(res));
+        await revokeInviteCode(String(req.body?.code ?? ""), sessionEmail(res), requestSchool(res).id);
         res.json({ ok: true });
     }
     catch (error) {

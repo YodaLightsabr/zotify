@@ -4,7 +4,7 @@ import { parseVenue, queryParam } from "./params.js";
 export async function match(req, res) {
     const title = queryParam(req, "title");
     const artist = queryParam(req, "artist");
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
     if (!title || !artist) {
         res.status(400).json({ error: "Missing title or artist" });
         return;

@@ -547,6 +547,10 @@
         min-width: 0;
     }
 
+    /* The mini logo on songs Zotify queued (QueueRow in SongParts.tsx) */
+    .zotify-mark { display: inline-flex; flex-shrink: 0; }
+    .zotify-mark-icon { width: 16px; height: 16px; display: block; }
+
     .badge {
         flex-shrink: 0;
         font-size: 0.7rem;

@@ -8,9 +8,11 @@ import type { Playlist, PlaylistTrack, QueueEntry, Song } from "@/components/hom
 import VoteDialog from "@/components/home/VoteDialog";
 import { Busy } from "@/components/Spinner";
 import { fetchOrThrow, getJson, postJson, runWithConcurrency, type Venue } from "@/lib/api";
-import { plural, VENUE_LABELS, VENUES } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { setPlaylistJob, useLivePlaylistJob, type Outcome, type QueueJob } from "@/lib/live";
 import { useMember } from "@/lib/useMember";
+import { useSchool } from "@/lib/school";
+import { useIsVenue, useVenue } from "@/lib/venue";
 import "../../home.css";
 import "./playlist.css";
 
@@ -38,8 +40,6 @@ const OUTCOME_LABELS: Record<Outcome, string> = {
     "failed": "Failed"
 };
 
-const isVenue = (value: string | null): value is Venue => value === "anteatery" || value === "brandywine";
-
 export default function PlaylistPage() {
     return <Suspense><PlaylistView /></Suspense>;
 }
@@ -50,7 +50,16 @@ function PlaylistView() {
     const router = useRouter();
     const user = useMember(`/playlist/${id}`);
 
-    const [venue, setVenue] = useState<Venue>(() => isVenue(params.get("venue")) ? params.get("venue") as Venue : "anteatery");
+    // A link's ?venue= wins, and becomes the venue remembered for next time; otherwise it's the one picked last
+    const school = useSchool();
+    const [storedVenue, setVenue] = useVenue();
+    const isVenue = useIsVenue();
+    const linkVenue = params.get("venue");
+    const venue = isVenue(linkVenue) ? linkVenue : storedVenue;
+
+    useEffect(() => {
+        if (isVenue(linkVenue)) setVenue(linkVenue);
+    }, [linkVenue, setVenue, isVenue]);
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [error, setError] = useState("");
     const [matching, setMatching] = useState<Matching | null>(null);
@@ -141,12 +150,15 @@ function PlaylistView() {
                 <p>{playlist.owner ? `By ${playlist.owner} · ` : ""}{plural(playlist.tracks.length, "track")}.{note}</p>
             </div>
 
-            <div className="venues" role="radiogroup" aria-label="Venue">
-                {VENUES.map(([value, label]) => <Fragment key={value}>
-                    <input type="radio" name="venue" id={`venue-${value}`} value={value} checked={venue === value} onChange={() => changeVenue(value)} />
-                    <label htmlFor={`venue-${value}`}>{label}</label>
-                </Fragment>)}
-            </div>
+            {/* Schools with one venue don't need a choice */}
+            {school.venues.length > 1 && (
+                <div className="venues" role="radiogroup" aria-label="Venue">
+                    {school.venues.map(({ id, name }) => <Fragment key={id}>
+                        <input type="radio" name="venue" id={`venue-${id}`} value={id} checked={venue === id} onChange={() => changeVenue(id)} />
+                        <label htmlFor={`venue-${id}`}>{name}</label>
+                    </Fragment>)}
+                </div>
+            )}
 
             <QueueAll key={venue} playlist={playlist} venue={venue} available={available}
                 // Once it's done, look the songs up again so they show as queued
@@ -175,6 +187,7 @@ const Page = ({ children }: { children: React.ReactNode }) => (
 
 /** "Queue all": starts the server queuing every song it can, then follows along until it's done */
 function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playlist, venue: Venue, available: number | null, onFinished: () => void }) {
+    const venueName = useSchool().venueName(venue);
     // Live from the server, including jobs someone else started
     const job = useLivePlaylistJob(playlist.id, venue);
     const [starting, setStarting] = useState(false);
@@ -192,7 +205,7 @@ function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playli
     }, [job, running]);
 
     async function start() {
-        if (!confirm(`Queue every song from "${playlist.name}" that can be played at ${VENUE_LABELS[venue]}? They'll play in playlist order, after anything already waiting.`)) return;
+        if (!confirm(`Queue every song from "${playlist.name}" that can be played at ${venueName}? They'll play in playlist order, after anything already waiting.`)) return;
 
         setStarting(true);
         setError("");
@@ -219,11 +232,11 @@ function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playli
                 <div>
                     <h2>Queue the whole playlist</h2>
                     <p>
-                        {running ? `Queuing at ${VENUE_LABELS[venue]}: ${done} of ${job.tracks.length} tracks done, ${plural(counts.get("queued") ?? 0, "song")} queued so far.`
+                        {running ? `Queuing at ${venueName}: ${done} of ${job.tracks.length} tracks done, ${plural(counts.get("queued") ?? 0, "song")} queued so far.`
                             : available === null ? "Checking which songs can be played…"
-                            : available === 0 && counts.get("queued") ? `Everything that can be played at ${VENUE_LABELS[venue]} is queued.`
-                            : available === 0 ? `None of these songs can be queued at ${VENUE_LABELS[venue]} right now.`
-                            : `${plural(available, "song")} can be queued at ${VENUE_LABELS[venue]}. The rest are skipped.`}
+                            : available === 0 && counts.get("queued") ? `Everything that can be played at ${venueName} is queued.`
+                            : available === 0 ? `None of these songs can be queued at ${venueName} right now.`
+                            : `${plural(available, "song")} can be queued at ${venueName}. The rest are skipped.`}
                     </p>
                 </div>
                 <button type="button" className="queue-btn boost" disabled={running || starting || !available} onClick={start}>

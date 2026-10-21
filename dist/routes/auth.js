@@ -1,5 +1,6 @@
 import { betaStatus, isApproved } from "../beta.js";
-import { AuthError, signInEmail, endSession, getSession, isAdmin, requestLoginCode, SESSION_TTL_MS, verifyLoginCode } from "../auth.js";
+import { AuthError, endSession, getSession, isAdmin, isSiteAdmin, requestLoginCode, SESSION_TTL_MS, signInEmail, signInHint, verifyLoginCode } from "../auth.js";
+import { requestSchool } from "./params.js";
 const SESSION_COOKIE = "zotify_session";
 function sessionToken(req) {
     return tokenFromCookies(req.headers.cookie);
@@ -46,39 +47,54 @@ export async function requireAuth(req, res, next) {
     res.locals.session = session;
     next();
 }
-/** Lets a request through only for approved members (admins included). Signed-in people who aren't approved get a 403 */
+/** Lets a request through only for approved members of the request's school (its admins included). Signed-in people who aren't approved get a 403 */
 export async function requireMember(req, res, next) {
     const session = await currentSession(req);
     if (!session) {
         res.status(401).json({ error: "Sign in required" });
         return;
     }
-    if (!(await isApproved(session.email))) {
+    if (!(await isApproved(session.email, requestSchool(res).id))) {
         res.status(403).json({ error: "Zotify is in private beta", notApproved: true });
         return;
     }
     res.locals.session = session;
     next();
 }
-/** Lets a request through only for admins */
+/** Lets a request through only for admins of the request's school, which includes site admins */
 export async function requireAdmin(req, res, next) {
     const session = await currentSession(req);
     if (!session) {
         res.status(401).json({ error: "Sign in required" });
         return;
     }
-    if (!isAdmin(session.email)) {
+    if (!isAdmin(session.email, requestSchool(res).id)) {
         res.status(403).json({ error: "Admins only" });
         return;
     }
     res.locals.session = session;
     next();
 }
-/** Body: { netid }. Makes a login code for that UCInetID or email address */
+/** Lets a request through only for site admins, who manage every school, venue and Rockbot account */
+export async function requireSiteAdmin(req, res, next) {
+    const session = await currentSession(req);
+    if (!session) {
+        res.status(401).json({ error: "Sign in required" });
+        return;
+    }
+    if (!isSiteAdmin(session.email)) {
+        res.status(403).json({ error: "Site admins only" });
+        return;
+    }
+    res.locals.session = session;
+    next();
+}
+/** Body: { netid }. Makes a login code for that ID (like a UCInetID, at the request's school) or email address */
 export async function requestCode(req, res) {
-    const email = signInEmail(req.body?.netid);
+    const school = requestSchool(res);
+    const email = signInEmail(req.body?.netid, school);
     if (!email) {
-        res.status(400).json({ error: "Enter your UCInetID or email address, like panteater or panteater@uci.edu." });
+        res.status(400).json({ error: signInHint(school) });
         return;
     }
     try {
@@ -91,7 +107,7 @@ export async function requestCode(req, res) {
 }
 /** Body: { netid, code }. Signs in with a login code and sets the session cookie */
 export async function verifyCode(req, res) {
-    const email = signInEmail(req.body?.netid);
+    const email = signInEmail(req.body?.netid, requestSchool(res));
     const code = typeof req.body?.code === "string" ? req.body.code : "";
     if (!email || !/^\s*\d{6}\s*$/.test(code)) {
         res.status(400).json({ error: "Enter the 6-digit code we sent you." });
@@ -99,20 +115,27 @@ export async function verifyCode(req, res) {
     }
     try {
         setSessionCookie(req, res, await verifyLoginCode(email, code));
-        res.json({ email, approved: await isApproved(email) });
+        res.json({ email, approved: await isApproved(email, requestSchool(res).id) });
     }
     catch (error) {
         sendAuthError(res, error, `Error checking a login code for ${email}:`);
     }
 }
-/** The signed-in user, or 401 */
+/** The signed-in user and where they stand at the request's school, or 401 */
 export async function me(req, res) {
     const session = await getSession(sessionToken(req));
     if (!session) {
         res.status(401).json({ error: "Not signed in" });
         return;
     }
-    res.json({ email: session.email, admin: isAdmin(session.email), ...(await betaStatus(session.email)) });
+    const school = requestSchool(res).id;
+    res.json({
+        email: session.email,
+        admin: isAdmin(session.email, school),
+        // Can manage every school, venue and Rockbot account
+        siteAdmin: isSiteAdmin(session.email),
+        ...(await betaStatus(session.email, school))
+    });
 }
 export async function logout(req, res) {
     await endSession(sessionToken(req));

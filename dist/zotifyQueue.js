@@ -4,6 +4,7 @@ import { events } from "./events.js";
 import { recordPick } from "./history.js";
 import { getRecentlyQueued, markBoosted } from "./queued.js";
 import { NoAccountsError, requestSong } from "./requestSong.js";
+import { getVenue } from "./schools.js";
 import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
 import { castVotes, markVoted } from "./votes.js";
 // Zotify's own queue. Every song people queue waits here first, in order, and is only requested on Rockbot once fewer than
@@ -78,11 +79,12 @@ export function reorder(venue, ids) {
     transaction(() => ids.forEach((id, i) => setPosition.run(i + 1, id)));
     events.emit("zotifyQueueChanged", venue);
 }
-/** Takes a waiting song out of Zotify's queue. Anyone can remove their own songs; admins can remove anyone's */
-export function remove(id, email, admin) {
+/** Takes a waiting song out of a school's Zotify queues. Anyone can remove their own songs; the school's admins can remove anyone's */
+export function remove(id, email, admin, schoolId) {
     const row = selectRow.get(id);
-    if (!row || row.status !== "waiting")
+    if (!row || row.status !== "waiting" || getVenue(row.venue)?.schoolId !== schoolId) {
         throw new ZotifyQueueError("That song isn't waiting in the queue anymore.", 404);
+    }
     if (!admin && row.requested_by !== email)
         throw new ZotifyQueueError("You can only remove songs you queued.", 403);
     markRemoved.run(id);

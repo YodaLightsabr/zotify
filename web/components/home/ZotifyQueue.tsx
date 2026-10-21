@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { postJson, type Venue } from "@/lib/api";
-import { cx, plural, VENUE_LABELS } from "@/lib/format";
+import { cx, plural } from "@/lib/format";
+import { useSchool } from "@/lib/school";
 import { SongBackdrop, SongCover } from "./SongParts";
 
 export interface ZotifyQueueSong {
@@ -110,10 +111,11 @@ const ICONS = {
 
 /** Admins only: empties Zotify's queue at the venue, after asking */
 export function ClearButton({ venue, count }: { venue: Venue, count: number }) {
+    const school = useSchool();
     const [clearing, setClearing] = useState(false);
 
     async function clear() {
-        if (!confirm(`Take all ${plural(count, "song")} out of Zotify's queue at ${VENUE_LABELS[venue]}? This can't be undone.`)) return;
+        if (!confirm(`Take all ${plural(count, "song")} out of Zotify's queue at ${school.venueName(venue)}? This can't be undone.`)) return;
         setClearing(true);
 
         try {
@@ -148,6 +150,7 @@ export function FailuresButton({ count, onClick }: { count: number, onClick: () 
 
 /** Lists the songs that couldn't be put into the venue's queue, and why */
 export function FailuresDialog({ failures, venue, open, onClose }: { failures: ZotifyQueueFailure[], venue: Venue, open: boolean, onClose: () => void }) {
+    const school = useSchool();
     const dialog = useRef<HTMLDialogElement>(null);
 
     useEffect(() => {
@@ -158,7 +161,7 @@ export function FailuresDialog({ failures, venue, open, onClose }: { failures: Z
     return (
         <dialog ref={dialog} className="vote-dialog failures-dialog" aria-labelledby="failures-title" onClose={onClose}>
             <h2 id="failures-title">Couldn&apos;t queue</h2>
-            <p className="failures-intro">These didn&apos;t make it into the queue at {VENUE_LABELS[venue]}, even after trying again.</p>
+            <p className="failures-intro">These didn&apos;t make it into the queue at {school.venueName(venue)}, even after trying again.</p>
             {failures.length ? (
                 <ul className="failures-list">
                     {failures.map(failure => (

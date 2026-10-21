@@ -1,22 +1,22 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { cache } from "./cache.js";
 import { codeDelivery, sendLoginCode } from "./email.js";
+import { isSchoolAdminEmail } from "./schools.js";
 // Login codes are short-lived, and a few wrong guesses use one up
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
 // How long someone must wait before asking for another code
 const CODE_RESEND_MS = 30 * 1000;
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const EMAIL_DOMAIN = "uci.edu";
-// UCInetIDs that can open the admin dashboard
-const ADMIN_NET_IDS = ["imadden"];
-export const ADMIN_EMAILS = ADMIN_NET_IDS.map(netId => `${netId}@${EMAIL_DOMAIN}`);
-export function isAdmin(email) {
-    return ADMIN_EMAILS.includes(email);
+// Site admins run every school's Zotify: its schools, venues and Rockbot accounts, and each school's beta
+export const SITE_ADMIN_EMAILS = ["imadden@uci.edu"];
+export const isSiteAdmin = (email) => SITE_ADMIN_EMAILS.includes(email);
+/** Whether someone can run this school's Zotify: site admins, and the school's own admins (added on the dashboard) */
+export function isAdmin(email, schoolId) {
+    return isSiteAdmin(email) || isSchoolAdminEmail(schoolId, email);
 }
 // Test accounts nobody reads the inbox of: their login codes always go to the server console, never by email
-const TEST_NET_IDS = ["panteater"];
-export const TEST_EMAILS = TEST_NET_IDS.map(netId => `${netId}@${EMAIL_DOMAIN}`);
+export const TEST_EMAILS = ["panteater@uci.edu"];
 export const isTestAccount = (email) => TEST_EMAILS.includes(email);
 export class AuthError extends Error {
     status;
@@ -28,19 +28,20 @@ export class AuthError extends Error {
 }
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 // During the testing phase anyone can sign in with any email address; approval still decides who gets in.
-// Set this to false to go back to UCI accounts only
+// Set this to false to only allow each school's own email domain
 const ALLOW_ANY_EMAIL = true;
 /**
- * The email someone signs in with. A bare UCInetID ("panteater") becomes panteater@uci.edu, in any case.
- * Full addresses work for any domain while ALLOW_ANY_EMAIL is on, otherwise only @uci.edu. Null for anything else
+ * The email someone signs in with at a school. A bare ID ("panteater") becomes panteater@uci.edu with the school's email domain,
+ * in any case. Full addresses work for any domain while ALLOW_ANY_EMAIL is on, otherwise only the school's. Null for anything else
  */
-export function signInEmail(input) {
+export function signInEmail(input, school) {
     if (typeof input !== "string")
         return null;
     const value = input.trim().toLowerCase();
+    const domain = school.emailDomain;
     if (!value.includes("@"))
-        return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value) ? `${value}@${EMAIL_DOMAIN}` : null;
-    if (!ALLOW_ANY_EMAIL && !value.endsWith(`@${EMAIL_DOMAIN}`))
+        return domain && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value) ? `${value}@${domain}` : null;
+    if (!ALLOW_ANY_EMAIL && (!domain || !value.endsWith(`@${domain}`)))
         return null;
     // A light check: one @, no spaces, a dot in the domain, and a sensible length
     return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : null;
@@ -140,5 +141,12 @@ export async function endSession(token) {
     const sessions = await readLog("sessions");
     delete sessions[sha256(token)];
     await cache.set(["sessions"], sessions);
+}
+/** What to ask for when a school's sign-in field doesn't make sense, e.g. "Enter your UCInetID or email address, like panteater." */
+export function signInHint(school) {
+    if (!school.emailDomain)
+        return "Enter your email address.";
+    const example = school.idPlaceholder ?? "you";
+    return `Enter your ${school.idLabel ?? "ID"} or email address, like ${example} or ${example}@${school.emailDomain}.`;
 }
 //# sourceMappingURL=auth.js.map

@@ -6,7 +6,7 @@ import { parseVenue, queryParam } from "./params.js";
 /** Admin only. Whether a pick can be downvoted, and why not if it can't */
 export async function downvoteCheck(req: Request, res: Response) {
     const pickId = queryParam(req, "pickId");
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
 
     if (!pickId || !venueName) {
         res.status(400).json({ error: "Missing pick ID or venue" });
@@ -28,7 +28,7 @@ export async function downvoteCheck(req: Request, res: Response) {
  */
 export async function downvote(req: Request, res: Response) {
     const pickId = typeof req.body?.pickId === "string" || typeof req.body?.pickId === "number" ? String(req.body.pickId) : "";
-    const venueName = parseVenue(req.body?.venue);
+    const venueName = parseVenue(req.body?.venue, res);
     const overrideReason = typeof req.body?.overrideReason === "string" ? req.body.overrideReason.trim() : undefined;
     const count = req.body?.count ?? ZOTIFY_DOWNVOTES;
 

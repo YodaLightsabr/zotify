@@ -3,7 +3,7 @@ import { parseVenue, queryParam } from "./params.js";
 /** How many more votes our accounts could add to a pick: { total, voted, available }. available is 0 once every account has voted */
 export async function voteCapacity(req, res) {
     const pickId = queryParam(req, "pickId");
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
     if (!pickId) {
         res.status(400).json({ error: "Missing pick ID" });
         return;

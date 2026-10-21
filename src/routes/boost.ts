@@ -11,7 +11,7 @@ export async function boost(req: Request, res: Response) {
     const pickId = body.pickId;
     // The song's ID from search results, so later searches can tell it was boosted
     const songId = ["string", "number"].includes(typeof body.songId) ? String(body.songId) : undefined;
-    const venueName = parseVenue(body.venue);
+    const venueName = parseVenue(body.venue, res);
     // How many accounts upvote it; all of them by default
     const count = parseVoteCount(body.count);
 

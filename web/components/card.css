@@ -68,14 +68,6 @@
 
     .field input::placeholder { color: var(--placeholder); opacity: 1; }
 
-    /* "@uci.edu" sits after the UCInetID until someone types their own @ */
-    .field .suffix {
-        padding-right: 14px;
-        color: var(--muted);
-        white-space: nowrap;
-    }
-
-    .field.full-address .suffix { display: none; }
 
     .code-input {
         font-size: 1.4rem !important;

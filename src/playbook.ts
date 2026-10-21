@@ -1,4 +1,4 @@
-import type { AccountWithClient } from "./accounts.js";
+import { rockbotVenue, type AccountWithClient, type VenueName } from "./accounts.js";
 import { Pick, RockbotClient, Song, type Venue } from "./client.js";
 import { clearPickLimited, getPickLimited, markPickLimited } from "./pickLimits.js";
 
@@ -19,7 +19,7 @@ class Playbook {
     }
 }
 
-export class QueueSongs extends Playbook.Operation<{ songs: string[], venue: "anteatery" | "brandywine" }> {
+export class QueueSongs extends Playbook.Operation<{ songs: string[], venue: VenueName }> {
     async run () {
         const songs = this.params.songs;
         const venueName = this.params.venue;
@@ -40,7 +40,7 @@ export class QueueSongs extends Playbook.Operation<{ songs: string[], venue: "an
                     continue;
                 }
 
-                const venue = account.client[venueName];
+                const venue = rockbotVenue(account.client, venueName);
                 await venue.checkIn();
                 const results = await venue.search({ query: songs[i] });
 
@@ -72,10 +72,10 @@ export class QueueSongs extends Playbook.Operation<{ songs: string[], venue: "an
     }
 }
 
-export class SearchSongs extends Playbook.Operation<{ query: string, venue: "anteatery" | "brandywine" }> {
+export class SearchSongs extends Playbook.Operation<{ query: string, venue: VenueName }> {
     async run () {
         const account = this.accounts[0];
-        const venue = account.client[this.params.venue];
+        const venue = rockbotVenue(account.client, this.params.venue);
         await venue.checkIn();
 
         const results = await venue.search({ query: this.params.query });
@@ -84,7 +84,7 @@ export class SearchSongs extends Playbook.Operation<{ query: string, venue: "ant
     }
 }
 
-export class QueueSong extends Playbook.Operation<{ song: { id: string, name: string, artist: string }, venue: "anteatery" | "brandywine" }> {
+export class QueueSong extends Playbook.Operation<{ song: { id: string, name: string, artist: string }, venue: VenueName }> {
     async run () {
         const venueName = this.params.venue;
 
@@ -107,7 +107,7 @@ export class QueueSong extends Playbook.Operation<{ song: { id: string, name: st
         let lastError: unknown;
 
         for (const account of order) {
-            const venue = account.client[venueName];
+            const venue = rockbotVenue(account.client, venueName);
             const song = new Song(account.client, this.params.song.id, this.params.song);
 
             try {

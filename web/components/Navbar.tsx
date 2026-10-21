@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { goToLogin } from "@/lib/api";
-import { shortEmail } from "@/lib/format";
+import { useSchool } from "@/lib/school";
 import { useNavigation } from "@/lib/navigation";
 import { useUser } from "@/lib/user";
 import { Logo } from "./Logo";
@@ -15,6 +15,7 @@ import "./navbar.css";
  */
 export default function Navbar() {
     const { user, signOut } = useUser();
+    const school = useSchool();
     const { resetHome } = useNavigation();
     const pathname = usePathname();
 
@@ -36,7 +37,7 @@ export default function Navbar() {
                     <a className="account-link" href="/login" onClick={event => { event.preventDefault(); goToLogin(); }}>Sign in</a>
                 )}
                 {user && <>
-                    <Link className="account-email" href="/account" title={`${user.email} · Account`}>{shortEmail(user.email)}</Link>
+                    <Link className="account-email" href="/account" title={`${user.email} · Account`}>{school.shortEmail(user.email)}</Link>
                     {user.approved && link("/my-picks", "My picks")}
                     {user.admin && link("/admin", "Admin")}
                     {!user.approved && link("/beta", "Join")}

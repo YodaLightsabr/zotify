@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { getAccountsForVenue, getHomeAccount, type AccountWithClient, type VenueName } from "./accounts.js";
+import { getAccountsForVenue, getHomeAccount, rockbotVenue, type AccountWithClient, type VenueName } from "./accounts.js";
 import { Pick, Song, type QueueEntry } from "./client.js";
 
 // How often Zotify's picks in the queue get their votes topped up
@@ -54,7 +54,7 @@ function shuffle<T>(items: T[]) {
 /** Each account checks in and votes on the pick. Failures are logged; the check afterwards decides what to retry */
 async function voteWith(accounts: AccountWithClient[], venue: VenueName, pickId: string, song: VoteSong, direction: VoteDirection) {
     const votes = await Promise.allSettled(accounts.map(async account => {
-        const accountVenue = account.client[venue];
+        const accountVenue = rockbotVenue(account.client, venue);
         const pickSong = new Song(account.client, song.songId ?? "", song);
 
         await accountVenue.checkIn();
@@ -83,7 +83,7 @@ export async function castVotes(venue: VenueName, pickId: string, song: VoteSong
     if (!voters.length) return { requested: 0, alreadyVoted, confirmed: 0, missing: [] };
 
     // The home account stays checked in here, so it can always read the pick's votes
-    const checker = (await getHomeAccount(venue)).client[venue];
+    const checker = rockbotVenue((await getHomeAccount(venue)).client, venue);
     let pending = voters;
     let verified = false;
 
@@ -125,7 +125,7 @@ export async function castVotes(venue: VenueName, pickId: string, song: VoteSong
  */
 export async function getVoteCapacity(venue: VenueName, pickId: string, direction: VoteDirection = "up") {
     const [eligible, home] = await Promise.all([getAccountsForVenue(venue), getHomeAccount(venue)]);
-    const { upvoters, downvoters } = await home.client[venue].fetchPickVotes(pickId);
+    const { upvoters, downvoters } = await rockbotVenue(home.client, venue).fetchPickVotes(pickId);
     const voted = new Set((direction === "up" ? upvoters : downvoters).map(name => name.toLowerCase()));
     const remaining = eligible.filter(account => !voted.has(account.username.toLowerCase()));
 

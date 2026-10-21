@@ -1,0 +1,64 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { INTERNAL_API_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
+import { SCHOOL_HEADER } from "./lib/currentSchool";
+import type { SchoolInfo } from "./lib/school";
+
+// Every *.zotify.app address comes to this server. This works out which school's Zotify a request is for from its host:
+// zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and any other subdomain is sent
+// to zotify.app. The school is handed to the pages in a request header, so they render as that school from the start
+
+// How long the list of schools is reused before asking the API again
+const SCHOOLS_TTL_MS = 30_000;
+
+let schools: { list: SchoolInfo[], fetchedAt: number } | null = null;
+
+async function getSchools() {
+    if (schools && Date.now() - schools.fetchedAt < SCHOOLS_TTL_MS) return schools.list;
+
+    try {
+        const response = await fetch(`${INTERNAL_API_URL}/api/schools`, { signal: AbortSignal.timeout(3000) });
+        if (!response.ok) throw new Error(`The API answered ${response.status}`);
+        schools = { list: await response.json(), fetchedAt: Date.now() };
+    } catch (error) {
+        // Keep using the last list if the API is briefly unreachable, like during a deploy
+        if (!schools) throw error;
+        console.error("Couldn't refresh the list of schools:", error);
+    }
+
+    return schools.list;
+}
+
+export async function proxy(request: NextRequest) {
+    const host = (request.headers.get("host") ?? "").toLowerCase();
+    let list: SchoolInfo[];
+
+    try {
+        list = await getSchools();
+    } catch (error) {
+        console.error("Couldn't load the list of schools:", error);
+        return new NextResponse("Zotify is starting up. Try again in a moment.", { status: 503, headers: { "Retry-After": "5" } });
+    }
+
+    const main = list.find(school => !school.subdomain);
+    let school: SchoolInfo | undefined = main;
+
+    if (host.endsWith(`.${SITE_DOMAIN}`)) {
+        const subdomain = host.slice(0, -SITE_DOMAIN.length - 1);
+        school = list.find(candidate => candidate.subdomain === subdomain);
+
+        // Not a school's subdomain, like www or a typo
+        if (!school) return NextResponse.redirect(`${SITE_PROTOCOL}://${SITE_DOMAIN}/`);
+    }
+
+    // Any other host (zotify.app itself, or the server's own address) is the main school
+    if (!school) return new NextResponse("No school is set up yet.", { status: 503 });
+
+    const headers = new Headers(request.headers);
+    headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(school)));
+    return NextResponse.next({ request: { headers } });
+}
+
+export const config = {
+    // Pages only, not Next.js's own files or the icons
+    matcher: ["/((?!_next/|icons/|icon\\.svg|apple-icon|manifest\\.webmanifest|sw\\.js|offline\\.html|favicon).*)"]
+};

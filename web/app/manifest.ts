@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
         id: "/",
         name: "Zotify",
         short_name: "Zotify",
-        description: "Queue music at UCI's Anteatery and Brandywine.",
+        description: "Queue music at your dining hall.",
         start_url: "/",
         scope: "/",
         display: "standalone",

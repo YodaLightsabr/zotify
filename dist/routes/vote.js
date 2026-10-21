@@ -8,7 +8,7 @@ import { parseVenue, parseVoteCount } from "./params.js";
 export async function vote(req, res) {
     const body = req.body ?? {};
     const pickId = body.pickId;
-    const venueName = parseVenue(body.venue);
+    const venueName = parseVenue(body.venue, res);
     const count = parseVoteCount(body.count);
     if (!["string", "number"].includes(typeof pickId) || pickId === "") {
         res.status(400).json({ error: "Missing pick ID" });

@@ -1,3 +1,4 @@
+import { rockbotVenue } from "./accounts.js";
 import { Pick, RockbotClient, Song } from "./client.js";
 import { clearPickLimited, getPickLimited, markPickLimited } from "./pickLimits.js";
 class Playbook {
@@ -29,7 +30,7 @@ export class QueueSongs extends Playbook.Operation {
                     i--;
                     continue;
                 }
-                const venue = account.client[venueName];
+                const venue = rockbotVenue(account.client, venueName);
                 await venue.checkIn();
                 const results = await venue.search({ query: songs[i] });
                 const song = results[0];
@@ -60,7 +61,7 @@ export class QueueSongs extends Playbook.Operation {
 export class SearchSongs extends Playbook.Operation {
     async run() {
         const account = this.accounts[0];
-        const venue = account.client[this.params.venue];
+        const venue = rockbotVenue(account.client, this.params.venue);
         await venue.checkIn();
         const results = await venue.search({ query: this.params.query });
         return results;
@@ -85,7 +86,7 @@ export class QueueSong extends Playbook.Operation {
         let pick;
         let lastError;
         for (const account of order) {
-            const venue = account.client[venueName];
+            const venue = rockbotVenue(account.client, venueName);
             const song = new Song(account.client, this.params.song.id, this.params.song);
             try {
                 await venue.checkIn();

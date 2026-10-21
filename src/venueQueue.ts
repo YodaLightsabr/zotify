@@ -1,4 +1,4 @@
-import { getHomeAccount, type VenueName } from "./accounts.js";
+import { getHomeAccount, rockbotVenue, type VenueName } from "./accounts.js";
 import type { QueueEntry, VenueQueue } from "./client.js";
 import { getRecentlyQueued, type QueuedSong } from "./queued.js";
 
@@ -7,7 +7,7 @@ const CACHE_MS = 15_000;
 const recentFetches = new Map<VenueName, { queue: Promise<VenueQueue>, fetchedAt: number }>();
 
 async function fetchVenueQueue(venueName: VenueName): Promise<VenueQueue> {
-    const venue = (await getHomeAccount(venueName)).client[venueName];
+    const venue = rockbotVenue((await getHomeAccount(venueName)).client, venueName);
 
     await venue.checkIn();
     return await venue.fetchQueue();

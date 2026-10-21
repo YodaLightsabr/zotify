@@ -5,7 +5,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import CardPage from "@/components/CardPage";
 import { Busy } from "@/components/Spinner";
 import { postJson, safeNext } from "@/lib/api";
-import { cx } from "@/lib/format";
+import SuffixInput from "@/components/SuffixInput";
+import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
 
 export default function LoginPage() {
@@ -16,6 +17,9 @@ function Login() {
     const router = useRouter();
     const params = useSearchParams();
     const { user, refresh } = useUser();
+    const school = useSchool();
+    // What to call the sign-in field, e.g. "UCInetID or email"
+    const idName = school.emailDomain && school.idLabel ? `${school.idLabel} or email` : "Email address";
     const next = safeNext(params.get("next"));
 
     const [step, setStep] = useState<"netid" | "code">("netid");
@@ -92,23 +96,22 @@ function Login() {
     return (
         <CardPage>
             <h1>Sign in</h1>
-            <p className="subtitle">Sign in with your UCInetID or email to search and queue songs.</p>
+            <p className="subtitle">Sign in with your {idName} to search and queue songs.</p>
 
             <form ref={netIdForm} hidden={step !== "netid"} noValidate onSubmit={event => {
                 event.preventDefault();
                 if (netIdForm.current?.reportValidity()) sendCode("send");
             }}>
-                <label htmlFor="netid">UCInetID or email</label>
-                {/* Typing or pasting a full address drops the "@uci.edu" suffix and gives the input the whole row */}
-                <div className={cx("field", netId.trim().includes("@") && "full-address")}>
-                    {/* Accepts a UCInetID like "panteater" (which gets @uci.edu), or any full email address during the testing phase */}
-                    <input ref={netIdInput} id="netid" name="netid" type="text" placeholder="panteater" required
-                        pattern="[A-Za-z0-9][A-Za-z0-9._\-]*|[^\s@]+@[^\s@]+\.[^\s@]+"
-                        title="Your UCInetID, like panteater, or your email address"
-                        autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus
-                        value={netId} onChange={event => { setNetId(event.target.value); setNetIdMessage(""); }} />
-                    <span className="suffix" aria-hidden="true">@uci.edu</span>
-                </div>
+                <label htmlFor="netid">{idName}</label>
+                {/* Accepts the school's ID, like "panteater" (which gets @uci.edu at UCI), or any full email address during the testing
+                    phase. Typing or pasting a full address drops the suffix and gives the input the whole row */}
+                <SuffixInput ref={netIdInput} id="netid" name="netid" required
+                    suffix={school.emailDomain && !netId.includes("@") ? `@${school.emailDomain}` : null}
+                    placeholder={school.emailDomain ? school.idPlaceholder ?? "" : "you@example.com"}
+                    pattern={school.emailDomain ? "[A-Za-z0-9][A-Za-z0-9._\\-]*|[^\\s@]+@[^\\s@]+\\.[^\\s@]+" : "[^\\s@]+@[^\\s@]+\\.[^\\s@]+"}
+                    title={school.emailDomain ? `Your ${school.idLabel ?? "ID"}${school.idPlaceholder ? `, like ${school.idPlaceholder}` : ""}, or your email address` : "Your email address"}
+                    autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus
+                    value={netId} onChange={event => { setNetId(event.target.value); setNetIdMessage(""); }} />
                 <p className="message" role="alert">{netIdMessage}</p>
                 <button className="primary" type="submit" disabled={!!busy}>{busy === "send" ? <Busy label="Sending…" /> : "Send code"}</button>
             </form>

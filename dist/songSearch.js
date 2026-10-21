@@ -1,13 +1,15 @@
-import { getHomeAccount } from "./accounts.js";
+import { getHomeAccount, rockbotVenue } from "./accounts.js";
 import { fillQueuedDetails, getRecentlyBoosted, getRecentlyQueued } from "./queued.js";
 import { cacheSearches, getCachedSearch } from "./searchCache.js";
 import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
+import { getVenue, getVenues } from "./schools.js";
 import { getWaiting } from "./zotifyQueue.js";
-/** Searches Rockbot (or the cache) at a venue and adds each song's queue status, cooldown and availability at the other venue */
+/** Searches Rockbot (or the cache) at a venue and adds each song's queue status, cooldown and availability at the school's other venues */
 export async function searchSongs(venueName, query) {
-    const otherVenue = venueName === "anteatery" ? "brandywine" : "anteatery";
+    const schoolId = getVenue(venueName)?.schoolId;
+    const otherVenues = schoolId ? getVenues(schoolId).map(venue => venue.id).filter(id => id !== venueName) : [];
     const [{ songs, otherSongs, cacheHit }, recentlyQueued, recentlyBoosted, liveQueue] = await Promise.all([
-        searchBothVenues(venueName, otherVenue, query),
+        searchAllVenues(venueName, otherVenues, query),
         getRecentlyQueued(venueName),
         getRecentlyBoosted(venueName),
         getVenueQueue(venueName).queue
@@ -35,8 +37,9 @@ export async function searchSongs(venueName, query) {
         await fillQueuedDetails(venueName, songs.map(({ id, name, artist, cover }) => ({ id, name, artist, cover })))
             .catch(error => console.error("Could not backfill queued song details:", error));
     }
-    // Songs that can't be requested here but can be at the other venue
-    const availableAt = (song) => !song.requestable && otherSongs?.some(other => other.id === song.id && other.requestable) ? otherVenue : null;
+    // Songs that can't be requested here but can be at another of the school's venues: the first one that has it
+    const availableAt = (song) => song.requestable ? null
+        : otherVenues.find(other => otherSongs.get(other)?.some(match => match.id === song.id && match.requestable)) ?? null;
     const results = songs.map(song => {
         const liveEntry = liveEntryOf(song);
         return {
@@ -52,21 +55,24 @@ export async function searchSongs(venueName, query) {
     });
     return { songs: results, cacheHit };
 }
-/** Searches both venues in parallel with their home accounts, skipping any venue with cached results, and caches new results in one write */
-async function searchBothVenues(venueName, otherVenue, query) {
-    const [current, other] = await Promise.all([
+/**
+ * Searches the venue and the school's other venues in parallel with their home accounts, skipping any venue with cached
+ * results, and caches new results in one write
+ */
+async function searchAllVenues(venueName, otherVenues, query) {
+    const [current, ...others] = await Promise.all([
         searchVenue(venueName, query),
-        // The other venue only adds availability badges, so a failure there shouldn't fail the search
-        searchVenue(otherVenue, query)
-            .catch(error => (console.error(`Could not search "${query}" at ${otherVenue}:`, error), null))
+        // Other venues only add availability badges, so a failure there shouldn't fail the search
+        ...otherVenues.map(other => searchVenue(other, query)
+            .catch(error => (console.error(`Could not search "${query}" at ${other}:`, error), null)))
     ]);
-    const fresh = Object.fromEntries([[venueName, current], [otherVenue, other]]
-        .filter(([, result]) => result && !result.cacheHit)
-        .map(([venue, result]) => [venue, result.songs]));
+    const results = [[venueName, current], ...otherVenues.map((other, i) => [other, others[i]])];
+    const fresh = Object.fromEntries(results.filter(([, result]) => result && !result.cacheHit).map(([venue, result]) => [venue, result.songs]));
     if (Object.keys(fresh).length) {
         await cacheSearches(query, fresh).catch(error => console.error("Could not write search cache:", error));
     }
-    return { songs: current.songs, otherSongs: other?.songs ?? null, cacheHit: current.cacheHit };
+    const otherSongs = new Map(otherVenues.flatMap((other, i) => others[i] ? [[other, others[i].songs]] : []));
+    return { songs: current.songs, otherSongs, cacheHit: current.cacheHit };
 }
 /** Returns one venue's search results from the cache if possible, otherwise from Rockbot using that venue's home account */
 async function searchVenue(venueName, query) {
@@ -75,7 +81,7 @@ async function searchVenue(venueName, query) {
     if (cached)
         return { songs: cached, cacheHit: true };
     // The home account stays checked in here, so searches never move it to the other venue
-    const venue = (await getHomeAccount(venueName)).client[venueName];
+    const venue = rockbotVenue((await getHomeAccount(venueName)).client, venueName);
     await venue.checkIn();
     const results = await venue.search({ query });
     // Map explicitly so the client (and its tokens) never leak into the response or cache

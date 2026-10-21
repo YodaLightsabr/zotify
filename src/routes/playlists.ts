@@ -69,7 +69,7 @@ export function playlist(req: Request, res: Response) {
 /** Body: { venue }. Starts queuing every song in the playlist that can be queued at the venue, in the background */
 export function queuePlaylist(req: Request, res: Response) {
     const id = playlistIdParam(req);
-    const venue = parseVenue(req.body?.venue);
+    const venue = parseVenue(req.body?.venue, res);
     const saved = id ? getPlaylist(id) : null;
 
     if (!saved) {
@@ -88,7 +88,7 @@ export function queuePlaylist(req: Request, res: Response) {
 /** ?venue=. How queuing the playlist there is going, or null if nobody has started it lately */
 export function playlistQueueStatus(req: Request, res: Response) {
     const id = playlistIdParam(req);
-    const venue = parseVenue(queryParam(req, "venue"));
+    const venue = parseVenue(queryParam(req, "venue"), res);
 
     if (!id || !venue) {
         res.status(400).json({ error: "Missing playlist or venue" });

@@ -40,11 +40,9 @@ export class RockbotClient {
         this.key = key;
         this.debug = !!debug;
     }
-    get brandywine() {
-        return new Venue(this, _a.BRANDYWINE, { name: "Brandywine" });
-    }
-    get anteatery() {
-        return new Venue(this, _a.ANTEATERY, { name: "Anteatery" });
+    /** A venue on Rockbot by its ID, like 162285 for UCI's Anteatery. Zotify's venues are in the database (see schools.ts) */
+    venue(id, name) {
+        return new Venue(this, id, { name });
     }
     async account() {
         const response = await this.fetch("/account");

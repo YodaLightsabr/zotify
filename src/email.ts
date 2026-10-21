@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 // The key lives in .env as RESEND_API_KEY. Without it, emails are printed to the console instead, which is handy for local development
 const apiKey = process.env.RESEND_API_KEY;
-// zotify.app is verified in Resend, so codes can go to any @uci.edu address. RESEND_FROM overrides it, e.g. for testing
+// zotify.app is verified in Resend, so codes can go to any address. RESEND_FROM overrides it, e.g. for testing
 const from = process.env.RESEND_FROM ?? "Zotify <hello@zotify.app>";
 
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -58,30 +58,42 @@ export async function sendLoginCode(email: string, code: string, minutesValid: n
     });
 }
 
+/** What a welcome email says about the school: its name, venues, and what people sign in with */
+export interface EmailSchool {
+    shortName: string;
+    venueNames: string[];
+    idLabel: string | null;
+}
+
+// "A", "A and B", or "A, B and C"
+const listOf = (names: string[]) => names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0] ?? "";
+
 /** Tells someone they're in, with a link that signs them straight in */
-export async function sendWelcomeEmail(email: string, magicLink: string, reason: "invited" | "approved", daysValid: number) {
-    const intro = reason === "invited" ? "You've been invited to Zotify." : "Your request to join Zotify was approved.";
+export async function sendWelcomeEmail(email: string, magicLink: string, reason: "invited" | "approved", daysValid: number, school: EmailSchool) {
+    const intro = reason === "invited" ? `You've been invited to Zotify at ${school.shortName}.` : `Your request to join Zotify at ${school.shortName} was approved.`;
+    const signIn = `sign in any time with your ${school.idLabel ?? "email address"}`;
+    const venues = school.venueNames.length ? ` at ${escapeHtml(listOf(school.venueNames))}` : "";
 
     await sendEmail({
         to: email,
         subject: reason === "invited" ? "You're invited to Zotify" : "You're in! Welcome to Zotify",
-        text: `${intro} Sign in with this link (it works once and expires in ${daysValid} days):\n\n${magicLink}\n\nAfter that, sign in any time with your UCInetID.`,
+        text: `${intro} Sign in with this link (it works once and expires in ${daysValid} days):\n\n${magicLink}\n\nAfter that, ${signIn}.`,
         html: layout(reason === "invited" ? "You're invited to Zotify" : "You're in!", [
-            paragraph(`${intro} Zotify lets you search and queue songs at the Anteatery and Brandywine.`),
+            paragraph(`${escapeHtml(intro)} Zotify lets you search and queue songs${venues}.`),
             button(magicLink, "Open Zotify"),
-            paragraph(`This link signs you in. It works once and expires in ${daysValid} days; after that, sign in any time with your UCInetID.`, true)
+            paragraph(`This link signs you in. It works once and expires in ${daysValid} days; after that, ${escapeHtml(signIn)}.`, true)
         ])
     });
 }
 
-/** Lets an admin know someone asked to join */
-export async function sendRequestNotification(adminEmail: string, requesterEmail: string, adminUrl: string) {
+/** Lets an admin know someone asked to join a school's Zotify */
+export async function sendRequestNotification(adminEmail: string, requesterEmail: string, adminUrl: string, schoolName: string) {
     await sendEmail({
         to: adminEmail,
-        subject: `${requesterEmail} asked to join Zotify`,
-        text: `${requesterEmail} asked for an invitation to Zotify.\n\nApprove or reject it on the admin dashboard: ${adminUrl}`,
+        subject: `${requesterEmail} asked to join Zotify at ${schoolName}`,
+        text: `${requesterEmail} asked for an invitation to Zotify at ${schoolName}.\n\nApprove or reject it on the admin dashboard: ${adminUrl}`,
         html: layout("New invitation request", [
-            paragraph(`<strong>${escapeHtml(requesterEmail)}</strong> asked for an invitation to Zotify.`),
+            paragraph(`<strong>${escapeHtml(requesterEmail)}</strong> asked for an invitation to Zotify at ${escapeHtml(schoolName)}.`),
             button(adminUrl, "Review on the dashboard")
         ])
     });

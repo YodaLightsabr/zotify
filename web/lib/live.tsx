@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { io, type Socket } from "socket.io-client";
 import type { VenueQueue } from "@/components/home/types";
 import type { ZotifyQueue } from "@/components/home/ZotifyQueue";
@@ -126,6 +126,21 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 export function useLiveVenue(venue: Venue, enabled = true) {
     useEffect(() => enabled ? watch(`venue:${venue}`, { event: "watch", payload: { venue } }) : undefined, [venue, enabled]);
     return useLive(current => enabled ? current.venues[venue] : undefined);
+}
+
+/** Several venues' queues at once, in the same order, kept up to date. Each is undefined until its first update arrives */
+export function useLiveVenues(venues: Venue[], enabled = true) {
+    const key = venues.join(",");
+
+    useEffect(() => {
+        if (!enabled) return;
+        const stops = key.split(",").filter(Boolean).map(venue => watch(`venue:${venue}`, { event: "watch", payload: { venue } }));
+        return () => stops.forEach(stop => stop());
+    }, [key, enabled]);
+
+    // The whole map is stable between updates; the list is made from it only when it changes
+    const all = useLive(current => current.venues);
+    return useMemo(() => venues.map(venue => enabled ? all[venue] : undefined), [all, key, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Zotify's own queue at a venue, for approved members. Watch the venue with useLiveVenue to get it */

@@ -7,6 +7,8 @@ node_modules
 .zotify.db-wal
 .zotify.db-shm
 backups/
+# Written into each release by deploy/deploy.sh
+.release-info
 
 # Next.js build output
 web/.next

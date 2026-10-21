@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef } from "react";
 import CardPage from "@/components/CardPage";
 import { Spinner } from "@/components/Spinner";
 import { postJson } from "@/lib/api";
+import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
 
 export default function MagicLinkPage() {
@@ -16,6 +17,7 @@ function MagicLink() {
     const router = useRouter();
     const token = useSearchParams().get("token") ?? "";
     const { refresh } = useUser();
+    const school = useSchool();
     // Each link only works once, so make sure it's only sent once
     const sent = useRef(false);
 
@@ -26,7 +28,7 @@ function MagicLink() {
         (async () => {
             try {
                 const { response, data } = await postJson("/api/auth/magic", { token });
-                if (!response.ok) throw new Error(data?.error ?? "That sign-in link didn't work. Sign in with your UCInetID instead.");
+                if (!response.ok) throw new Error(data?.error ?? `That sign-in link didn't work. Sign in with your ${school.idLabel ?? "email address"} instead.`);
 
                 await refresh();
                 router.replace("/?welcome=1");
@@ -34,7 +36,7 @@ function MagicLink() {
                 router.replace(`/login?${new URLSearchParams({ error: (error as Error).message })}`);
             }
         })();
-    }, [token, refresh, router]);
+    }, [token, refresh, router, school.idLabel]);
 
     return (
         <CardPage>

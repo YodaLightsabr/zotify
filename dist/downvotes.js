@@ -1,4 +1,4 @@
-import { getHomeAccount, getLiveAccounts } from "./accounts.js";
+import { getHomeAccount, getLiveAccounts, rockbotVenue } from "./accounts.js";
 import { cache } from "./cache.js";
 import { getRecentlyBoosted, getRecentlyQueued } from "./queued.js";
 import { getVenueQueue, isFromZotify, queueEntries } from "./venueQueue.js";
@@ -51,7 +51,7 @@ export async function checkDownvote(venue, pickId) {
         return refuse("Zotify boosted this song");
     // Fresh from Rockbot, not the queue cache, since votes change quickly
     const [{ upvoters, downvoters }, accounts] = await Promise.all([
-        (await getHomeAccount(venue)).client[venue].fetchPickVotes(pickId),
+        rockbotVenue((await getHomeAccount(venue)).client, venue).fetchPickVotes(pickId),
         getLiveAccounts()
     ]);
     const ours = new Set(accounts.map(account => account.username.toLowerCase()));

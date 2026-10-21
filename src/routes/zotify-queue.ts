@@ -1,14 +1,14 @@
 import type { Request, Response } from "express";
 import { isAdmin } from "../auth.js";
 import { clear, describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
-import { parseVenue, queryParam } from "./params.js";
+import { parseVenue, queryParam, requestSchool } from "./params.js";
 
 /**
  * ?venue=. Zotify's queue at a venue for signed-in people: songs waiting for room in Rockbot's queue, front first,
  * and songs that couldn't be put there even after retrying. Who asked for each song is left out
  */
 export function zotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(queryParam(req, "venue"));
+    const venueName = parseVenue(queryParam(req, "venue"), res);
 
     if (!venueName) {
         res.status(400).json({ error: `Unknown venue "${queryParam(req, "venue")}"` });
@@ -30,7 +30,7 @@ function sendQueueError(res: Response, error: unknown, context: string) {
 
 /** Admin only. Body: { venue, ids }, every waiting song's ID in the new order */
 export function reorderZotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(req.body?.venue);
+    const venueName = parseVenue(req.body?.venue, res);
     const ids = req.body?.ids;
 
     if (!venueName || !Array.isArray(ids) || !ids.every(id => Number.isInteger(id))) {
@@ -58,7 +58,8 @@ export function removeFromZotifyQueue(req: Request, res: Response) {
     const email: string = res.locals.session.email;
 
     try {
-        remove(id, email, isAdmin(email));
+        const school = requestSchool(res).id;
+        remove(id, email, isAdmin(email, school), school);
         res.json({ ok: true });
     } catch (error) {
         sendQueueError(res, error, `Error removing song ${id} from Zotify's queue:`);
@@ -67,7 +68,7 @@ export function removeFromZotifyQueue(req: Request, res: Response) {
 
 /** Admin only. Body: { venue }. Takes every waiting song out of Zotify's queue there */
 export function clearZotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(req.body?.venue);
+    const venueName = parseVenue(req.body?.venue, res);
 
     if (!venueName) {
         res.status(400).json({ error: "Missing venue" });

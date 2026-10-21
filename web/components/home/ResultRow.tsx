@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Busy } from "@/components/Spinner";
 import { postJson, type Venue } from "@/lib/api";
-import { cx, plural, timeAgo, VENUE_LABELS, voteSummary } from "@/lib/format";
+import { cx, plural, timeAgo, voteSummary } from "@/lib/format";
+import { useSchool } from "@/lib/school";
 import { CooldownBadge, QueuedBadge, SongBackdrop, SongCover, VotableCover } from "./SongParts";
 import type { OpenVote, PlaylistTrack, Song } from "./types";
 
@@ -29,6 +30,7 @@ function initialButton(song: Song, requestable: boolean, boostable: boolean): Bu
 
 /** A search result, with a button to queue it, or to boost it when someone else queued it */
 export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, onVote: OpenVote }) {
+    const school = useSchool();
     const requestable = song.requestable !== false;
     // Someone else queued it, so all our accounts can upvote it instead
     const boostable = song.status === "queued" && !!song.pickId && song.queuedByZotify === false;
@@ -90,7 +92,7 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
         }
     }
 
-    const elsewhere = !requestable && song.availableAt ? VENUE_LABELS[song.availableAt] ?? song.availableAt : null;
+    const elsewhere = !requestable && song.availableAt ? school.venueName(song.availableAt) : null;
 
     return (
         <li className="song">

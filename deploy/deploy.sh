@@ -44,6 +44,11 @@ main() {
     mkdir -p "$building"
     git -C repo archive "$target" | tar -x -C "$building"
 
+    # Which commit this is, for the admin dashboard: hash, commit time, message and repo, one per line. The deploy time is added
+    # once it goes live. The frontend reads this while building, too
+    git -C repo log -1 --format='%H%n%cI%n%s' "$target" > "$building/.release-info"
+    git -C repo remote get-url origin >> "$building/.release-info"
+
     # Files that outlive releases
     ln -s ../../shared/.env "$building/.env"
     ln -s ../../shared/.accounts.json "$building/.accounts.json"
@@ -58,6 +63,7 @@ main() {
     # The build worked, so switch to it. Renaming a new link over the old one swaps it in one step
     rm -rf "$release"
     mv "$building" "$release"
+    date -u +%Y-%m-%dT%H:%M:%SZ >> "$release/.release-info"
     ln -sfn "$release" current.next
     mv -T current.next current
 

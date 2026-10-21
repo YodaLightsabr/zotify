@@ -6,7 +6,7 @@ const client = new RockbotClient({
     key: process.env.KEY!,
 });
 
-const venue = client.anteatery;
+const venue = client.venue(RockbotClient.ANTEATERY, "Anteatery");
 
 const refresh = false;
 if (refresh) {

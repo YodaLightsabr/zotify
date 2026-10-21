@@ -1,19 +1,19 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardPage from "@/components/CardPage";
 import { Busy } from "@/components/Spinner";
-import { postJson, safeNext } from "@/lib/api";
 import SuffixInput from "@/components/SuffixInput";
+import { postJson, safeNext } from "@/lib/api";
 import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
 
-export default function LoginPage() {
-    return <Suspense><Login /></Suspense>;
-}
-
-function Login() {
+/**
+ * Sign-in with a login code, as a card. destination says where to go once signed in, from whether they're approved
+ * for the school's beta and the ?next= page. Zotify and Zotify Meals each have their own
+ */
+export default function SignIn({ destination, subtitle }: { destination: (approved: boolean, next: string) => string, subtitle?: string }) {
     const router = useRouter();
     const params = useSearchParams();
     const { user, refresh } = useUser();
@@ -36,10 +36,8 @@ function Login() {
     const netIdInput = useRef<HTMLInputElement>(null);
     const codeInput = useRef<HTMLInputElement>(null);
 
-    // Approved people go back where they came from. Everyone else sees the private beta screen,
-    // except on an invite link, which lets them in itself once they're signed in
     function goOn(approved: boolean) {
-        router.replace(approved || next.startsWith("/invite/") ? next : `/beta?${new URLSearchParams({ next })}`);
+        router.replace(destination(approved, next));
     }
 
     // Already signed in? Skip ahead
@@ -96,7 +94,7 @@ function Login() {
     return (
         <CardPage>
             <h1>Sign in</h1>
-            <p className="subtitle">Sign in with your {idName} to search and queue songs.</p>
+            <p className="subtitle">{subtitle ?? `Sign in with your ${idName} to search and queue songs.`}</p>
 
             <form ref={netIdForm} hidden={step !== "netid"} noValidate onSubmit={event => {
                 event.preventDefault();

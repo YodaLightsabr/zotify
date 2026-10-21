@@ -179,6 +179,16 @@ db.exec(`
         PRIMARY KEY (school_id, venue_id, date, period_id)
     );
 
+    -- Dishes people have starred on Zotify Meals, by recipe, since the same dish has a different SKU at each hall and day
+    CREATE TABLE IF NOT EXISTS meal_favorites (
+        email TEXT NOT NULL,
+        school_id TEXT NOT NULL,
+        recipe_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (email, school_id, recipe_id)
+    );
+
     CREATE TABLE IF NOT EXISTS meal_items (
         school_id TEXT NOT NULL,
         sku TEXT NOT NULL,

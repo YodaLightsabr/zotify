@@ -6,7 +6,7 @@ import { createCodeRoute, decideRequestRoute, inviteRoute, magicLinkRoute, overv
 import { boost } from "./routes/boost.js";
 import { downvote, downvoteCheck } from "./routes/downvote.js";
 import { match } from "./routes/match.js";
-import { mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus } from "./routes/meals.js";
+import { mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus, myFavorites, setFavorite } from "./routes/meals.js";
 import { myPicks } from "./routes/my-picks.js";
 import { addPlaylist, myPlaylists, playlist, playlistQueueStatus, queuePlaylist } from "./routes/playlists.js";
 import { queue } from "./routes/queue.js";
@@ -67,6 +67,8 @@ app.get("/api/meals/:school/status", mealsStatus);
 app.get("/api/meals/:school/items/:sku", mealsItem);
 app.get("/api/meals/:school/:location", mealsLocation);
 app.get("/api/meals/:school/:location/:date", mealsDay);
+app.get("/api/meal-favorites/:school", requireAuth, myFavorites);
+app.post("/api/meal-favorites/:school", requireAuth, setFavorite);
 app.get("/api/schools", schools);
 // Signed in, but not approved yet: asking to join, or using an invite code
 app.post("/api/beta/request", requireAuth, requestInviteRoute);

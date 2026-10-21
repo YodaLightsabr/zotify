@@ -8,6 +8,8 @@ export const SITE_DOMAIN = production ? "zotify.app" : "localhost:3000";
 const SITE_PROTOCOL = production ? "https" : "http";
 /** A school's frontend, from its subdomain; null is the main domain */
 export const siteUrl = (subdomain) => `${SITE_PROTOCOL}://${subdomain ? `${subdomain}.` : ""}${SITE_DOMAIN}`;
+// Zotify Meals' dashboard, at meals.zotify.app
+export const MEALS_SUBDOMAIN = "meals";
 /** The main school's frontend */
 export const FRONTEND_URL = siteUrl(null);
 export const API_URL = production ? "https://api.zotify.app" : "http://localhost:3001";

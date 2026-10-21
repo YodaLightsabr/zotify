@@ -55,6 +55,8 @@ Each item has its nutrition, ingredients and diet tags, plus allergens in three 
 - `incomplete`: allergens it says its information is incomplete for. This means unknown, not free of
 - `possibleFromIngredients`: allergens the ingredient text mentions that aren't tagged. Derived by keyword, so it can be wrong; soybean oil and coconut don't count (see `src/meals/items.ts`)
 
+**The dashboard** at meals.zotify.app (`web/app/meals`, served there by `web/proxy.ts`) browses both halls: pick a day (back through history with the calendar) and a meal, and the halls sit side by side with their counters lined up by kind, so the salad bars and desserts are across from each other. Counters are sorted into the same kinds in the same order at every hall (`src/meals/stations.ts`; the API returns each counter's `kind` too). Signed in with the same Zotify account, anyone can star dishes: favorites show first, and the Favorites page says when each is on next (`/api/meal-favorites/uci`, by recipe so it counts at every hall). Filters for diets and allergens to avoid are remembered in the browser.
+
 Meal periods say whether the hours list them that day (`scheduled`); the dining site sometimes has menus for periods that aren't served. Between periods there's a 30–45 minute transition when the full menu may not be out. A school is set up for Meals with its dining site's store codes (`schools.dining_config`) and each dining hall's location key (`venues.dining_location_key`); UCI's Anteatery and Brandywine are set up on first start.
 
 ## Live updates

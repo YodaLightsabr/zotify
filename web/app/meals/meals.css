@@ -1,0 +1,320 @@
+/* Zotify Meals (meals.zotify.app). Its pages are only ever reached on that address, so these don't meet Zotify's own pages */
+
+.meals { display: contents; }
+
+/* The bar along the top */
+.meals-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.meals-logo span { color: var(--accent); }
+
+.meals-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+.meals-nav-link {
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.meals-nav-link:hover { color: var(--text); }
+.meals-nav-link.current { color: var(--text); border-color: var(--border); }
+.meals-nav-link.signin { color: var(--on-accent); background: var(--accent); font-weight: 700; }
+.meals-nav-link.subtle { font-size: 0.8rem; }
+
+.meals-main {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 48px;
+}
+
+.meals-main.narrow { max-width: 640px; }
+
+.meals-main h1 {
+    font-family: "Jua", system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 1.8rem;
+    margin: 0 0 12px;
+}
+
+.meals-message { margin: 48px 0; text-align: center; color: var(--muted); }
+.meals-muted { color: var(--muted); }
+.small { font-size: 0.8rem; }
+
+/* Day, meal and filters, kept in reach while scrolling */
+.meals-controls {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 -24px 20px;
+    padding: 12px 24px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+}
+
+.meals-dates, .meals-periods, .meals-hall-toggle {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.meals-dates::-webkit-scrollbar, .meals-periods::-webkit-scrollbar { display: none; }
+
+.meals-chip, .meals-period {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.meals-chip:hover, .meals-period:hover { border-color: var(--accent); }
+.meals-chip.current, .meals-period.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.meals-chip.avoid.current { background: var(--error); border-color: var(--error); }
+.meals-period { font-size: 0.95rem; font-weight: 600; }
+.meals-period.filter-toggle { margin-left: auto; font-weight: 400; }
+.meals-period.filter-toggle.active { border-color: var(--accent); color: var(--accent); }
+
+/* A calendar for past days, behind a chip */
+.meals-calendar { position: relative; }
+.meals-calendar input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.meals-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px 24px;
+    padding: 12px 0 4px;
+}
+
+.meals-filters h3 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meals-filters div > .meals-chip { margin: 0 6px 6px 0; }
+
+.meals-hall-toggle { display: none; }
+
+/* Favorites on this meal */
+.meals-favorites {
+    margin-bottom: 24px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.meals-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.meals-section-head h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.meals-section-head a, .meals-favorites a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+.meals-favorites p { margin: 0; }
+
+.meals-favorite-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+
+.meals-favorite {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.meals-favorite-star { color: var(--accent); }
+.meals-favorite-name { font-weight: 600; }
+
+/* The halls side by side, with each kind of counter as a row across them */
+.meals-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--halls, 2), minmax(0, 1fr));
+    column-gap: 24px;
+}
+
+.meals-hall-head { padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+.meals-hall-head h2 { font-family: "Jua", system-ui, sans-serif; font-weight: 400; font-size: 1.5rem; margin: 0; }
+.meals-hall-head p { margin: 2px 0 0; font-size: 0.9rem; }
+
+.meals-kind {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+/* A line across every hall after the kind's name, so each row reads as one */
+.meals-kind::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.meals-message.wide { grid-column: 1 / -1; }
+
+.meals-cell { min-width: 0; }
+.meals-none { margin: 0; color: var(--border); }
+
+.meals-station { margin-bottom: 12px; }
+.meals-station + .meals-station { padding-top: 8px; border-top: 1px dashed var(--border); }
+.meals-station h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.meals-station ul { list-style: none; margin: 0; padding: 0; }
+
+.meals-item { display: flex; align-items: flex-start; gap: 4px; }
+.meals-item.starred .meals-item-name > span:first-child { color: var(--accent); }
+
+.meals-item-star {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--border);
+    font-size: 1.05rem;
+    cursor: pointer;
+}
+
+.meals-item-star:hover, .meals-item-star.on { color: var(--accent); }
+
+.meals-item-name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 8px;
+    padding: 5px 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.meals-item-name:hover > span:first-child { text-decoration: underline; }
+.meals-item-meta { display: flex; align-items: baseline; gap: 6px; font-size: 0.75rem; white-space: nowrap; }
+
+.meals-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(254, 204, 7, 0.14);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.meals-tag.small { padding: 1px 6px; font-size: 0.7rem; }
+.meals-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.meals-more { padding: 4px 0; border: none; background: none; color: var(--placeholder); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.meals-note { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+
+/* A dish's details */
+.meals-dialog {
+    width: min(560px, calc(100vw - 32px));
+    max-height: 85vh;
+    padding: 22px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.meals-dialog::backdrop { background: rgba(0, 20, 40, 0.7); }
+.meals-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.meals-dialog h2 { margin: 0; font-size: 1.3rem; }
+.meals-dialog h3 { margin: 18px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meals-dialog p { margin: 6px 0; }
+.meals-warning { color: var(--error); }
+.meals-warning .meals-muted { display: block; font-size: 0.8rem; }
+.meals-ingredients { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+.meals-nutrition { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px 16px; margin: 0; }
+.meals-nutrition div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.meals-nutrition dt { color: var(--muted); }
+.meals-nutrition dd { margin: 0; font-weight: 600; font-family: system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+.meals-upcoming { margin: 0; padding-left: 18px; }
+.meals-upcoming li { margin: 4px 0; }
+.meals-upcoming a { color: var(--text); text-decoration: none; }
+.meals-upcoming a:hover { text-decoration: underline; }
+
+.meals-star {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.meals-star.on { background: var(--accent); color: var(--on-accent); }
+
+.meals-dialog-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+
+.meals-button {
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+}
+
+/* The favorites page */
+.meals-favorites-page { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.meals-favorite-card {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.meals-favorite-card .meals-star { padding: 2px 10px; }
+
+/* Phones: one hall at a time, picked with the toggle */
+@media (max-width: 760px) {
+    .meals-header, .meals-main { padding-left: 16px; padding-right: 16px; }
+    .meals-controls { margin: 0 -16px 16px; padding: 10px 16px; }
+    .meals-hall-toggle { display: flex; }
+    .meals-grid { grid-template-columns: minmax(0, 1fr); }
+    .meals-grid .other-hall { display: none; }
+    .meals-period.filter-toggle { margin-left: 0; }
+}

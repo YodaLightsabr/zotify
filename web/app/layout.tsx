@@ -1,11 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import Navbar from "@/components/Navbar";
-import NowPlayingBar from "@/components/NowPlayingBar";
 import ServiceWorker from "@/components/ServiceWorker";
-import TabBar from "@/components/TabBar";
 import { currentSchool } from "@/lib/currentSchool";
-import { LiveProvider } from "@/lib/live";
-import { NavigationProvider } from "@/lib/navigation";
 import { listOf } from "@/lib/format";
 import { SchoolProvider } from "@/lib/school";
 import { UserProvider } from "@/lib/user";
@@ -50,22 +45,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <link href="https://cdn.jsdelivr.net/npm/@cds/city@1.1.0/css/bundles/default.min.css" rel="stylesheet" />
             </head>
             <body>
-                {/* Which school's Zotify this is, for every page */}
+                {/* Which school's Zotify this is, and who's signed in, for every page. Zotify's pages add their navbar and
+                    live updates in (zotify)/layout.tsx; Zotify Meals has its own in meals/layout.tsx */}
                 <SchoolProvider school={school}>
-                    <UserProvider>
-                        {/* One live connection for the whole visit, so pages update without polling */}
-                        <LiveProvider>
-                            <NavigationProvider>
-                                {/* One navbar for every page, kept mounted while moving between them */}
-                                <Navbar />
-                                {children}
-                                {/* Everywhere but the homepage, which shows the queue itself */}
-                                <NowPlayingBar />
-                                {/* Phones only: navigation along the bottom */}
-                                <TabBar />
-                            </NavigationProvider>
-                        </LiveProvider>
-                    </UserProvider>
+                    <UserProvider>{children}</UserProvider>
                 </SchoolProvider>
                 <ServiceWorker />
             </body>

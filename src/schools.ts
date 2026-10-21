@@ -1,5 +1,5 @@
 import { MAIN_SCHOOL_ID, db, transaction } from "./db.js";
-import { SITE_DOMAIN, siteUrl } from "./config.js";
+import { MEALS_SUBDOMAIN, SITE_DOMAIN, siteUrl } from "./config.js";
 
 // Schools and their venues, managed by site admins from the dashboard (see routes/schools.ts). Each school has its own
 // Zotify: the main school at zotify.app, every other one at a subdomain like uf.zotify.app
@@ -104,7 +104,8 @@ export function getVenue(id: unknown) {
 export function schoolForHost(host: string | undefined) {
     const name = host?.toLowerCase().trim();
     if (!name) return null;
-    if (name === SITE_DOMAIN) return mainSchool();
+    // Zotify Meals (meals.zotify.app) is the main school's
+    if (name === SITE_DOMAIN || name === `${MEALS_SUBDOMAIN}.${SITE_DOMAIN}`) return mainSchool();
     if (!name.endsWith(`.${SITE_DOMAIN}`)) return null;
 
     const row = selectBySubdomain.get(name.slice(0, -SITE_DOMAIN.length - 1)) as SchoolRow | undefined;
@@ -147,7 +148,7 @@ export function publicSchool(school: School) {
 // Editing, for site admins
 
 // Subdomains that already mean something, or would be confusing
-const RESERVED_SUBDOMAINS = ["api", "www", "admin", "app", "mail", "static"];
+const RESERVED_SUBDOMAINS = ["api", "www", "admin", "app", "mail", "static", MEALS_SUBDOMAIN];
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const DOMAIN = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;

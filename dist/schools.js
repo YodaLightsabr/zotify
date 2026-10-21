@@ -1,5 +1,5 @@
 import { MAIN_SCHOOL_ID, db, transaction } from "./db.js";
-import { SITE_DOMAIN, siteUrl } from "./config.js";
+import { MEALS_SUBDOMAIN, SITE_DOMAIN, siteUrl } from "./config.js";
 /** Something about a school or venue that can't be saved. status is the HTTP status to answer with */
 export class SchoolConfigError extends Error {
     status;
@@ -55,7 +55,8 @@ export function schoolForHost(host) {
     const name = host?.toLowerCase().trim();
     if (!name)
         return null;
-    if (name === SITE_DOMAIN)
+    // Zotify Meals (meals.zotify.app) is the main school's
+    if (name === SITE_DOMAIN || name === `${MEALS_SUBDOMAIN}.${SITE_DOMAIN}`)
         return mainSchool();
     if (!name.endsWith(`.${SITE_DOMAIN}`))
         return null;
@@ -95,7 +96,7 @@ export function publicSchool(school) {
 }
 // Editing, for site admins
 // Subdomains that already mean something, or would be confusing
-const RESERVED_SUBDOMAINS = ["api", "www", "admin", "app", "mail", "static"];
+const RESERVED_SUBDOMAINS = ["api", "www", "admin", "app", "mail", "static", MEALS_SUBDOMAIN];
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const DOMAIN = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 const text = (value, max) => typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;

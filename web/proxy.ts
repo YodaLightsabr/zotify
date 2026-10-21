@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { INTERNAL_API_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
+import { INTERNAL_API_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
 import { SCHOOL_HEADER } from "./lib/currentSchool";
 import type { SchoolInfo } from "./lib/school";
 
 // Every *.zotify.app address comes to this server. This works out which school's Zotify a request is for from its host:
 // zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and any other subdomain is sent
-// to zotify.app. The school is handed to the pages in a request header, so they render as that school from the start
+// to zotify.app. The school is handed to the pages in a request header, so they render as that school from the start.
+// meals.zotify.app is Zotify Meals, the main school's, served from the pages under app/meals
 
 // How long the list of schools is reused before asking the API again
 const SCHOOLS_TTL_MS = 30_000;
@@ -41,6 +42,20 @@ export async function proxy(request: NextRequest) {
 
     const main = list.find(school => !school.subdomain);
     let school: SchoolInfo | undefined = main;
+    const { pathname, search } = request.nextUrl;
+    const headers = new Headers(request.headers);
+
+    // Zotify Meals: meals.zotify.app/favorites is app/meals/favorites. The link preview image is shared
+    if (host === MEALS_HOST && main) {
+        headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(main)));
+        if (pathname === "/og" || pathname.startsWith("/meals")) return NextResponse.next({ request: { headers } });
+        return NextResponse.rewrite(new URL(`/meals${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
+    }
+
+    // Zotify Meals lives at its own address
+    if (pathname === "/meals" || pathname.startsWith("/meals/")) {
+        return NextResponse.redirect(`${MEALS_URL}${pathname.slice("/meals".length) || "/"}${search}`);
+    }
 
     if (host.endsWith(`.${SITE_DOMAIN}`)) {
         const subdomain = host.slice(0, -SITE_DOMAIN.length - 1);
@@ -53,7 +68,6 @@ export async function proxy(request: NextRequest) {
     // Any other host (zotify.app itself, or the server's own address) is the main school
     if (!school) return new NextResponse("No school is set up yet.", { status: 503 });
 
-    const headers = new Headers(request.headers);
     headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(school)));
     return NextResponse.next({ request: { headers } });
 }

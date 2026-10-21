@@ -1,6 +1,8 @@
 import { TRANSITION_NOTE } from "../meals/config.js";
+import { addFavorite, getFavorites, removeFavorite, upcomingServings } from "../meals/favorites.js";
 import { hoursOn } from "../meals/hours.js";
 import { getDates, getItemAppearances, getItems, getLocation, getMenus, getReference } from "../meals/store.js";
+import { sortStations } from "../meals/stations.js";
 import { addDays, diningSchools, getStatus, todayIn } from "../meals/sync.js";
 import { getSchool } from "../schools.js";
 // Zotify Meals: a public, read-only REST API for dining hall menus. Everything comes from the copy kept by meals/sync.ts,
@@ -118,7 +120,8 @@ export function mealsLocation(req, res) {
         id: location.id,
         name: location.name,
         menusPublishedThrough: location.menusThrough,
-        stations: location.stations,
+        // In the same order at every hall, each with its kind (see meals/stations.ts)
+        stations: sortStations(location.stations),
         mealPeriods: location.mealPeriods,
         hours: Array.from({ length: 14 }, (_, i) => hoursOn(location.schedule, addDays(today, i))),
         transitionNote: TRANSITION_NOTE
@@ -211,13 +214,43 @@ function dayPeriods(schoolId, location, reference, menus, hours) {
             // "menu", "none" (nothing published for it), or "not-fetched"
             menu: menu ? (menu.published ? "menu" : "none") : "not-fetched",
             updatedAt: menu ? new Date(menu.fetchedAt).toISOString() : null,
-            stations: (menu?.stations ?? []).map(station => ({
+            // In the same order at every hall, each with its kind (see meals/stations.ts)
+            stations: sortStations((menu?.stations ?? []).map(station => ({
                 id: station.id,
                 name: stationNames.get(station.id) ?? `Station ${station.id}`,
                 items: unique(station.skus.map(sku => items.get(sku)).filter((item) => !!item))
                     .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity))
-            }))
+            })))
         };
     });
+}
+// Favorites, for signed-in people. These are under /api/meal-favorites, not /api/meals, since they need the session cookie
+/** The signed-in person's favorites at a school, each with when it's next served */
+export function myFavorites(req, res) {
+    const found = schoolFor(req, res);
+    if (!found)
+        return;
+    const favorites = getFavorites(res.locals.session.email, found.school.id);
+    const servings = upcomingServings(found.school.id, favorites.map(favorite => favorite.recipeId));
+    res.set("Cache-Control", "private, no-store");
+    res.json(favorites.map(favorite => ({ ...favorite, upcoming: servings.get(favorite.recipeId) ?? [] })));
+}
+/** Body: { recipeId, name, remove? }. Stars or unstars a dish */
+export function setFavorite(req, res) {
+    const found = schoolFor(req, res);
+    if (!found)
+        return;
+    const recipeId = typeof req.body?.recipeId === "string" ? req.body.recipeId.trim().slice(0, 64) : "";
+    const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 200) : "";
+    if (!recipeId || (!req.body?.remove && !name)) {
+        res.status(400).json({ error: "Missing the dish" });
+        return;
+    }
+    const email = res.locals.session.email;
+    if (req.body?.remove === true)
+        removeFavorite(email, found.school.id, recipeId);
+    else
+        addFavorite(email, found.school.id, recipeId, name);
+    res.json({ ok: true });
 }
 //# sourceMappingURL=meals.js.map

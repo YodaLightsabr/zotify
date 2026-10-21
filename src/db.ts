@@ -263,7 +263,10 @@ db.exec(`
         refresh_hash TEXT NOT NULL UNIQUE,
         refresh_expires_at INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
-        last_used_at INTEGER
+        last_used_at INTEGER,
+        -- The refresh token this one replaced, and when, so a second refresh with it moments later still works
+        previous_refresh_hash TEXT,
+        rotated_at INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS oauth_grants_email ON oauth_grants (email, app_id);
@@ -274,6 +277,13 @@ db.exec(`
 for (const [table, column] of [["schools", "dining_config"], ["venues", "dining_location_key"]]) {
     if (!(db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some(existing => existing.name === column)) {
         db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+    }
+}
+
+// oauth_grants from before refreshes had a grace period
+for (const column of ["previous_refresh_hash TEXT", "rotated_at INTEGER"]) {
+    if (!(db.prepare("PRAGMA table_info(oauth_grants)").all() as { name: string }[]).some(existing => existing.name === column.split(" ")[0])) {
+        db.exec(`ALTER TABLE oauth_grants ADD COLUMN ${column}`);
     }
 }
 

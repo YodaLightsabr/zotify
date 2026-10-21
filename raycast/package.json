@@ -1,0 +1,90 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "zotify",
+  "title": "Zotify",
+  "description": "See what's playing at your dining hall, request songs on Rockbot, and vote on the queue, with Zotify.",
+  "icon": "icon.png",
+  "author": "itmadden",
+  "categories": ["Media", "Fun"],
+  "license": "MIT",
+  "platforms": ["macOS"],
+  "commands": [
+    {
+      "name": "queue",
+      "title": "Zotify Queue",
+      "description": "See what's playing and what's next at a dining hall, and search for songs to request.",
+      "mode": "view",
+      "keywords": ["rockbot", "music", "request", "song", "dining hall"]
+    },
+    {
+      "name": "now-playing",
+      "title": "Zotify Now Playing",
+      "description": "Show the song playing at your dining hall in the menu bar, with the queue in its menu.",
+      "mode": "menu-bar",
+      "interval": "1m",
+      "preferences": [
+        {
+          "name": "showTitle",
+          "title": "Menu Bar",
+          "description": "Show the playing song's title next to the icon.",
+          "type": "checkbox",
+          "label": "Show Song Title",
+          "default": true,
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "add-song",
+      "title": "Add Song to Zotify",
+      "description": "Search for a song to request at your dining hall.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "query",
+          "type": "text",
+          "placeholder": "Song or Artist",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "preferences": [
+    {
+      "name": "adminTools",
+      "title": "Admin Tools",
+      "description": "For a school's admins: ask for the admin scope when signing in, to downvote and rearrange Zotify's queue. Log out and back in after changing it.",
+      "type": "checkbox",
+      "label": "I'm a Zotify admin",
+      "default": false,
+      "required": false
+    },
+    {
+      "name": "personalAccessToken",
+      "title": "Personal Access Token",
+      "description": "Instead of signing in, use a token from zotify.app/developers. Give it the music:read and music:write scopes.",
+      "type": "password",
+      "placeholder": "zotify_pat_…",
+      "required": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.8.2",
+    "@raycast/utils": "^2.3.3"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}

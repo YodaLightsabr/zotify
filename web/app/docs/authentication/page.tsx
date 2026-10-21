@@ -110,7 +110,8 @@ export default async function Authentication() {
             <h3>4. Refresh</h3>
             <p>
                 Access tokens last an hour. Swap the refresh token for new ones before then, or when a request answers <code>401</code>.
-                Each refresh token works once, and you get a new one every time; keep the latest. A refresh token lasts 180 days from when it was last used.
+                Each refresh token works once, and you get a new one every time; keep the latest. If two parts of your app refresh at the same moment,
+                the replaced token still works for a minute, so neither is signed out. A refresh token lasts 180 days from when it was last used.
             </p>
             <Code>{`curl ${API_URL}/v1/oauth/token \\
   -d grant_type=refresh_token \\

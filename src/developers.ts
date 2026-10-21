@@ -28,6 +28,9 @@ export const isScope = (value: unknown): value is Scope => typeof value === "str
 export const TOKEN_LIFETIMES = [7, 30, 90, 365, null] as const;
 
 const CODE_TTL_MS = 5 * 60 * 1000;
+// How long a refresh token keeps working after it's been swapped for a new one. Apps like Raycast run several processes that
+// share one saved token, and two of them can refresh it at the same moment; without this, the second would be signed out
+const REFRESH_GRACE_MS = 60 * 1000;
 export const ACCESS_TTL_MS = 60 * 60 * 1000;
 const REFRESH_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 // How long a token's last use is trusted before it's written again, so every request doesn't write to the database
@@ -343,25 +346,37 @@ export function createGrant(clientId: string, email: string, scopes: Scope[]) {
 
 /**
  * Swaps a refresh token for new tokens; the old ones stop working. Asking for fewer scopes narrows the grant from then on.
- * Null if the refresh token isn't valid for this app
+ * Null if the refresh token isn't valid for this app.
+ *
+ * A refresh token that was just replaced still works for REFRESH_GRACE_MS, and gets its own new tokens alongside the ones
+ * already handed out, so whichever pair the app ends up saving keeps working
  */
 export function refreshGrant(clientId: string, refreshToken: string, requested: Scope[] | null) {
-    const grant = db.prepare("SELECT id, email, scopes, refresh_expires_at FROM oauth_grants WHERE refresh_hash = ? AND app_id = ?")
-        .get(sha256(refreshToken), clientId) as { id: number, email: string, scopes: string, refresh_expires_at: number } | undefined;
+    const hash = sha256(refreshToken);
+    const now = Date.now();
+    const current = db.prepare("SELECT id, email, scopes, refresh_expires_at FROM oauth_grants WHERE refresh_hash = ? AND app_id = ?")
+        .get(hash, clientId) as { id: number, email: string, scopes: string, refresh_expires_at: number } | undefined;
+    const replaced = current ? undefined : db.prepare(
+        "SELECT id, email, scopes, refresh_expires_at FROM oauth_grants WHERE previous_refresh_hash = ? AND app_id = ? AND rotated_at > ?"
+    ).get(hash, clientId, now - REFRESH_GRACE_MS) as typeof current;
+    const grant = current ?? replaced;
 
-    if (!grant || grant.refresh_expires_at < Date.now()) return null;
+    if (!grant || grant.refresh_expires_at < now) return null;
 
     const granted = splitScopes(grant.scopes);
     if (requested && !requested.every(scope => granted.includes(scope))) return "invalid_scope" as const;
     const scopes = requested ?? granted;
 
+    if (replaced) return createGrant(clientId, grant.email, scopes);
+
     const accessToken = secret("zotify_at_");
     const nextRefreshToken = secret("zotify_rt_");
-    const now = Date.now();
 
     db.prepare(`
-        UPDATE oauth_grants SET scopes = ?, access_hash = ?, access_expires_at = ?, refresh_hash = ?, refresh_expires_at = ? WHERE id = ?
-    `).run(joinScopes(scopes), sha256(accessToken), now + ACCESS_TTL_MS, sha256(nextRefreshToken), now + REFRESH_TTL_MS, grant.id);
+        UPDATE oauth_grants SET scopes = ?, access_hash = ?, access_expires_at = ?, refresh_hash = ?, refresh_expires_at = ?,
+            previous_refresh_hash = ?, rotated_at = ?
+        WHERE id = ?
+    `).run(joinScopes(scopes), sha256(accessToken), now + ACCESS_TTL_MS, sha256(nextRefreshToken), now + REFRESH_TTL_MS, hash, now, grant.id);
 
     return tokenResponse(accessToken, nextRefreshToken, scopes);
 }

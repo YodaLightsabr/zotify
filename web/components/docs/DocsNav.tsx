@@ -15,7 +15,7 @@ const GUIDES = [
 ] as const;
 
 // The reference's sections, matching the OpenAPI description's tags (src/openapi.ts)
-const REFERENCE_SECTIONS = ["Basics", "You", "Music", "Votes", "Zotify's queue", "Playlists", "Zotify Meals", "Admin", "OAuth"];
+const REFERENCE_SECTIONS = ["Basics", "You", "Music", "Votes", "Zotify's queue", "Playlists", "Zotify Meals", "Zotify Spaces", "Admin", "OAuth"];
 
 export default function DocsNav() {
     // Rewritten pages still report the address people see

@@ -71,6 +71,22 @@ Each item has its nutrition, ingredients and diet tags, plus allergens in three 
 
 Meal periods say whether the hours list them that day (`scheduled`); the dining site sometimes has menus for periods that aren't served. Between periods there's a 30–45 minute transition when the full menu may not be out. A school is set up for Meals with its dining site's store codes (`schools.dining_config`) and each dining hall's location key (`venues.dining_location_key`); UCI's Anteatery and Brandywine are set up on first start.
 
+## Zotify Spaces
+
+Study rooms at UCI's libraries and housing, and when they're free, at spaces.zotify.app (`web/app/spaces`). The rooms are booked on Springshare LibCal sites (spaces.lib.uci.edu, and the Upper Mesa and Oasis study rooms on spaces.hsg.uci.edu), so Zotify reads them and links to them for booking; it can't book rooms itself. How LibCal's pages work, and which sites and areas are included, is in `src/spaces/config.ts`.
+
+Availability changes by the minute, so unlike Meals it's fetched from LibCal for nearly every request: the same request within 15 seconds shares one answer, and browsers never cache it. The list of rooms (names, capacities, photos, descriptions) is kept for six hours. Pages refresh every 30 seconds while open.
+
+| Request | What it returns |
+| --- | --- |
+| `GET /v1/spaces/uci` | Locations and rooms, with capacity, photo, description and booking link |
+| `GET /v1/spaces/uci/now` | Rooms free now (from the next half hour; LibCal never lists a slot that's started), longest first, and rooms free within two hours |
+| `GET /v1/spaces/uci/free?date=tomorrow&from=14:00&to=16:00` | Rooms free for that whole stretch |
+| `GET /v1/spaces/uci/availability?date=today` | Every room's slots on a day |
+| `GET /v1/spaces/uci/rooms/lib-44696?days=7` | One room's slots over the next few days |
+
+`?capacity=4` and `?location=langson,science` narrow any of them. Times are ISO 8601 in the school's timezone. If a booking site can't be reached, its rooms are left out and listed in `errors`.
+
 ## Live updates
 
 Pages don't poll. The frontend keeps one socket.io connection open for the whole visit (`web/lib/live.tsx`), and the API (`src/live.ts`, on port 3001 too) pushes updates to it:

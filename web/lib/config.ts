@@ -17,6 +17,10 @@ export const MAIN_URL = `${SITE_PROTOCOL}://${MAIN_HOST}`;
 export const MEALS_HOST = `meals.${SITE_DOMAIN}`;
 export const MEALS_URL = `${SITE_PROTOCOL}://${MEALS_HOST}`;
 
+// Zotify Spaces' dashboard: spaces.zotify.app, served from the pages under app/spaces (see proxy.ts)
+export const SPACES_HOST = `spaces.${SITE_DOMAIN}`;
+export const SPACES_URL = `${SITE_PROTOCOL}://${SPACES_HOST}`;
+
 // The API's docs: docs.zotify.app, served from the pages under app/docs (see proxy.ts)
 export const DOCS_HOST = `docs.${SITE_DOMAIN}`;
 export const DOCS_URL = `${SITE_PROTOCOL}://${DOCS_HOST}`;

@@ -1,0 +1,204 @@
+/* Zotify Spaces (spaces.zotify.app). Its pages are only ever reached on that address, so these don't meet Zotify's own pages */
+
+/* The same light theme as Zotify Meals: Zotify's colors, swapped on the whole page whenever Spaces is showing. Green is free */
+:root:has(.spaces) {
+    color-scheme: light;
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface-2: #e8eef7;
+    --border: #d8dce3;
+    --text: #13243a;
+    --muted: #5a6474;
+    --error: #b23c0a;
+    --placeholder: var(--uci-blue);
+    --accent: var(--uci-blue);
+    --on-accent: #ffffff;
+    --free: #1f8a4c;
+    --free-soft: #d9f0e2;
+    --taken: #c9ced6;
+}
+
+.spaces { display: contents; }
+
+/* The bar along the top */
+.spaces-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 24px;
+}
+
+.spaces-logo span { color: var(--accent); }
+.spaces-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+.spaces-nav-link {
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.spaces-nav-link:hover { color: var(--text); }
+.spaces-nav-link.current { color: var(--text); border-color: var(--border); background: var(--surface); }
+.spaces-nav-link.subtle { font-size: 0.8rem; }
+
+.spaces-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 8px 24px 48px; }
+.spaces-main.narrow { max-width: 760px; }
+
+.spaces-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.spaces-main h1 { font-family: "Jua", system-ui, sans-serif; font-weight: 400; font-size: 2rem; margin: 0; }
+.spaces-lead { margin: 4px 0 16px; color: var(--muted); }
+.spaces-subheading { margin: 28px 0 10px; font-size: 1.1rem; }
+.spaces-muted { color: var(--muted); }
+.small { font-size: 0.8rem; }
+.spaces-message { margin: 40px 0; text-align: center; color: var(--muted); }
+.spaces-message a, .spaces-back a { color: var(--accent); }
+.spaces-back { margin: 0 0 12px; }
+.spaces-problem { padding: 10px 14px; border-radius: 10px; background: #fff1e8; color: var(--error); font-size: 0.9rem; }
+
+/* "Updated just now", with a dot that pulses while refreshing */
+.spaces-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.spaces-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--free); }
+.spaces-updated.loading .spaces-live-dot { animation: spaces-pulse 1s ease-in-out infinite; }
+@keyframes spaces-pulse { 50% { opacity: 0.3; } }
+
+/* Chips: people, locations, days */
+.spaces-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.spaces-filters { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.spaces-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.spaces-dates { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.spaces-dates::-webkit-scrollbar { display: none; }
+
+.spaces-chip {
+    flex-shrink: 0;
+    padding: 6px 13px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.spaces-chip:hover { border-color: var(--accent); }
+.spaces-chip.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+.spaces-times { display: flex; flex-wrap: wrap; gap: 12px; }
+.spaces-times label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; }
+.spaces-times select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 400;
+}
+
+/* Free rooms as cards */
+.spaces-cards {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+}
+
+.spaces-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--free);
+    border-radius: var(--radius);
+}
+
+.spaces-card-photo { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--surface-2); }
+.spaces-cards.compact .spaces-card-photo { width: 44px; height: 44px; }
+.spaces-card-body { flex: 1; min-width: 0; }
+.spaces-card-body p { margin: 2px 0 0; font-size: 0.85rem; }
+.spaces-card-name { color: var(--text); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+.spaces-card-name:hover { text-decoration: underline; }
+.spaces-card-time { font-size: 0.95rem !important; }
+.spaces-card-time strong { color: var(--free); }
+
+.spaces-book {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.spaces-book.large { display: inline-block; margin-top: 10px; padding: 9px 18px; font-size: 0.95rem; }
+
+/* Browse: each location's rooms as rows of timelines, with the hours above */
+.spaces-location { margin-top: 8px; }
+.spaces-grid-head { display: grid; grid-template-columns: 240px 1fr; align-items: end; gap: 12px; }
+.spaces-grid { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.spaces-grid-row { display: grid; grid-template-columns: 240px 1fr; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.spaces-grid-room { display: flex; flex-direction: column; min-width: 0; }
+.spaces-grid-room a { color: var(--text); font-weight: 600; font-size: 0.9rem; text-decoration: none; overflow-wrap: anywhere; }
+.spaces-grid-room a:hover { text-decoration: underline; }
+
+.spaces-hours { position: relative; height: 18px; margin: 0 0 6px; }
+.spaces-hours span { position: absolute; transform: translateX(-50%); color: var(--muted); font-size: 0.7rem; white-space: nowrap; }
+.spaces-hours span:first-child { transform: none; }
+.spaces-hours span:last-child { transform: translateX(-100%); }
+
+.spaces-timeline { position: relative; height: 18px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.spaces-slot { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--surface); }
+.spaces-slot.available { background: var(--free); }
+.spaces-slot.booked, .spaces-slot.unavailable { background: var(--taken); }
+
+/* A room's own page */
+.spaces-room { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 8px; }
+.spaces-room h1 { font-size: 1.8rem !important; }
+.spaces-room p { margin: 4px 0 0; }
+.spaces-room-photo { flex-shrink: 0; width: 160px; height: 120px; border-radius: var(--radius); object-fit: cover; background: var(--surface-2); }
+.spaces-description { white-space: pre-line; line-height: 1.5; }
+
+.spaces-week { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.spaces-week-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
+
+/* Phones */
+@media (max-width: 700px) {
+    .spaces-header, .spaces-main { padding-left: 16px; padding-right: 16px; }
+    .spaces-cards { grid-template-columns: minmax(0, 1fr); }
+    /* Each row of chips scrolls sideways, so free rooms stay near the top */
+    .spaces-filters .spaces-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+    .spaces-filters .spaces-chips::-webkit-scrollbar { display: none; }
+    .spaces-grid-head { grid-template-columns: minmax(0, 1fr); }
+    .spaces-grid-head .spaces-hours { display: none; }
+    .spaces-grid-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .spaces-room { flex-direction: column; }
+    .spaces-room-photo { width: 100%; height: 180px; }
+}

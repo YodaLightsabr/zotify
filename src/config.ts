@@ -17,6 +17,9 @@ export const siteUrl = (subdomain: string | null) => `${SITE_PROTOCOL}://${subdo
 // Zotify Meals' dashboard, at meals.zotify.app
 export const MEALS_SUBDOMAIN = "meals";
 
+// Zotify Spaces' dashboard, at spaces.zotify.app
+export const SPACES_SUBDOMAIN = "spaces";
+
 // The API's docs, at docs.zotify.app
 export const DOCS_SUBDOMAIN = "docs";
 export const DOCS_URL = siteUrl(DOCS_SUBDOMAIN);

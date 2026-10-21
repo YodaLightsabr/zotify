@@ -17,6 +17,7 @@ import {
     addFavoriteRoute, mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus, myFavorites, removeFavoriteRoute
 } from "./routes/meals.js";
 import { myPicks } from "./routes/my-picks.js";
+import { spacesDay, spacesFree, spacesIndex, spacesNow, spacesRoom, spacesSchool } from "./routes/spaces.js";
 import { decideAuthorization, describeAuthorization, metadata, revoke, token } from "./routes/oauth.js";
 import { openApi } from "./routes/openapi.js";
 import { schoolOfRequest, schoolParam, venueParam } from "./routes/params.js";
@@ -134,6 +135,14 @@ meals.get("/:school/items/:sku", mealsItem);
 meals.get("/:school/:location", mealsLocation);
 meals.get("/:school/:location/:date", mealsDay);
 v1.use("/meals", meals);
+
+// Zotify Spaces: public study room availability, fetched live from LibCal
+v1.get("/spaces", spacesIndex);
+v1.get("/spaces/:school", spacesSchool);
+v1.get("/spaces/:school/now", spacesNow);
+v1.get("/spaces/:school/availability", spacesDay);
+v1.get("/spaces/:school/free", spacesFree);
+v1.get("/spaces/:school/rooms/:room", spacesRoom);
 
 // A school's admins (and site admins): its beta, history and Zotify's queue (above)
 v1.get("/schools/:school/beta", schoolParam, schoolAdmin, overviewRoute);

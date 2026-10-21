@@ -256,6 +256,24 @@ const schemas: Record<string, Schema> = {
         kind: object({ id: string(undefined, "home"), name: string(undefined, "Home-style"), order: integer() }, "Stations of the same kind line up across halls, in the same order everywhere."),
         items: array(ref("MenuItem"))
     }),
+    SpaceRoom: object({
+        id: string("The booking site's ID and LibCal's, used in /v1/spaces/{school}/rooms/{room}.", "lib-44696"),
+        name: string(undefined, "Langson 380"),
+        capacity: integer("How many people it's for."),
+        location: string("Its location's ID, for ?location=.", "langson"),
+        locationName: string(undefined, "Langson Library"),
+        group: string("The booking site's group within the location."),
+        image: nullable(string("A photo.")),
+        description: nullable(string("Plain text; lists are lines starting with •. Fills in over the first minute after the API starts.")),
+        directions: nullable(string()),
+        bookingUrl: string("Where to book it. Zotify can't book rooms; this is the booking site's page.")
+    }),
+    SpaceSlot: object({
+        start: string("ISO 8601 with the school's offset.", "2026-10-21T14:30:00-07:00"),
+        end: string(undefined, "2026-10-21T15:00:00-07:00"),
+        status: { type: "string", enum: ["available", "booked", "unavailable"], description: "unavailable means it can't be booked, like when the room's closed or held." }
+    }),
+    FreeTime: object({ start: string(), end: string(), minutes: integer() }, "Back-to-back free slots, joined."),
     Favorite: object({
         recipeId: string(),
         name: string(),
@@ -482,6 +500,59 @@ const paths: Record<string, Record<string, unknown>> = {
             errors: [400, ...AUTH_ERRORS, 404]
         })
     },
+    "/v1/spaces/{school}": {
+        get: operation("spacesSchool", {
+            tag: "Zotify Spaces", access: "public", summary: "Study rooms and their locations",
+            description: "Every bookable study room at the school's libraries and housing, from their LibCal booking sites. Zotify Spaces is public: no token needed, and any site can call it.",
+            parameters: [school],
+            response: { description: "Locations and rooms.", schema: object({ school: string(), timezone: string(), locations: array(object({ id: string(), name: string(), site: string(), siteName: string(), url: string(), rooms: integer() })), rooms: array(ref("SpaceRoom")) }) },
+            errors: [404, 502]
+        })
+    },
+    "/v1/spaces/{school}/now": {
+        get: operation("spacesNow", {
+            tag: "Zotify Spaces", access: "public", summary: "Rooms free now",
+            description: "Rooms whose next free stretch starts within half an hour, longest first, and in soon, rooms free within two hours, soonest first. Booking sites never list a slot that's already started, so a room that's empty right now usually shows as free from the next half hour.\n\nAvailability is fetched live from the booking sites (shared for at most 15 seconds) and never cached by browsers. If a site can't be reached, its rooms are left out and listed in errors.",
+            parameters: [school, query("capacity", "At least this many people.", "4"), query("location", "Only these locations, comma-separated.", "langson,science")],
+            response: {
+                description: "Free rooms.",
+                schema: object({
+                    at: string("Now, in the school's timezone."),
+                    rooms: array({ allOf: [ref("SpaceRoom"), object({ freeFrom: string(), freeUntil: string(), minutes: integer("How long it's free, from now or from freeFrom."), startsInMinutes: integer("0 when it's free now.") })] }),
+                    soon: array({ allOf: [ref("SpaceRoom"), object({ freeFrom: string(), freeUntil: string(), minutes: integer(), startsInMinutes: integer() })] }),
+                    errors: array(object({ location: string(), error: string() }))
+                })
+            },
+            errors: [400, 404, 502]
+        })
+    },
+    "/v1/spaces/{school}/free": {
+        get: operation("spacesFree", {
+            tag: "Zotify Spaces", access: "public", summary: "Rooms free for a whole stretch of time",
+            parameters: [
+                school, query("date", "today (the default), tomorrow, or YYYY-MM-DD.", "tomorrow"), query("from", "Start, in the school's timezone.", "14:00", true),
+                query("to", "End; 24:00 is midnight.", "16:00", true), query("capacity", "At least this many people.", "4"), query("location", "Only these locations, comma-separated.")
+            ],
+            response: { description: "Rooms free from from to to, with the whole free stretch that covers it.", schema: object({ date: string(), from: string(), to: string(), rooms: array({ allOf: [ref("SpaceRoom"), object({ freeFrom: string(), freeUntil: string(), minutes: integer() })] }), errors: array(object({ location: string(), error: string() })) }) },
+            errors: [400, 404, 502]
+        })
+    },
+    "/v1/spaces/{school}/availability": {
+        get: operation("spacesDay", {
+            tag: "Zotify Spaces", access: "public", summary: "Every room's slots on a day",
+            parameters: [school, query("date", "today (the default), tomorrow, or YYYY-MM-DD, within the booking window (about two weeks).", "today"), query("capacity", "At least this many people."), query("location", "Only these locations, comma-separated.", "oasis")],
+            response: { description: "Each room with its slots (from now on, for today) and free stretches.", schema: object({ date: string(), rooms: array({ allOf: [ref("SpaceRoom"), object({ slots: array(ref("SpaceSlot")), free: array(ref("FreeTime")) })] }), errors: array(object({ location: string(), error: string() })) }) },
+            errors: [400, 404, 502]
+        })
+    },
+    "/v1/spaces/{school}/rooms/{room}": {
+        get: operation("spacesRoom", {
+            tag: "Zotify Spaces", access: "public", summary: "One room's availability over several days",
+            parameters: [school, path("room", "A room's id.", "lib-44696"), query("days", "How many days from today, 1 to 14 (7 by default).", "7")],
+            response: { description: "The room, and its slots and free stretches for each day.", schema: { allOf: [ref("SpaceRoom"), object({ days: array(object({ date: string(), slots: array(ref("SpaceSlot")), free: array(ref("FreeTime")) })) })] } },
+            errors: [400, 404, 502]
+        })
+    },
     "/v1/meals": {
         get: operation("mealsIndex", {
             tag: "Zotify Meals", access: "public", summary: "Schools and their dining halls",
@@ -687,6 +758,7 @@ export const spec = {
         { name: "Zotify's queue", description: "Songs waiting to go into Rockbot's queue. Zotify keeps at most 3 of its songs in Rockbot's queue at a venue, and adds the next as each one plays." },
         { name: "Playlists", description: "Spotify playlists, and requesting every track in one." },
         { name: "Zotify Meals", description: "Dining hall menus, which are public, and your favorite dishes." },
+        { name: "Zotify Spaces", description: "Study rooms at the libraries and housing, and when they're free. Public, and live." },
         { name: "Admin", description: "For a school's admins, with the admin scope." },
         { name: "OAuth", description: "Signing people in to your app. See the authentication guide." }
     ],

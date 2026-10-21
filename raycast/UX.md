@@ -60,8 +60,10 @@ fight with search. Esc clears the search bar and goes back to the queue, which R
 It refreshes every 15 seconds while open (the server only asks Rockbot that often anyway), and after every action.
 `useCachedPromise` shows the last queue instantly when the command opens, then updates it.
 
-**Search results (typing)** come from `GET /v1/venues/:venue/search`. The accessory says where each song stands:
-"In Queue", "Waiting", "Played Recently", "At Brandywine" (requestable at another venue), or "Unavailable".
+**Search results (typing)** come from `GET /v1/venues/:venue/search`, grouped into sections like the website's, but with
+what you can request first: Available to Play, Only Available at Brandywine, Unavailable Anywhere, Requested by Others (in
+Rockbot's queue, so ↵ upvotes), and On Cooldown (Zotify already queued it, or played it in the last two hours). The
+accessory says where each song stands: "In Queue", "Waiting", "Played Recently", "At Brandywine", or "Unavailable".
 
 ### Actions
 

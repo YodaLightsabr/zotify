@@ -38,6 +38,24 @@ interface Context {
   pickId?: string;
 }
 
+// Search results' groups, in order: what you can request, then what you can't, like the website's but with the songs you can
+// request first
+const RESULT_GROUPS = [
+  ["available", "Available to Play"],
+  ["elsewhere", "Only Available Elsewhere"],
+  ["unavailable", "Unavailable Anywhere"],
+  ["others", "Requested by Others"],
+  ["cooldown", "On Cooldown"],
+] as const;
+
+/** Which group a search result belongs in. Songs Zotify queued can't be queued again, so like cooldown songs they're together */
+function resultGroup(song: SearchResult): (typeof RESULT_GROUPS)[number][0] {
+  if (!song.requestable) return song.availableAt ? "elsewhere" : "unavailable";
+  if (song.status === "queued" && song.queuedByZotify === false) return "others";
+  if (song.status === "queued" || song.status === "cooldown") return "cooldown";
+  return "available";
+}
+
 const cover = (url?: string): Image.ImageLike =>
   url ? { source: url, mask: Image.Mask.RoundedRectangle } : Icon.Music;
 
@@ -152,39 +170,55 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
             <List.EmptyView icon={Icon.MagnifyingGlass} title={`No songs found for "${searchText.trim()}"`} />
           )
         )}
-        <List.Section title="Songs" subtitle={results.length ? String(results.length) : undefined}>
-          {results.map((song) => (
-            <SongItem
-              key={song.id}
-              song={song}
-              venueTitle={(id) => venueName(schools, id)}
-              onSwitchVenue={(id) => setVenue(id)}
-              onShowInQueue={() => {
-                const waiting = zotifyQueue.data?.waiting.find((entry) => entry.songId === song.id);
-                setSearchText("");
-                setSelectedId(waiting ? `zotify-${waiting.id}` : song.pickId ? `pick-${song.pickId}` : undefined);
-              }}
-              onRequest={async () => {
-                // Shows as waiting straight away; requestSong's toast says if it didn't work, and it goes back
-                const requested = requestSong(venue, song).then(
-                  (ok) => ok || Promise.reject(new Error("Not requested")),
-                );
-                await search
-                  .mutate(requested, {
-                    optimisticUpdate: (data) =>
-                      data?.map((entry) => (entry.id === song.id ? { ...entry, status: "queued" } : entry)),
-                  })
-                  .catch(() => {});
-                zotifyQueue.revalidate();
-              }}
-              onUpvote={async () => {
-                await vote(venue, { pickId: song.pickId!, name: song.name, artist: song.artist }, undefined, song.id);
-                refresh();
-              }}
-              common={<CommonActions song={song} school={school} onRefresh={refresh} />}
-            />
-          ))}
-        </List.Section>
+        {RESULT_GROUPS.map(([group, title]) => {
+          const songs = results.filter((song) => resultGroup(song) === group);
+          const others = school.venues.filter((other) => other.id !== venue.id).map((other) => other.name);
+
+          return (
+            <List.Section
+              key={group}
+              title={group === "elsewhere" ? `Only Available at ${others.join(" or ")}` : title}
+              subtitle={songs.length ? String(songs.length) : undefined}
+            >
+              {songs.map((song) => (
+                <SongItem
+                  key={song.id}
+                  song={song}
+                  venueTitle={(id) => venueName(schools, id)}
+                  onSwitchVenue={(id) => setVenue(id)}
+                  onShowInQueue={() => {
+                    const waiting = zotifyQueue.data?.waiting.find((entry) => entry.songId === song.id);
+                    setSearchText("");
+                    setSelectedId(waiting ? `zotify-${waiting.id}` : song.pickId ? `pick-${song.pickId}` : undefined);
+                  }}
+                  onRequest={async () => {
+                    // Shows as waiting straight away; requestSong's toast says if it didn't work, and it goes back
+                    const requested = requestSong(venue, song).then(
+                      (ok) => ok || Promise.reject(new Error("Not requested")),
+                    );
+                    await search
+                      .mutate(requested, {
+                        optimisticUpdate: (data) =>
+                          data?.map((entry) => (entry.id === song.id ? { ...entry, status: "queued" } : entry)),
+                      })
+                      .catch(() => {});
+                    zotifyQueue.revalidate();
+                  }}
+                  onUpvote={async () => {
+                    await vote(
+                      venue,
+                      { pickId: song.pickId!, name: song.name, artist: song.artist },
+                      undefined,
+                      song.id,
+                    );
+                    refresh();
+                  }}
+                  common={<CommonActions song={song} school={school} onRefresh={refresh} />}
+                />
+              ))}
+            </List.Section>
+          );
+        })}
       </List>
     );
   }

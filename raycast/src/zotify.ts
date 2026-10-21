@@ -155,6 +155,8 @@ export interface SearchResult {
   requestable: boolean;
   availableAt: string | null;
   pickId: string | null;
+  // When it's in Rockbot's queue, whether Zotify requested it
+  queuedByZotify: boolean | null;
   status: "queued" | "cooldown" | null;
 }
 

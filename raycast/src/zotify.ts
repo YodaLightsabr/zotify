@@ -9,7 +9,7 @@ export const SITE_URL = "https://www.zotify.app";
 
 // Zotify's public OAuth app for this extension, registered at www.zotify.app/developers with the redirect URI
 // https://raycast.com/redirect?packageName=Extension. Client IDs aren't secret
-export const CLIENT_ID = "zotify_app_REPLACE_ME";
+export const CLIENT_ID = "zotify_app_314cdd2328d57a082f2a7ee0";
 
 const preferences = getPreferenceValues<Preferences>();
 

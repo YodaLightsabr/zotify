@@ -255,6 +255,7 @@ function Station({ station, filters, favorites, onOpen, onStar }: {
                                 <span className="meals-item-meta">
                                     {item.dietTags.filter(tag => /vegan|vegetarian|halal|gluten/i.test(tag)).map(tag => <span key={tag} className="meals-tag small">{shortTag(tag)}</span>)}
                                     {item.nutrition.calories !== null && <span className="meals-muted">{Math.round(item.nutrition.calories)} cal</span>}
+                                    {item.image && <img className="meals-thumb" src={item.image.thumbnail} alt="" loading="lazy" />}
                                 </span>
                             </button>
                         </li>

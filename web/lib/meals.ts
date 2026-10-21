@@ -17,6 +17,8 @@ export interface MealItem {
     allergens: { tagged: string[], incomplete: string[], statement: string | null, possibleFromIngredients: string[] };
     dietTags: string[];
     serving: string | null;
+    // A photo for about one in five dishes, already sized; null on the rest and on menus saved before photos were
+    image: { url: string, thumbnail: string } | null;
     nutrition: Record<"calories" | "protein" | "totalFat" | "saturatedFat" | "transFat" | "cholesterolMg" | "sodiumMg" | "totalCarbohydrates" | "dietaryFiber" | "sugars" | "addedSugars", number | null>;
 }
 

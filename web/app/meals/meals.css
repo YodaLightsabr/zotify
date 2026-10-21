@@ -1,5 +1,22 @@
 /* Zotify Meals (meals.zotify.app). Its pages are only ever reached on that address, so these don't meet Zotify's own pages */
 
+/* A light theme: Zotify's colors, swapped on the whole page (body included) whenever Meals is showing. UCI Blue takes
+   gold's place for text and buttons, since gold is unreadable on white; gold stays for stars and the halls' rule */
+:root:has(.meals) {
+    color-scheme: light;
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface-2: #e8eef7;
+    --border: #d8dce3;
+    --text: #13243a;
+    --muted: #5a6474;
+    --error: #b23c0a;
+    --placeholder: var(--uci-blue);
+    --accent: var(--uci-blue);
+    --on-accent: #ffffff;
+    --meals-gold: #e0a800;
+}
+
 .meals { display: contents; }
 
 /* The bar along the top */
@@ -147,7 +164,7 @@
     cursor: pointer;
 }
 
-.meals-favorite-star { color: var(--accent); }
+.meals-favorite-star { color: var(--meals-gold); }
 .meals-favorite-name { font-weight: 600; }
 
 /* The halls side by side, with each kind of counter as a row across them */
@@ -157,7 +174,7 @@
     column-gap: 24px;
 }
 
-.meals-hall-head { padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+.meals-hall-head { padding-bottom: 8px; border-bottom: 3px solid var(--uci-gold); }
 .meals-hall-head h2 { font-family: "Jua", system-ui, sans-serif; font-weight: 400; font-size: 1.5rem; margin: 0; }
 .meals-hall-head p { margin: 2px 0 0; font-size: 0.9rem; }
 
@@ -180,14 +197,14 @@
 .meals-message.wide { grid-column: 1 / -1; }
 
 .meals-cell { min-width: 0; }
-.meals-none { margin: 0; color: var(--border); }
+.meals-none { margin: 0; color: var(--muted); }
 
 .meals-station { margin-bottom: 12px; }
 .meals-station + .meals-station { padding-top: 8px; border-top: 1px dashed var(--border); }
 .meals-station h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 .meals-station ul { list-style: none; margin: 0; padding: 0; }
 
-.meals-item { display: flex; align-items: flex-start; gap: 4px; }
+.meals-item { display: flex; align-items: center; gap: 4px; }
 .meals-item.starred .meals-item-name > span:first-child { color: var(--accent); }
 
 .meals-item-star {
@@ -202,14 +219,14 @@
     cursor: pointer;
 }
 
-.meals-item-star:hover, .meals-item-star.on { color: var(--accent); }
+.meals-item-star:hover, .meals-item-star.on { color: var(--meals-gold); }
 
 .meals-item-name {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 2px 8px;
     padding: 5px 0;
@@ -223,13 +240,25 @@
 }
 
 .meals-item-name:hover > span:first-child { text-decoration: underline; }
-.meals-item-meta { display: flex; align-items: baseline; gap: 6px; font-size: 0.75rem; white-space: nowrap; }
+.meals-item-meta { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; white-space: nowrap; }
+
+/* About one in five dishes has a photo */
+.meals-thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: var(--surface-2); }
+
+.meals-photo {
+    display: block;
+    width: calc(100% + 44px);
+    max-height: 260px;
+    margin: -22px -22px 16px;
+    object-fit: cover;
+    background: var(--surface-2);
+}
 
 .meals-tag {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(254, 204, 7, 0.14);
+    background: var(--surface-2);
     color: var(--accent);
     font-size: 0.8rem;
     font-weight: 600;
@@ -252,7 +281,7 @@
     border-radius: var(--radius);
 }
 
-.meals-dialog::backdrop { background: rgba(0, 20, 40, 0.7); }
+.meals-dialog::backdrop { background: rgba(19, 36, 58, 0.45); }
 .meals-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .meals-dialog h2 { margin: 0; font-size: 1.3rem; }
 .meals-dialog h3 { margin: 18px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }

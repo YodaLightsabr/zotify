@@ -51,6 +51,14 @@ export const NEAR_TERM_REFRESH_MS = 60 * 60 * 1000;
 // The site notes 30-45 minute "transitional periods" between meals, when the full menu may not be out
 export const TRANSITION_NOTE = "Between meal periods there's a 30–45 minute transition when the full menu may not be available.";
 
+// Bumped whenever saved items gain or change fields; a server with a newer version re-fetches the next two weeks on
+// start instead of waiting for the night. 2: images
+export const ITEM_VERSION = 2;
+
+// Item photos are on Adobe's asset delivery, which resizes by address: {url}/as/{name}.jpg?width=320
+export const THUMBNAIL_WIDTH = 320;
+export const IMAGE_WIDTH = 1200;
+
 // Only the product fields Zotify uses. Without this, every product carries prices, payment methods and more,
 // about 3.5× the size. The names must be written into the query; the catalog service doesn't receive variables
 export const ITEM_ATTRIBUTES = [

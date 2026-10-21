@@ -42,6 +42,7 @@ export default function ItemDialog({ item, where, today, favorite, signedIn, onT
     return (
         <dialog ref={dialog} className="meals-dialog" aria-labelledby="meals-dialog-title" onClose={onClose}>
             {item && <>
+                {item.image && <img className="meals-photo" src={item.image.url} alt={item.name} />}
                 <div className="meals-dialog-head">
                     <div>
                         <h2 id="meals-dialog-title">{item.name}</h2>

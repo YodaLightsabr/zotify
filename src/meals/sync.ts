@@ -1,6 +1,6 @@
 import { cache } from "../cache.js";
 import { db } from "../db.js";
-import { DAYS_AHEAD, NEAR_TERM_DAYS, NEAR_TERM_REFRESH_MS, NIGHTLY_SYNC_HOUR, type DiningConfig } from "./config.js";
+import { DAYS_AHEAD, ITEM_VERSION, NEAR_TERM_DAYS, NEAR_TERM_REFRESH_MS, NIGHTLY_SYNC_HOUR, type DiningConfig } from "./config.js";
 import { fetchLocation, fetchMealPeriods, fetchMenu, fetchStoreConfig } from "./elevate.js";
 import { isHidden, toMenuItem, type Labels } from "./items.js";
 import { getReference, saveLocation, saveMenu, saveReference, type DiningLocation, type Reference } from "./store.js";
@@ -36,6 +36,8 @@ export interface SyncStatus {
     // From the most recent sync
     menusFetched: number;
     menusFailed: number;
+    // The item format of the last full sync (see ITEM_VERSION)
+    itemVersion?: number;
 }
 
 const statusKey = (schoolId: string) => `mealsSync:${schoolId}`;
@@ -163,6 +165,7 @@ export async function syncSchool(school: DiningSchool, { near = false } = {}) {
             [near ? "lastNearTermSync" : "lastFullSync"]: Date.now(),
             ...(near ? {} : { lastNearTermSync: Date.now() }),
             lastError: failed ? `${failed} menus couldn't be fetched` : null,
+            ...(near ? {} : { itemVersion: ITEM_VERSION }),
             menusFetched: fetched,
             menusFailed: failed
         });
@@ -184,7 +187,10 @@ export function startMealsSync() {
             const today = todayIn(timezone);
             const lastFullDay = status.lastFullSync ? new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(status.lastFullSync)) : null;
 
-            if (!status.lastFullSync || (lastFullDay! < today && hourIn(timezone) >= NIGHTLY_SYNC_HOUR)) {
+            // Never synced, the night's sync is due, or saved items are an older format
+            const outdated = (status.itemVersion ?? 1) < ITEM_VERSION;
+
+            if (!status.lastFullSync || outdated || (lastFullDay! < today && hourIn(timezone) >= NIGHTLY_SYNC_HOUR)) {
                 await syncSchool(school);
             } else if (!status.lastNearTermSync || Date.now() - status.lastNearTermSync > NEAR_TERM_REFRESH_MS) {
                 await syncSchool(school, { near: true });

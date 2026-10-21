@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import MealsHeader from "@/components/meals/MealsHeader";
 import { currentSchool } from "@/lib/currentSchool";
 import { listOf } from "@/lib/format";
@@ -17,6 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
         twitter: { card: "summary_large_image", title: "Zotify Meals", description }
     };
 }
+
+// Matches the light theme in meals.css
+export const viewport: Viewport = { themeColor: "#f7f5f0" };
 
 /** Zotify Meals (meals.zotify.app; see proxy.ts): its own header instead of Zotify's navbar */
 export default function MealsLayout({ children }: { children: React.ReactNode }) {

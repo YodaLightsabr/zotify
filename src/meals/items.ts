@@ -1,3 +1,4 @@
+import { IMAGE_WIDTH, THUMBNAIL_WIDTH } from "./config.js";
 import type { ElevateProduct } from "./elevate.js";
 
 // Turns Elevate's products into clean menu items. Its attribute values are inconsistent (a single ID can be "0" or "57",
@@ -30,6 +31,8 @@ export interface MenuItem {
     };
     dietTags: string[];
     serving: string | null;
+    // A photo, for about one in five dishes: a large one and a small one for lists. Null when there isn't one
+    image: { url: string, thumbnail: string } | null;
     // Per serving; grams unless noted
     nutrition: {
         calories: number | null;
@@ -82,6 +85,16 @@ function number(value: unknown): number | null {
 
 const label = (map: Record<string, string>) => (id: string) => map[id] ?? `Unknown (${id})`;
 
+/** A product's photo, sized by its address on Adobe's asset delivery: {url}/as/{name}.jpg?width= */
+function imageOf(product: ElevateProduct) {
+    const image = product.images?.find(candidate => candidate.roles?.includes("image")) ?? product.images?.[0];
+    if (!image?.url?.startsWith("https://")) return null;
+
+    const name = (product.name || "dish").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "dish";
+    const sized = (width: number) => `${image.url}/as/${name}.jpg?width=${width}&quality=80`;
+    return { url: sized(IMAGE_WIDTH), thumbnail: sized(THUMBNAIL_WIDTH) };
+}
+
 /** Whether the dining hall hides this item from its online menu */
 export const isHidden = (product: ElevateProduct) =>
     product.attributes.some(attribute => attribute.name === "is_hide_from_web_menu" && /^(yes|1|true)$/i.test(String(attribute.value)));
@@ -109,6 +122,7 @@ export function toMenuItem(product: ElevateProduct, labels: Labels): MenuItem {
         },
         dietTags: ids(get("recipe_attributes")).filter(id => labels.dietTags[id]).map(id => labels.dietTags[id]),
         serving: text(get("serving_combined")),
+        image: imageOf(product),
         nutrition: {
             calories: number(get("calories")),
             protein: number(get("protein")),

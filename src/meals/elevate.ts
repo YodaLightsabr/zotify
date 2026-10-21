@@ -140,6 +140,8 @@ export interface ElevateProduct {
     name: string;
     sku: string;
     attributes: { name: string, value: unknown }[];
+    // Photos, for about one in five dishes
+    images?: { url: string, roles: string[] | null }[] | null;
 }
 
 /**
@@ -154,7 +156,7 @@ export async function fetchMenu(config: DiningConfig, locationKey: string, date:
         query Menu($campus: String!, $location: String!, $date: String!, $period: Int) {
             getLocationRecipes(campusUrlKey: $campus, locationUrlKey: $location, date: $date, mealPeriod: $period, viewType: DAILY) {
                 locationRecipesMap { stationSkuMap { id skus } }
-                products { items { name sku attributes(names: ${JSON.stringify(ITEM_ATTRIBUTES)}) { name value } } }
+                products { items { name sku images { url roles } attributes(names: ${JSON.stringify(ITEM_ATTRIBUTES)}) { name value } } }
             }
         }
     `, { campus: config.campusUrlKey, location: locationKey, date, period: periodId });

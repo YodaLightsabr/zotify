@@ -89,8 +89,9 @@ function Version() {
                         <span className="version-subject">{data.subject}</span>
                     </div>
                     <div className="muted">
-                        Committed {timestamp(data.committedAt)}
-                        {data.deployedAt ? ` · deployed ${timestamp(data.deployedAt)}` : " · running from a checkout"}
+                        {/* Releases deployed before .release-info existed only know their commit */}
+                        {data.committedAt ? `Committed ${timestamp(data.committedAt)}` : "Commit details unknown"}
+                        {data.deployedAt ? ` · deployed ${timestamp(data.deployedAt)}` : ""}
                         {` · API up since ${timestamp(data.startedAt)}`}
                     </div>
                     {/* Both are built from the same commit, so a difference means one of them didn't restart */}

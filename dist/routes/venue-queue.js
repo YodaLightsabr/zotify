@@ -1,4 +1,6 @@
+import { RockbotClient } from "../client.js";
 import { getRecentlyQueued } from "../queued.js";
+import { getVenue } from "../schools.js";
 import { describeVenueQueue, getVenueQueue, isFromZotify, queueEntries } from "../venueQueue.js";
 import { refreshVotes } from "../votes.js";
 import { parseVenue, queryParam } from "./params.js";
@@ -17,6 +19,10 @@ export async function venueQueue(req, res) {
         res.json(await describeVenueQueue(venueName, queue, fetchedAt));
     }
     catch (error) {
+        if (error instanceof RockbotClient.Errors.VenueUnavailableError) {
+            res.status(503).json({ error: `${getVenue(venueName)?.name ?? "This venue"} isn't taking requests right now.`, unavailable: true });
+            return;
+        }
         console.error(`Error loading the queue at ${venueName}:`, error);
         res.status(502).json({ error: "Could not load the queue. Please try again." });
     }

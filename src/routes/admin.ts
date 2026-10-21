@@ -14,7 +14,7 @@ export async function adminTestAccounts(_req: Request, res: Response) {
 /** For anyone: the commit the API is running and when it was committed, e.g. to check a deploy went live. null if it can't be told */
 export function publicVersion(_req: Request, res: Response) {
     const version = getVersion();
-    res.json(version && { commit: version.commit, committedAt: version.committedAt });
+    res.json(version && { commit: version.commit, committedAt: version.committedAt || null });
 }
 
 /** Which commit the API is running, and when it was committed and deployed. null if it can't be told */

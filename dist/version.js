@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 // Which commit is running, for the admin dashboard. Deployed releases are plain copies without .git, so deploy/deploy.sh
 // writes .release-info into each one: the commit, when it was committed, its message, the repo, and when it was deployed,
 // one per line. Running from a checkout (like in development), git is asked instead
@@ -17,6 +18,10 @@ function readVersion() {
             return { commit, committedAt, subject, url: commitUrl(remote ?? "", commit), deployedAt: deployedAt || null };
     }
     catch { }
+    // Each deployed release is a folder named after its commit (see deploy/deploy.sh), and the services run from inside it
+    const folder = basename(process.cwd());
+    if (/^[0-9a-f]{40}$/.test(folder))
+        return { commit: folder, committedAt: "", subject: "", url: null, deployedAt: null };
     try {
         const git = (...args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
         const [commit, committedAt, subject] = git("log", "-1", "--format=%H%n%cI%n%s").split("\n");

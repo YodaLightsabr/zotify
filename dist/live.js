@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { isApproved } from "./beta.js";
+import { RockbotClient } from "./client.js";
 import { events } from "./events.js";
 import { getPlaylistQueueJob } from "./playlistQueue.js";
 import { getRecentlyQueued } from "./queued.js";
@@ -41,10 +42,17 @@ function poll(venue) {
             refreshVotes(venue, queueEntries(queue).filter(entry => isFromZotify(entry, queued)));
         }
         catch (error) {
-            console.error(`Could not load the queue at ${venue}:`, error);
+            // A closed venue is normal, so it's not worth a stack trace every poll
+            const closed = error instanceof RockbotClient.Errors.VenueUnavailableError;
+            if (closed)
+                console.warn(`${venue} isn't taking check-ins right now`);
+            else
+                console.error(`Could not load the queue at ${venue}:`, error);
             // Keep showing the last queue if there was one
             const last = latest.get(venue);
-            latest.set(venue, { queue: last?.queue ?? null, error: "Could not load the queue.", fetchedAt: last?.fetchedAt ?? Date.now() });
+            const message = closed ? `${getVenue(venue)?.name ?? "This venue"} isn't taking requests right now.` : "Could not load the queue.";
+            // Keep showing the last queue for a hiccup, but not for a closed venue, whose queue is over
+            latest.set(venue, { queue: closed ? null : last?.queue ?? null, error: message, fetchedAt: last?.fetchedAt ?? Date.now() });
         }
         sendVenue(venue);
         processSoon(venue);

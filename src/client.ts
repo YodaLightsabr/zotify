@@ -32,6 +32,14 @@ export class RockbotClient {
             }
         }
 
+        // Rockbot won't let anyone check in right now, e.g. outside the venue's hours
+        static VenueUnavailableError = class VenueUnavailableError extends Error {
+            constructor(message: string) {
+                super(message);
+                this.name = "VenueUnavailableError";
+            }
+        }
+
         static AuthorizationError = class AuthorizationError extends Error {
             constructor(message: string) {
                 super(message);
@@ -184,6 +192,11 @@ export class Venue {
                 venue_id: this.id
             })
         });
+
+        // Rockbot's own words for a venue that's closed to check-ins, e.g. "This venue is not currently available for checkin"
+        if (/not currently available/i.test(response?.error?.user_message ?? "")) {
+            throw new RockbotClient.Errors.VenueUnavailableError(`${this.name ?? this.id} isn't available for check-in right now`);
+        }
 
         assertScreen(response, `check in to ${this.name ?? this.id}`);
         return response;

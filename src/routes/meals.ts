@@ -9,14 +9,15 @@ import { addDays, diningSchools, getStatus, todayIn } from "../meals/sync.js";
 import { getSchool } from "../schools.js";
 
 // Zotify Meals: a public, read-only REST API for dining hall menus. Everything comes from the copy kept by meals/sync.ts,
-// so answers are instant, and responses can be cached by browsers and Cloudflare for a few minutes
+// so answers are instant, and responses can be cached by browsers and Cloudflare for a few minutes. It's at /v1/meals, and at
+// /api/meals, where it started
 //
-//   GET /api/meals                                   schools and their dining halls
-//   GET /api/meals/:school                           allergen and diet tag labels, meal periods, dining halls, dates
-//   GET /api/meals/:school/status                    when menus were last fetched
-//   GET /api/meals/:school/items/:sku                one item, and where and when it's served
-//   GET /api/meals/:school/:location                 a dining hall's stations and hours for the next two weeks
-//   GET /api/meals/:school/:location/:date           a day's menu: today, tomorrow, yesterday or YYYY-MM-DD, past or future,
+//   GET /v1/meals                                    schools and their dining halls
+//   GET /v1/meals/:school                            allergen and diet tag labels, meal periods, dining halls, dates
+//   GET /v1/meals/:school/status                     when menus were last fetched
+//   GET /v1/meals/:school/items/:sku                 one item, and where and when it's served
+//   GET /v1/meals/:school/:location                  a dining hall's stations and hours for the next two weeks
+//   GET /v1/meals/:school/:location/:date            a day's menu: today, tomorrow, yesterday or YYYY-MM-DD, past or future,
 //                                                    as long as it was saved
 //       ?period=lunch (or 25)   one meal period
 //       ?exclude=milk,peanuts   leave out items tagged with, or whose ingredients mention, these allergens
@@ -248,7 +249,7 @@ function dayPeriods(schoolId: string, location: DiningLocation, reference: Refer
     });
 }
 
-// Favorites, for signed-in people. These are under /api/meal-favorites, not /api/meals, since they need the session cookie
+// Favorites, for signed-in people: /v1/meals/:school/favorites
 
 /** The signed-in person's favorites at a school, each with when it's next served */
 export function myFavorites(req: Request, res: Response) {
@@ -262,22 +263,30 @@ export function myFavorites(req: Request, res: Response) {
     res.json(favorites.map(favorite => ({ ...favorite, upcoming: servings.get(favorite.recipeId) ?? [] })));
 }
 
-/** Body: { recipeId, name, remove? }. Stars or unstars a dish */
-export function setFavorite(req: Request, res: Response) {
+const recipeIdParam = (req: Request) => String(req.params.recipeId ?? "").trim().slice(0, 64);
+
+/** Body: { name }, the dish's name. Stars a dish, by its recipeId */
+export function addFavoriteRoute(req: Request, res: Response) {
     const found = schoolFor(req, res);
     if (!found) return;
 
-    const recipeId = typeof req.body?.recipeId === "string" ? req.body.recipeId.trim().slice(0, 64) : "";
+    const recipeId = recipeIdParam(req);
     const name = typeof req.body?.name === "string" ? req.body.name.trim().slice(0, 200) : "";
 
-    if (!recipeId || (!req.body?.remove && !name)) {
-        res.status(400).json({ error: "Missing the dish" });
+    if (!recipeId || !name) {
+        res.status(400).json({ error: "Send the dish's name", code: "invalid_request" });
         return;
     }
 
-    const email = res.locals.session.email;
-    if (req.body?.remove === true) removeFavorite(email, found.school.id, recipeId);
-    else addFavorite(email, found.school.id, recipeId, name);
+    addFavorite(res.locals.session.email, found.school.id, recipeId, name);
+    res.status(204).end();
+}
 
-    res.json({ ok: true });
+/** Unstars a dish */
+export function removeFavoriteRoute(req: Request, res: Response) {
+    const found = schoolFor(req, res);
+    if (!found) return;
+
+    removeFavorite(res.locals.session.email, found.school.id, recipeIdParam(req));
+    res.status(204).end();
 }

@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import CardPage from "@/components/CardPage";
 import { Busy, Spinner } from "@/components/Spinner";
 import { postJson, safeNext } from "@/lib/api";
+import { useSchool } from "@/lib/school";
 import { useUser, type CurrentUser } from "@/lib/user";
 import "./beta.css";
 
@@ -17,6 +18,7 @@ const date = (timestamp: number) => new Date(timestamp).toLocaleDateString(undef
 function Beta() {
     const router = useRouter();
     const params = useSearchParams();
+    const school = useSchool();
     const { user, refresh } = useUser();
     const next = safeNext(params.get("next"));
 
@@ -37,7 +39,7 @@ function Beta() {
         setCodeMessage("");
 
         try {
-            const { response, data } = await postJson("/api/beta/redeem", { code });
+            const { response, data } = await postJson(`/v1/schools/${school.id}/invite-codes/redeem`, { code });
             if (!response.ok) throw new Error(data?.error ?? `Couldn't use that code (${response.status})`);
             // Now approved, so the effect above sends them on
             await refresh();
@@ -79,6 +81,7 @@ function Beta() {
 
 // What the request option shows depends on whether they've already asked
 function RequestInvite({ user, onRequested }: { user: CurrentUser, onRequested: () => Promise<unknown> }) {
+    const school = useSchool();
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState("");
     const request = user.request;
@@ -99,7 +102,7 @@ function RequestInvite({ user, onRequested }: { user: CurrentUser, onRequested: 
         setSending(true);
 
         try {
-            const { response, data } = await postJson("/api/beta/request", {});
+            const { response, data } = await postJson(`/v1/schools/${school.id}/join-request`, {});
             if (!response.ok) throw new Error(data?.error ?? `Couldn't send your request (${response.status})`);
             await onRequested();
         } catch (error) {

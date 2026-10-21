@@ -83,15 +83,15 @@ function Home() {
         setOutput({ kind: "loading" });
 
         try {
-            // A pasted Spotify playlist link is saved on the server, which says where its page is
+            // A pasted Spotify playlist link is saved on the server, then opens on its own page
             if (SPOTIFY_PLAYLIST_LINK.test(text)) {
-                const { response, data } = await postJson("/api/playlists", { url: text });
+                const { response, data } = await postJson("/v1/me/playlists", { url: text });
                 if (!response.ok) throw new Error(data?.error ?? `Couldn't read that playlist (${response.status})`);
-                if (isCurrent()) router.push(`${data.redirect}?${new URLSearchParams({ venue: searchVenue })}`);
+                if (isCurrent()) router.push(`/playlist/${data.id}?${new URLSearchParams({ venue: searchVenue })}`);
                 return;
             }
 
-            const songs = await fetchOrThrow<Song[]>("/api/search", { q: text, venue: searchVenue }, "Search failed");
+            const songs = await fetchOrThrow<Song[]>(`/v1/venues/${searchVenue}/search`, { q: text }, "Search failed");
             // Ignore stale responses if another search started while this one was loading
             if (isCurrent()) setOutput({ kind: "results", songs, venue: searchVenue });
         } catch (error) {

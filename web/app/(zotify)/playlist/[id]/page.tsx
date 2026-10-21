@@ -21,7 +21,7 @@ const MATCH_CONCURRENCY = 3;
 
 /** Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot */
 const fetchMatch = async (track: PlaylistTrack, venue: Venue) =>
-    (await fetchOrThrow<{ match: Song | null }>("/api/match", { title: track.title, artist: track.artist, venue }, "Search failed")).match;
+    (await fetchOrThrow<{ match: Song | null }>(`/v1/venues/${venue}/match`, { title: track.title, artist: track.artist }, "Search failed")).match;
 
 // Matching the playlist's tracks to Rockbot songs, then the grouped results
 type Matching =
@@ -69,7 +69,7 @@ function PlaylistView() {
     useEffect(() => {
         if (!user) return;
 
-        getJson<Playlist & { error?: string }>(`/api/playlists/${id}`).then(({ response, data }) => {
+        getJson<Playlist & { error?: string }>(`/v1/playlists/${id}`).then(({ response, data }) => {
             if (!response.ok) throw new Error(data?.error ?? `Couldn't load this playlist (${response.status})`);
             setPlaylist(data);
         }).catch(error => setError((error as Error).message));
@@ -211,7 +211,7 @@ function QueueAll({ playlist, venue, available, onFinished }: { playlist: Playli
         setError("");
 
         try {
-            const { response, data } = await postJson<QueueJob & { error?: string }>(`/api/playlists/${playlist.id}/queue`, { venue });
+            const { response, data } = await postJson<QueueJob & { error?: string }>(`/v1/venues/${venue}/playlists/${playlist.id}/queue`, {});
             if (!response.ok) throw new Error(data?.error ?? `Couldn't start queuing (${response.status})`);
             setPlaylistJob(playlist.id, venue, data);
         } catch (error) {

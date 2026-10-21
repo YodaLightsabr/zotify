@@ -5,7 +5,7 @@ import SuffixInput from "@/components/SuffixInput";
 import { SITE_DOMAIN } from "@/lib/config";
 import type { SchoolInfo } from "@/lib/school";
 import { loadAccounts, type RockbotAccount } from "./RockbotAccounts";
-import { adminGet, adminPost, FormMessage, Loading, Rows, SmallButton, useLoad } from "./shared";
+import { adminGet, adminPost, adminSend, FormMessage, Loading, Rows, SmallButton, useLoad } from "./shared";
 
 // Schools, their venues and admins, for site admins. Each school's Zotify is zotify.app (the main school) or a subdomain of
 // it. Changes reach the schools' sites within about 30 seconds, since the frontend checks the list of schools that often
@@ -13,7 +13,7 @@ import { adminGet, adminPost, FormMessage, Loading, Rows, SmallButton, useLoad }
 interface AdminVenue { id: string, schoolId: string, name: string, rockbotId: string, homeAccount: string | null }
 interface AdminSchool extends Omit<SchoolInfo, "venues"> { venues: AdminVenue[], admins: string[] }
 
-const loadSchools = () => adminGet<AdminSchool[]>("/api/admin/schools", "the schools");
+const loadSchools = () => adminGet<AdminSchool[]>("/v1/admin/schools", "the schools");
 const loadEverything = () => Promise.all([loadSchools(), loadAccounts()]).then(([schools, accounts]) => ({ schools, accounts }));
 
 export default function Schools() {
@@ -54,7 +54,7 @@ function SchoolCard({ school, accounts, reload }: { school: AdminSchool, account
                     {!main && !school.venues.length && (
                         <SmallButton label="Remove" className="reject" onClick={async () => {
                             if (!confirm(`Remove ${school.name}? ${school.url} will send people to the main site.`)) throw new Error("Cancelled");
-                            await adminPost("/api/admin/schools/delete", { id: school.id });
+                            await adminSend("DELETE", `/v1/admin/schools/${school.id}`);
                             reload();
                         }} />
                     )}
@@ -98,7 +98,7 @@ function SchoolForm({ school, onSaved }: { school?: AdminSchool, onSaved: () => 
         event.preventDefault();
 
         try {
-            const saved = await adminPost("/api/admin/schools", { ...form, id: school?.id ?? form.subdomain.trim().toLowerCase() });
+            const saved = await adminPost("/v1/admin/schools", { ...form, id: school?.id ?? form.subdomain.trim().toLowerCase() });
             setMessage({ text: school ? "Saved." : `Added ${saved.name} at ${saved.url}.`, error: false });
             if (!school) setForm({ subdomain: "", name: "", shortName: "", emailDomain: "", idLabel: "", idPlaceholder: "", tagline: "", footer: "" });
             onSaved();
@@ -162,12 +162,12 @@ function VenueRow({ venue, accounts, reload }: { venue: AdminVenue, accounts: Ro
             </div>
             <div className="actions">
                 {changed && <SmallButton label="Save" className="primary-small" onClick={async () => {
-                    await adminPost("/api/admin/venues", { id: venue.id, ...form });
+                    await adminPost("/v1/admin/venues", { id: venue.id, ...form });
                     reload();
                 }} />}
                 <SmallButton label="Remove" className="reject" onClick={async () => {
                     if (!confirm(`Remove ${venue.name}? Its history stays, but songs waiting in Zotify's queue there are dropped.`)) throw new Error("Cancelled");
-                    await adminPost("/api/admin/venues/delete", { id: venue.id });
+                    await adminSend("DELETE", `/v1/admin/venues/${venue.id}`);
                     reload();
                 }} />
             </div>
@@ -184,7 +184,7 @@ function AddVenue({ schoolId, accounts, reload }: { schoolId: string, accounts: 
         event.preventDefault();
 
         try {
-            await adminPost("/api/admin/venues", { ...form, schoolId });
+            await adminPost("/v1/admin/venues", { ...form, schoolId });
             setForm(empty);
             setMessage({ text: "", error: false });
             reload();
@@ -214,7 +214,7 @@ function Admins({ school, reload }: { school: AdminSchool, reload: () => void })
     const [message, setMessage] = useState({ text: "", error: false });
 
     async function change(target: string, remove: boolean) {
-        await adminPost("/api/admin/schools/admins", { schoolId: school.id, email: target, remove });
+        await adminSend(remove ? "DELETE" : "PUT", `/v1/admin/schools/${school.id}/admins/${encodeURIComponent(target)}`);
         reload();
     }
 

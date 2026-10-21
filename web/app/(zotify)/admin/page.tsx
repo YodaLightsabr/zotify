@@ -1,16 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PickHistory, { type Pick } from "@/components/PickHistory";
 import { goToLogin } from "@/lib/api";
 import { cx, plural } from "@/lib/format";
 import { useLiveVenues } from "@/lib/live";
 import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
+import Developers from "./Developers";
 import RockbotAccounts from "./RockbotAccounts";
 import Schools from "./Schools";
-import { adminGet, adminPost, formatTime, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
+import { adminGet, adminPost, adminSend, formatTime, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
 import "./admin.css";
 
 
@@ -38,6 +39,7 @@ export default function AdminPage() {
                 {user?.siteAdmin && <>
                     <Schools />
                     <RockbotAccounts />
+                    <Developers />
                     <TestAccounts />
                     <Cache />
                 </>}
@@ -65,7 +67,7 @@ interface VersionInfo {
     startedAt: string;
 }
 
-const loadVersion = () => adminGet<VersionInfo | null>("/api/admin/version", "the version");
+const loadVersion = () => adminGet<VersionInfo | null>("/v1/admin/version", "the version");
 // Baked into the frontend when it was built (see web/next.config.ts)
 const FRONTEND_COMMIT = process.env.NEXT_PUBLIC_BUILD_COMMIT ?? "";
 
@@ -149,7 +151,7 @@ function NowPlaying() {
 
 interface TestAccount { email: string, activeCode: { createdAt: number, expiresAt: number, attempts: number } | null }
 
-const loadTestAccounts = () => adminGet<TestAccount[]>("/api/admin/test-accounts", "test accounts");
+const loadTestAccounts = () => adminGet<TestAccount[]>("/v1/admin/test-accounts", "test accounts");
 
 function minutesFromNow(timestamp: number) {
     const minutes = Math.max(0, Math.round((timestamp - Date.now()) / 60000));
@@ -195,12 +197,10 @@ interface BetaOverview {
     admins: string[];
 }
 
-const loadBeta = () => adminGet<BetaOverview>("/api/admin/beta", "the beta");
-
-
 function Beta() {
     const school = useSchool();
-    const { data, error, reload } = useLoad(loadBeta);
+    const base = `/v1/schools/${school.id}`;
+    const { data, error, reload } = useLoad(useCallback(() => adminGet<BetaOverview>(`${base}/beta`, "the beta"), [base]));
     const [inviteNetId, setInviteNetId] = useState("");
     const [silent, setSilent] = useState(false);
     const [inviteMessage, setInviteMessage] = useState({ text: "", error: false });
@@ -208,7 +208,7 @@ function Beta() {
     const [codeMessage, setCodeMessage] = useState({ text: "", error: false });
 
     async function decide(email: string, decision: "approved" | "rejected", silent = false) {
-        const result = await adminPost("/api/admin/requests/decide", { email, decision, silent });
+        const result = await adminPost(`${base}/beta/decisions`, { email, decision, silent });
         if (decision === "approved" && !silent && !result.emailed) alert(`Approved ${school.shortEmail(email)}, but the email didn't send. They can still sign in normally.`);
         reload();
     }
@@ -217,7 +217,7 @@ function Beta() {
         event.preventDefault();
 
         try {
-            const result = await adminPost("/api/admin/invites", { netid: inviteNetId, silent });
+            const result = await adminPost(`${base}/beta/invites`, { netid: inviteNetId, silent });
             const who = school.shortEmail(result.email);
             setInviteMessage(silent ? { text: `Added ${who} without an email.`, error: false }
                 : result.emailed ? { text: `Invited ${who}. They've been emailed a sign-in link.`, error: false }
@@ -233,7 +233,7 @@ function Beta() {
         event.preventDefault();
 
         try {
-            const { code, url } = await adminPost("/api/admin/codes", { maxUses: maxUses ? Number(maxUses) : null });
+            const { code, url } = await adminPost(`${base}/invite-codes`, { maxUses: maxUses ? Number(maxUses) : null });
             setCodeMessage({ text: `Created ${code}: ${url}`, error: false });
             setMaxUses("");
             reload();
@@ -306,7 +306,7 @@ function Beta() {
                                 }} />
                                 <SmallButton label="Revoke" className="reject" onClick={async () => {
                                     if (!confirm(`Revoke ${code.code}? Nobody new can use it after this.`)) throw new Error("Cancelled");
-                                    await adminPost("/api/admin/codes/revoke", { code: code.code });
+                                    await adminSend("DELETE", `${base}/invite-codes/${encodeURIComponent(code.code)}`);
                                     reload();
                                 }} />
                             </>}
@@ -340,10 +340,9 @@ function Beta() {
 
 // Pick history: every song queued through Zotify
 
-const loadHistory = () => adminGet<Pick[]>("/api/admin/history", "the history");
-
 function History() {
-    const { data, error, reload } = useLoad(loadHistory);
+    const school = useSchool();
+    const { data, error, reload } = useLoad(useCallback(() => adminGet<Pick[]>(`/v1/schools/${school.id}/history`, "the history"), [school.id]));
 
     return (
         <section className="panel" aria-labelledby="history-title">
@@ -362,7 +361,7 @@ function History() {
 // The cache, as a collapsible tree
 
 const loadCache = async () => {
-    const value = await adminGet<unknown>("/api/admin/cache", "the cache");
+    const value = await adminGet<unknown>("/v1/admin/cache", "the cache");
     return { value, size: new Blob([JSON.stringify(value)]).size };
 };
 

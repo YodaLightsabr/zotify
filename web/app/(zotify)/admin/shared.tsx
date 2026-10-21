@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getJson, goToLogin, postJson } from "@/lib/api";
+import { deleteJson, getJson, goToLogin, postJson, putJson } from "@/lib/api";
 import { cx } from "@/lib/format";
 
 // Pieces the admin dashboard's sections share
@@ -17,12 +17,16 @@ export async function adminGet<T>(path: string, what: string) {
     return data;
 }
 
-/** POST an admin route, throwing its error */
-export async function adminPost<T = any>(path: string, body: unknown) {
-    const { response, data } = await postJson<T>(path, body);
+/** POST, PUT or DELETE an admin route, throwing its error */
+export async function adminSend<T = any>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown) {
+    const { response, data } = method === "DELETE" ? await deleteJson<T>(path)
+        : method === "PUT" ? await putJson<T>(path, body)
+        : await postJson<T>(path, body);
     if (!response.ok) throw new Error((data as any)?.error ?? `Request failed (${response.status})`);
     return data;
 }
+
+export const adminPost = <T = any>(path: string, body: unknown) => adminSend<T>("POST", path, body);
 
 /** Loads something on mount and whenever reload() is called. Keeps showing the last value while reloading */
 export function useLoad<T>(load: () => Promise<T>) {

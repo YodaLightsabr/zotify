@@ -1,11 +1,15 @@
 import type { Request, Response } from "express";
 import { getHistoryFor } from "../history.js";
 import { getVenues } from "../schools.js";
-import { requestSchool } from "./params.js";
+import { queryParam } from "./params.js";
 
-/** The signed-in person's own picks at this school's venues, newest first. Who queued each one is left out, since it's always them */
-export async function myPicks(_req: Request, res: Response) {
-    const venues = new Set(getVenues(requestSchool(res).id).map(venue => venue.id));
+/**
+ * ?school=. The signed-in person's own picks, newest first, at one school's venues or at all of them. Who queued each one is
+ * left out, since it's always them
+ */
+export async function myPicks(req: Request, res: Response) {
+    const school = queryParam(req, "school");
+    const venues = school ? new Set(getVenues(school).map(venue => venue.id)) : null;
     const picks = await getHistoryFor(res.locals.session.email);
-    res.json(picks.filter(pick => venues.has(pick.venue)).map(({ requestedBy, ...pick }) => pick));
+    res.json(picks.filter(pick => !venues || venues.has(pick.venue)).map(({ requestedBy, ...pick }) => pick));
 }

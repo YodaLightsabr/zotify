@@ -59,6 +59,8 @@ interface DownvoteCheck {
     count: number;
 }
 
+const votesPath = (venue: Venue, song: QueueEntry) => `/v1/venues/${venue}/picks/${song.pickId}/votes`;
+
 interface ContentProps {
     song: QueueEntry;
     venue: Venue;
@@ -84,18 +86,13 @@ function Content({ song, venue, admin, close, onVoted, onArtist }: ContentProps)
     const [done, setDone] = useState(false);
 
     useEffect(() => {
-        getJson("/api/vote-capacity", { pickId: song.pickId!, venue }).then(({ response, data }) => {
-            if (!response.ok) throw new Error(data?.error ?? `Couldn't check votes (${response.status})`);
-            if (mounted.current) setUpvotesLeft(data.available);
+        // One check covers both: down is the downvote check, or null for people who can't downvote
+        getJson<{ up: { available: number }, down: DownvoteCheck | null }>(votesPath(venue, song)).then(({ response, data }) => {
+            if (!response.ok) throw new Error((data as any)?.error ?? `Couldn't check votes (${response.status})`);
+            if (!mounted.current) return;
+            setUpvotesLeft(data.up.available);
+            setCheck(canDownvote ? data.down : null);
         }).catch(error => mounted.current && setLoadError((error as Error).message || "Couldn't check this song's votes."));
-
-        if (!canDownvote) return;
-
-        getJson("/api/admin/downvote", { pickId: song.pickId!, venue }).then(({ response, data }) => {
-            if (!response.ok) throw new Error(data?.error ?? `Couldn't check this song (${response.status})`);
-            if (mounted.current) setCheck(data);
-        // Upvotes still work if the downvote check fails
-        }).catch(() => mounted.current && setCheck(null));
     }, [song, venue, canDownvote, mounted]);
 
     const loading = upvotesLeft === undefined || check === undefined;
@@ -112,7 +109,7 @@ function Content({ song, venue, admin, close, onVoted, onArtist }: ContentProps)
 
         try {
             if (value > 0) {
-                const { response, data } = await postJson("/api/vote", { pickId: song.pickId, venue, count: value, song: { name: song.name, artist: song.artist } });
+                const { response, data } = await postJson(votesPath(venue, song), { count: value });
                 if (!response.ok) throw new Error(data?.error ?? `Voting failed (${response.status})`);
                 if (!mounted.current) return;
 
@@ -121,7 +118,7 @@ function Content({ song, venue, admin, close, onVoted, onArtist }: ContentProps)
                     : `Added ${plural(data.confirmed, "upvote")}.${data.missing?.length ? ` ${plural(data.missing.length, "vote")} didn't go through.` : ""}` });
             } else {
                 const overrideReason = needsReason ? reason.trim() : undefined;
-                const { response, data } = await postJson("/api/admin/downvote", { pickId: song.pickId, venue, count: -value, overrideReason });
+                const { response, data } = await postJson(votesPath(venue, song), { direction: "down", count: -value, overrideReason });
                 if (!response.ok) throw new Error(data?.error ?? `Downvoting failed (${response.status})`);
                 if (!mounted.current) return;
 

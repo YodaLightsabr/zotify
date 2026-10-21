@@ -121,17 +121,16 @@ export async function createCodeRoute(req: Request, res: Response) {
     try {
         const school = requestSchool(res);
         const code = await createInviteCode(sessionEmail(res), maxUses, school.id);
-        res.json({ code, url: `${schoolUrl(school)}/invite/${code}` });
+        res.status(201).json({ code, url: `${schoolUrl(school)}/invite/${code}` });
     } catch (error) {
         sendError(res, error, "Error creating an invite code:");
     }
 }
 
-/** Body: { code } */
 export async function revokeCodeRoute(req: Request, res: Response) {
     try {
-        await revokeInviteCode(String(req.body?.code ?? ""), sessionEmail(res), requestSchool(res).id);
-        res.json({ ok: true });
+        await revokeInviteCode(String(req.params.code ?? ""), sessionEmail(res), requestSchool(res).id);
+        res.status(204).end();
     } catch (error) {
         sendError(res, error, "Error revoking an invite code:");
     }

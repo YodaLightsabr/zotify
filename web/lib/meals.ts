@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { API_URL } from "./config";
-import { apiFetch, postJson } from "./api";
+import { apiFetch, deleteJson, putJson } from "./api";
 import { useUser } from "./user";
 
 // Zotify Meals' data, from the public API (src/routes/meals.ts). Menus need no sign-in; favorites use the Zotify session
@@ -84,7 +84,7 @@ const cache = new Map<string, Promise<any>>();
 
 export function getMeals<T>(path: string): Promise<T> {
     if (!cache.has(path)) {
-        cache.set(path, fetch(`${API_URL}/api/meals${path}`).then(async response => {
+        cache.set(path, fetch(`${API_URL}/v1/meals${path}`).then(async response => {
             const data = await response.json().catch(() => null);
             if (!response.ok) throw new Error(data?.error ?? `Couldn't load menus (${response.status})`);
             return data;
@@ -145,7 +145,7 @@ export function useFavorites(schoolId: string) {
 
     const reload = useCallback(async () => {
         if (!user) return setFavorites(user === null ? [] : null);
-        const response = await apiFetch(`/api/meal-favorites/${schoolId}`).catch(() => null);
+        const response = await apiFetch(`/v1/meals/${schoolId}/favorites`).catch(() => null);
         setFavorites(response?.ok ? await response.json() : []);
     }, [user, schoolId]);
 
@@ -159,7 +159,8 @@ export function useFavorites(schoolId: string) {
         setFavorites(remove
             ? favorites.filter(favorite => favorite.recipeId !== item.recipeId)
             : [{ recipeId: item.recipeId, name: item.name, addedAt: Date.now(), upcoming: [] }, ...favorites]);
-        await postJson(`/api/meal-favorites/${schoolId}`, { recipeId: item.recipeId, name: item.name, remove }).catch(() => {});
+        const path = `/v1/meals/${schoolId}/favorites/${encodeURIComponent(item.recipeId)}`;
+        await (remove ? deleteJson(path) : putJson(path, { name: item.name })).catch(() => {});
         reload();
     }, [favorites, schoolId, reload]);
 

@@ -5,12 +5,14 @@ import { useEffect, useRef } from "react";
 import CardPage from "@/components/CardPage";
 import { Spinner } from "@/components/Spinner";
 import { postJson } from "@/lib/api";
+import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
 
 /** An invite link. Signed-out people sign in first and come back here, then the code lets them in */
 export default function InvitePage() {
     const router = useRouter();
     const code = useParams<{ code: string }>().code.toUpperCase();
+    const school = useSchool();
     const { user, refresh } = useUser();
     const sent = useRef(false);
 
@@ -22,7 +24,7 @@ export default function InvitePage() {
 
         (async () => {
             try {
-                const { response, data } = await postJson("/api/beta/redeem", { code });
+                const { response, data } = await postJson(`/v1/schools/${school.id}/invite-codes/redeem`, { code });
                 if (!response.ok) throw new Error(data?.error ?? "That invite link didn't work. Please try again.");
 
                 await refresh();
@@ -31,7 +33,7 @@ export default function InvitePage() {
                 router.replace(`/beta?${new URLSearchParams({ error: (error as Error).message })}`);
             }
         })();
-    }, [user, code, refresh, router]);
+    }, [user, code, school.id, refresh, router]);
 
     return (
         <CardPage>

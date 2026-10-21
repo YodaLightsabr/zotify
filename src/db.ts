@@ -202,6 +202,73 @@ db.exec(`
     );
 `);
 
+// The public API (see src/developers.ts). Site admins decide who's a developer; developers make personal access tokens and
+// OAuth apps. Tokens, secrets and codes are only stored as SHA-256 hashes. Scopes are space-separated, like OAuth's
+db.exec(`
+    CREATE TABLE IF NOT EXISTS developers (
+        email TEXT PRIMARY KEY,
+        added_by TEXT NOT NULL,
+        added_at INTEGER NOT NULL
+    );
+
+    -- prefix is the token's first characters, so people can tell their tokens apart. expires_at is NULL for no expiry
+    CREATE TABLE IF NOT EXISTS api_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        prefix TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER,
+        last_used_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS api_tokens_email ON api_tokens (email);
+
+    -- id is the client ID. redirect_uris is a JSON array. Public apps (like a Raycast extension) have no secret and must use PKCE
+    CREATE TABLE IF NOT EXISTS oauth_apps (
+        id TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        homepage_url TEXT,
+        redirect_uris TEXT NOT NULL,
+        confidential INTEGER NOT NULL DEFAULT 0,
+        secret_hash TEXT,
+        created_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS oauth_apps_owner ON oauth_apps (owner);
+
+    -- Authorization codes, which last a few minutes and work once
+    CREATE TABLE IF NOT EXISTS oauth_codes (
+        code_hash TEXT PRIMARY KEY,
+        app_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        redirect_uri TEXT NOT NULL,
+        code_challenge TEXT,
+        expires_at INTEGER NOT NULL
+    );
+
+    -- One row per sign-in to an app: its current access token and refresh token, which change on every refresh
+    CREATE TABLE IF NOT EXISTS oauth_grants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        access_hash TEXT NOT NULL UNIQUE,
+        access_expires_at INTEGER NOT NULL,
+        refresh_hash TEXT NOT NULL UNIQUE,
+        refresh_expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_used_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS oauth_grants_email ON oauth_grants (email, app_id);
+`);
+
 // Which school's dining site and which of its locations Zotify Meals reads: schools.dining_config (JSON, see
 // src/meals/config.ts) and venues.dining_location_key, like "the-anteatery". Added after both tables existed
 for (const [table, column] of [["schools", "dining_config"], ["venues", "dining_location_key"]]) {

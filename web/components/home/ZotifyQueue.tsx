@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { postJson, type Venue } from "@/lib/api";
+import { deleteJson, putJson, type Venue } from "@/lib/api";
 import { cx, plural } from "@/lib/format";
 import { useSchool } from "@/lib/school";
 import { SongBackdrop, SongCover } from "./SongParts";
@@ -59,12 +59,12 @@ export function WaitingList({ waiting, venue, admin }: { waiting: ZotifyQueueSon
     const move = (index: number, by: number) => {
         const ids = waiting.map(song => song.id);
         [ids[index], ids[index + by]] = [ids[index + by], ids[index]];
-        act(waiting[index].id, () => postJson("/api/admin/zotify-queue/reorder", { venue, ids }));
+        act(waiting[index].id, () => putJson(`/v1/venues/${venue}/zotify-queue/order`, { ids }));
     };
 
     const remove = (song: ZotifyQueueSong) => {
         if (!confirm(`Take "${song.name}" out of the queue?`)) return;
-        act(song.id, () => postJson("/api/zotify-queue/remove", { id: song.id }));
+        act(song.id, () => deleteJson(`/v1/venues/${venue}/zotify-queue/${song.id}`));
     };
 
     return <>
@@ -120,7 +120,7 @@ export function ClearButton({ venue, count }: { venue: Venue, count: number }) {
 
         try {
             // The server sends the emptied queue to everyone
-            const { response, data } = await postJson("/api/admin/zotify-queue/clear", { venue });
+            const { response, data } = await deleteJson(`/v1/venues/${venue}/zotify-queue`);
             if (!response.ok) throw new Error(data?.error ?? `Couldn't clear the queue (${response.status})`);
         } catch (error) {
             alert((error as Error).message);

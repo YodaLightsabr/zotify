@@ -5,7 +5,6 @@ import { events } from "./events.js";
 import { recordPick } from "./history.js";
 import { getRecentlyQueued, markBoosted } from "./queued.js";
 import { NoAccountsError, requestSong, type RequestedSong } from "./requestSong.js";
-import { getVenue } from "./schools.js";
 import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
 import { castVotes, markVoted } from "./votes.js";
 
@@ -115,11 +114,11 @@ export function reorder(venue: VenueName, ids: number[]) {
     events.emit("zotifyQueueChanged", venue);
 }
 
-/** Takes a waiting song out of a school's Zotify queues. Anyone can remove their own songs; the school's admins can remove anyone's */
-export function remove(id: number, email: string, admin: boolean, schoolId: string) {
+/** Takes a waiting song out of a venue's Zotify queue. Anyone can remove their own songs; the school's admins can remove anyone's */
+export function remove(id: number, venue: VenueName, email: string, admin: boolean) {
     const row = selectRow.get(id) as QueueRow | undefined;
 
-    if (!row || row.status !== "waiting" || getVenue(row.venue)?.schoolId !== schoolId) {
+    if (!row || row.status !== "waiting" || row.venue !== venue) {
         throw new ZotifyQueueError("That song isn't waiting in the queue anymore.", 404);
     }
     if (!admin && row.requested_by !== email) throw new ZotifyQueueError("You can only remove songs you queued.", 403);

@@ -81,3 +81,9 @@ export async function cacheSearches(query: string, resultsByVenue: Record<string
         dropExpired.run(now - SEARCH_CACHE_TTL_MS);
     });
 }
+
+/** A song's details from any search Zotify has made, or null if it's never come up */
+export function getSong(id: string): Omit<CachedSong, "requestable"> | null {
+    const row = db.prepare("SELECT id, name, artist, cover FROM songs WHERE id = ?").get(id) as { id: string, name: string, artist: string, cover: string | null } | undefined;
+    return row ? { id: row.id, name: row.name, artist: row.artist, ...(row.cover ? { cover: row.cover } : {}) } : null;
+}

@@ -90,9 +90,9 @@ function Row({ pick, showRequester, onRequested }: { pick: Pick, showRequester: 
         setStatus({ text: "", error: false });
 
         try {
-            const { response, data } = await postJson("/api/queue", {
-                song: { id: pick.songId, name: pick.name, artist: pick.artist, cover: pick.cover },
-                venue
+            const { response, data } = await postJson(`/v1/venues/${venue}/requests`, {
+                songId: pick.songId,
+                song: { id: pick.songId, name: pick.name, artist: pick.artist, cover: pick.cover }
             });
 
             if (response.status === 409) {

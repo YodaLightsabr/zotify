@@ -60,7 +60,7 @@ export default function SignIn({ destination, subtitle }: { destination: (approv
         setCodeMessage("");
 
         try {
-            const { response, data } = await postJson("/api/auth/request-code", { netid: netId.trim() });
+            const { response, data } = await postJson("/v1/auth/code", { netid: netId.trim() });
             if (!response.ok) throw new Error(data?.error ?? `Couldn't send a code (${response.status})`);
 
             setHint(data.delivery === "console"
@@ -79,7 +79,7 @@ export default function SignIn({ destination, subtitle }: { destination: (approv
         setBusy("verify");
 
         try {
-            const { response, data } = await postJson("/api/auth/verify", { netid: netId.trim(), code });
+            const { response, data } = await postJson("/v1/auth/session", { netid: netId.trim(), code });
             if (!response.ok) throw new Error(data?.error ?? `Couldn't sign in (${response.status})`);
 
             // Refreshing the signed-in user sends them on, through the effect above

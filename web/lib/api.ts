@@ -16,7 +16,7 @@ const currentPath = () => location.pathname + location.search;
  */
 export async function apiFetch(path: string, init: RequestInit = {}) {
     const response = await fetch(`${API_URL}${path}`, { ...init, credentials: "include" });
-    const handlesItself = path.startsWith("/api/auth/") || path.startsWith("/api/admin/") || path.startsWith("/api/beta/");
+    const handlesItself = path === "/v1/me" || ["/v1/auth/", "/v1/admin/", "/v1/schools/", "/v1/oauth/"].some(prefix => path.startsWith(prefix));
 
     if (!handlesItself && response.status === 401) goToLogin();
     if (!handlesItself && response.status === 403 && (await response.clone().json().catch(() => null))?.notApproved) goToLogin(currentPath(), true);
@@ -30,14 +30,19 @@ export async function getJson<T = any>(path: string, params?: Record<string, str
     return { response, data: (await response.json().catch(() => null)) as T };
 }
 
-export async function postJson<T = any>(path: string, body: unknown) {
-    const response = await apiFetch(path, {
-        method: "POST",
+/** Sends a JSON body (if any). Returns the response and its JSON (or null, like for a 204) */
+export async function sendJson<T = any>(method: string, path: string, body?: unknown) {
+    const response = await apiFetch(path, body === undefined ? { method } : {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
     return { response, data: (await response.json().catch(() => null)) as T };
 }
+
+export const postJson = <T = any>(path: string, body: unknown) => sendJson<T>("POST", path, body);
+export const putJson = <T = any>(path: string, body: unknown) => sendJson<T>("PUT", path, body);
+export const deleteJson = <T = any>(path: string) => sendJson<T>("DELETE", path);
 
 /** Only send people on to a page on this site */
 export function safeNext(value: string | null) {

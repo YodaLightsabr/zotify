@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { adminGet, adminPost, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
+import { adminGet, adminPost, adminSend, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
 
 // The Rockbot accounts Zotify queues and votes with, for site admins. Their secrets are write-only: the server never sends
 // refresh tokens, keys or passwords back, so editing an account only changes what's filled in
@@ -15,7 +15,7 @@ export interface RockbotAccount {
     homeOf: string | null;
 }
 
-export const loadAccounts = () => adminGet<RockbotAccount[]>("/api/admin/rockbot-accounts", "the Rockbot accounts");
+export const loadAccounts = () => adminGet<RockbotAccount[]>("/v1/admin/rockbot-accounts", "the Rockbot accounts");
 
 const EMPTY = { username: "", email: "", refreshToken: "", key: "", password: "" };
 
@@ -35,7 +35,7 @@ export default function RockbotAccounts() {
         event.preventDefault();
 
         try {
-            const result = await adminPost("/api/admin/rockbot-accounts", form);
+            const result = await adminPost("/v1/admin/rockbot-accounts", form);
             setMessage({ text: result.updated ? `Updated ${result.username}.` : `Added ${result.username}.`, error: false });
             setForm(EMPTY);
             setEditing(null);
@@ -70,7 +70,7 @@ export default function RockbotAccounts() {
                             }} />
                             <SmallButton label="Remove" className="reject" onClick={async () => {
                                 if (!confirm(`Remove ${account.username}? Zotify stops using it right away.`)) throw new Error("Cancelled");
-                                await adminPost("/api/admin/rockbot-accounts/delete", { username: account.username });
+                                await adminSend("DELETE", `/v1/admin/rockbot-accounts/${encodeURIComponent(account.username)}`);
                                 reload();
                             }} />
                         </div>

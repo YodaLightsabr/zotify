@@ -13,3 +13,7 @@ export const SITE_PROTOCOL = production ? "https" : "http";
 // Zotify Meals' dashboard: meals.zotify.app, served from the pages under app/meals (see proxy.ts)
 export const MEALS_HOST = `meals.${SITE_DOMAIN}`;
 export const MEALS_URL = `${SITE_PROTOCOL}://${MEALS_HOST}`;
+
+// The API's docs: docs.zotify.app, served from the pages under app/docs (see proxy.ts)
+export const DOCS_HOST = `docs.${SITE_DOMAIN}`;
+export const DOCS_URL = `${SITE_PROTOCOL}://${DOCS_HOST}`;

@@ -1,21 +1,15 @@
 import type { Request, Response } from "express";
 import { isAdmin } from "../auth.js";
 import { clear, describeZotifyQueue, remove, reorder, ZotifyQueueError } from "../zotifyQueue.js";
-import { parseVenue, queryParam, requestSchool } from "./params.js";
+import { hasScope } from "./auth.js";
+import { requestSchool, requestVenue } from "./params.js";
 
 /**
- * ?venue=. Zotify's queue at a venue for signed-in people: songs waiting for room in Rockbot's queue, front first,
- * and songs that couldn't be put there even after retrying. Who asked for each song is left out
+ * Zotify's queue at a venue: songs waiting for room in Rockbot's queue, front first, and songs that couldn't be put there even
+ * after retrying. Who asked for each song is left out, apart from whether it was you
  */
-export function zotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(queryParam(req, "venue"), res);
-
-    if (!venueName) {
-        res.status(400).json({ error: `Unknown venue "${queryParam(req, "venue")}"` });
-        return;
-    }
-
-    res.json(describeZotifyQueue(venueName, res.locals.session.email));
+export function zotifyQueue(_req: Request, res: Response) {
+    res.json(describeZotifyQueue(requestVenue(res), res.locals.session.email));
 }
 
 function sendQueueError(res: Response, error: unknown, context: string) {
@@ -28,54 +22,47 @@ function sendQueueError(res: Response, error: unknown, context: string) {
     res.status(500).json({ error: "Something went wrong. Please try again." });
 }
 
-/** Admin only. Body: { venue, ids }, every waiting song's ID in the new order */
+/** Admin only. Body: { ids }, every waiting song's ID in the new order */
 export function reorderZotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(req.body?.venue, res);
+    const venue = requestVenue(res);
     const ids = req.body?.ids;
 
-    if (!venueName || !Array.isArray(ids) || !ids.every(id => Number.isInteger(id))) {
-        res.status(400).json({ error: "Missing venue or song order" });
+    if (!Array.isArray(ids) || !ids.every(id => Number.isInteger(id))) {
+        res.status(400).json({ error: "Missing the song order", code: "invalid_request" });
         return;
     }
 
     try {
-        reorder(venueName, ids);
-        res.json({ ok: true });
+        reorder(venue, ids);
+        res.json(describeZotifyQueue(venue, res.locals.session.email));
     } catch (error) {
-        sendQueueError(res, error, `Error rearranging Zotify's queue at ${venueName}:`);
+        sendQueueError(res, error, `Error rearranging Zotify's queue at ${venue}:`);
     }
 }
 
-/** Body: { id }. Takes a song out of Zotify's queue: your own, or anyone's for admins */
+/** Takes a song out of Zotify's queue: your own, or anyone's for admins */
 export function removeFromZotifyQueue(req: Request, res: Response) {
-    const id = req.body?.id;
+    const id = Number(req.params.id);
+    const email: string = res.locals.session.email;
 
     if (!Number.isInteger(id)) {
-        res.status(400).json({ error: "Missing song" });
+        res.status(404).json({ error: "That song isn't waiting in the queue anymore.", code: "not_found" });
         return;
     }
 
-    const email: string = res.locals.session.email;
-
     try {
-        const school = requestSchool(res).id;
-        remove(id, email, isAdmin(email, school), school);
-        res.json({ ok: true });
+        // Tokens need the admin scope to remove other people's songs
+        remove(id, requestVenue(res), email, hasScope(res, "admin") && isAdmin(email, requestSchool(res).id));
+        res.status(204).end();
     } catch (error) {
         sendQueueError(res, error, `Error removing song ${id} from Zotify's queue:`);
     }
 }
 
-/** Admin only. Body: { venue }. Takes every waiting song out of Zotify's queue there */
-export function clearZotifyQueue(req: Request, res: Response) {
-    const venueName = parseVenue(req.body?.venue, res);
-
-    if (!venueName) {
-        res.status(400).json({ error: "Missing venue" });
-        return;
-    }
-
-    const removed = clear(venueName);
-    console.log(`${res.locals.session.email} cleared Zotify's queue at ${venueName} (${removed} songs)`);
+/** Admin only. Takes every waiting song out of Zotify's queue at the venue */
+export function clearZotifyQueue(_req: Request, res: Response) {
+    const venue = requestVenue(res);
+    const removed = clear(venue);
+    console.log(`${res.locals.session.email} cleared Zotify's queue at ${venue} (${removed} songs)`);
     res.json({ removed });
 }

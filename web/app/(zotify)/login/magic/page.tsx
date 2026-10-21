@@ -27,7 +27,7 @@ function MagicLink() {
 
         (async () => {
             try {
-                const { response, data } = await postJson("/api/auth/magic", { token });
+                const { response, data } = await postJson("/v1/auth/magic-link", { token });
                 if (!response.ok) throw new Error(data?.error ?? `That sign-in link didn't work. Sign in with your ${school.idLabel ?? "email address"} instead.`);
 
                 await refresh();

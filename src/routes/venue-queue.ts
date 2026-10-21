@@ -4,16 +4,11 @@ import { getRecentlyQueued } from "../queued.js";
 import { getVenue } from "../schools.js";
 import { describeVenueQueue, getVenueQueue, isFromZotify, queueEntries } from "../venueQueue.js";
 import { refreshVotes } from "../votes.js";
-import { parseVenue, queryParam } from "./params.js";
+import { requestVenue } from "./params.js";
 
 /** A venue's queue over HTTP. Pages get it live over the socket instead (see live.ts); this shares the same Rockbot fetch */
-export async function venueQueue(req: Request, res: Response) {
-    const venueName = parseVenue(queryParam(req, "venue"), res);
-
-    if (!venueName) {
-        res.status(400).json({ error: `Unknown venue "${queryParam(req, "venue")}"` });
-        return;
-    }
+export async function venueQueue(_req: Request, res: Response) {
+    const venueName = requestVenue(res);
 
     try {
         const { queue: queuePromise, fetchedAt } = getVenueQueue(venueName);
@@ -25,7 +20,7 @@ export async function venueQueue(req: Request, res: Response) {
         res.json(await describeVenueQueue(venueName, queue, fetchedAt));
     } catch (error) {
         if (error instanceof RockbotClient.Errors.VenueUnavailableError) {
-            res.status(503).json({ error: `${getVenue(venueName)?.name ?? "This venue"} isn't taking requests right now.`, unavailable: true });
+            res.status(503).json({ error: `${getVenue(venueName)?.name ?? "This venue"} isn't taking requests right now.`, unavailable: true, code: "venue_unavailable" });
             return;
         }
 

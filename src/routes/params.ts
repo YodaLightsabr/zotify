@@ -1,21 +1,44 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { VenueName } from "../accounts.js";
-import { getVenues, mainSchool, schoolForOrigin, type School } from "../schools.js";
+import { getSchool, getVenue, mainSchool, schoolForOrigin, type School } from "../schools.js";
 
-/** The school a request is for, from the frontend it came from (see attachSchool in server.ts) */
+/**
+ * The school a request is about: the one in its path (/v1/schools/:school, or the school of /v1/venues/:venue), otherwise the
+ * one whose site it came from, which decides things like how sign-in reads IDs
+ */
 export const requestSchool = (res: Response): School => res.locals.school ?? mainSchool();
 
 /** Which school's site a request came from, by its Origin header. Requests from anywhere else count as the main school's */
 export const schoolOfRequest = (req: Request) => schoolForOrigin(req.headers.origin) ?? mainSchool();
 
-/**
- * A venue from a request, defaulting to the school's first. Null when it isn't one of the school's venues, so one school's
- * site can't reach another's
- */
-export function parseVenue(value: unknown, res: Response): VenueName | null {
-    const venues = getVenues(requestSchool(res).id);
-    if (value === undefined || value === null) return venues[0]?.id ?? null;
-    return venues.some(venue => venue.id === value) ? value as VenueName : null;
+/** The venue in a request's path (see venueParam) */
+export const requestVenue = (res: Response): VenueName => res.locals.venue;
+
+/** For routes under /v1/venues/:venue: 404 for a venue that doesn't exist, otherwise it and its school go on res.locals */
+export function venueParam(req: Request, res: Response, next: NextFunction) {
+    const venue = getVenue(req.params.venue);
+
+    if (!venue) {
+        res.status(404).json({ error: `There's no venue "${req.params.venue}"`, code: "not_found" });
+        return;
+    }
+
+    res.locals.venue = venue.id;
+    res.locals.school = getSchool(venue.schoolId);
+    next();
+}
+
+/** For routes under /v1/schools/:school: 404 for a school that doesn't exist, otherwise it goes on res.locals */
+export function schoolParam(req: Request, res: Response, next: NextFunction) {
+    const school = getSchool(String(req.params.school));
+
+    if (!school) {
+        res.status(404).json({ error: `There's no school "${req.params.school}"`, code: "not_found" });
+        return;
+    }
+
+    res.locals.school = school;
+    next();
 }
 
 /** How many accounts should vote, from a request body. Undefined means all of them; null means it wasn't a whole number */

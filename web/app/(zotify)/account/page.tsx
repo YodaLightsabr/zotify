@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Busy, Spinner } from "@/components/Spinner";
-import { goToLogin } from "@/lib/api";
+import { deleteJson, getJson, goToLogin } from "@/lib/api";
 import { useSchool } from "@/lib/school";
 import { useUser } from "@/lib/user";
 import "./account.css";
@@ -50,6 +50,7 @@ export default function AccountPage() {
                     <div className="actions">
                         {user.approved && <Link className="button" href="/my-picks">My picks</Link>}
                         {!user.approved && <Link className="button primary" href="/beta">Join the beta</Link>}
+                        {user.developer && <Link className="button" href="/developers">Developers</Link>}
                         <button type="button" className="button sign-out" disabled={signingOut} onClick={async () => {
                             setSigningOut(true);
                             // Lands on the homepage
@@ -58,8 +59,57 @@ export default function AccountPage() {
                             {signingOut ? <Busy label="Signing out…" /> : "Sign out"}
                         </button>
                     </div>
+
+                    <ConnectedApps />
                 </>}
             </main>
         </div>
+    );
+}
+
+interface Authorization {
+    clientId: string;
+    name: string;
+    description: string | null;
+    homepageUrl: string | null;
+    scopes: string[];
+    authorizedAt: number;
+    lastUsedAt: number | null;
+}
+
+/** Apps you've let use your account (see src/routes/oauth.ts), which you can sign out of. Hidden until there are some */
+function ConnectedApps() {
+    const [apps, setApps] = useState<Authorization[] | null>(null);
+
+    const load = useCallback(async () => {
+        const { response, data } = await getJson<Authorization[]>("/v1/me/authorizations");
+        if (response.ok) setApps(data);
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    if (!apps?.length) return null;
+
+    return (
+        <section className="connected-apps" aria-labelledby="apps-title">
+            <h2 id="apps-title">Connected apps</h2>
+            <div className="panel">
+                {apps.map(app => (
+                    <div className="connected-app" key={app.clientId}>
+                        <div>
+                            <div className="field-value">{app.name}</div>
+                            <div className="app-detail">
+                                {app.scopes.join(", ")} · {app.lastUsedAt ? `last used ${new Date(app.lastUsedAt).toLocaleDateString()}` : "not used yet"}
+                            </div>
+                        </div>
+                        <button type="button" className="app-sign-out" onClick={async () => {
+                            if (!confirm(`Sign out of ${app.name}? It won't be able to use your account until you allow it again.`)) return;
+                            await deleteJson(`/v1/me/authorizations/${app.clientId}`);
+                            load();
+                        }}>Sign out</button>
+                    </div>
+                ))}
+            </div>
+        </section>
     );
 }

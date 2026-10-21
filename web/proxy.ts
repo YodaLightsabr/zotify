@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { INTERNAL_API_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
+import { DOCS_HOST, DOCS_URL, INTERNAL_API_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SITE_PROTOCOL } from "./lib/config";
 import { SCHOOL_HEADER } from "./lib/currentSchool";
 import type { SchoolInfo } from "./lib/school";
 
 // Every *.zotify.app address comes to this server. This works out which school's Zotify a request is for from its host:
 // zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and any other subdomain is sent
 // to zotify.app. The school is handed to the pages in a request header, so they render as that school from the start.
-// meals.zotify.app is Zotify Meals, the main school's, served from the pages under app/meals
+// meals.zotify.app is Zotify Meals, the main school's, served from the pages under app/meals, and docs.zotify.app is the API's
+// docs, from app/docs
 
 // How long the list of schools is reused before asking the API again
 const SCHOOLS_TTL_MS = 30_000;
@@ -17,7 +18,7 @@ async function getSchools() {
     if (schools && Date.now() - schools.fetchedAt < SCHOOLS_TTL_MS) return schools.list;
 
     try {
-        const response = await fetch(`${INTERNAL_API_URL}/api/schools`, { signal: AbortSignal.timeout(3000) });
+        const response = await fetch(`${INTERNAL_API_URL}/v1/schools`, { signal: AbortSignal.timeout(3000) });
         if (!response.ok) throw new Error(`The API answered ${response.status}`);
         schools = { list: await response.json(), fetchedAt: Date.now() };
     } catch (error) {
@@ -52,9 +53,20 @@ export async function proxy(request: NextRequest) {
         return NextResponse.rewrite(new URL(`/meals${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
     }
 
-    // Zotify Meals lives at its own address
+    // The API's docs: docs.zotify.app/authentication is app/docs/authentication
+    if (host === DOCS_HOST && main) {
+        headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(main)));
+        if (pathname === "/og" || pathname.startsWith("/docs")) return NextResponse.next({ request: { headers } });
+        return NextResponse.rewrite(new URL(`/docs${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
+    }
+
+    // Zotify Meals and the docs live at their own addresses
     if (pathname === "/meals" || pathname.startsWith("/meals/")) {
         return NextResponse.redirect(`${MEALS_URL}${pathname.slice("/meals".length) || "/"}${search}`);
+    }
+
+    if (pathname === "/docs" || pathname.startsWith("/docs/")) {
+        return NextResponse.redirect(`${DOCS_URL}${pathname.slice("/docs".length) || "/"}${search}`);
     }
 
     if (host.endsWith(`.${SITE_DOMAIN}`)) {

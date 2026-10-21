@@ -1,0 +1,154 @@
+/* The API's docs (docs.zotify.app). Its pages are only ever reached on that address, so these don't meet Zotify's own pages */
+
+/* A light theme, like Zotify Meals': Zotify's colors, swapped on the whole page whenever the docs are showing. UCI Blue takes
+   gold's place for links, since gold is unreadable on white */
+:root:has(.docs) {
+    color-scheme: light;
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface-2: #e8eef7;
+    --border: #d8dce3;
+    --text: #13243a;
+    --muted: #5a6474;
+    --error: #b23c0a;
+    --placeholder: var(--uci-blue);
+    --accent: var(--uci-blue);
+    --on-accent: #ffffff;
+    --code-bg: #13243a;
+    --code-text: #e8eef7;
+}
+
+.docs { display: contents; }
+
+.docs code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; overflow-wrap: anywhere; }
+
+/* The bar along the top */
+.docs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.docs-logo span { color: var(--accent); }
+.docs-header-link { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
+.docs-header-link:hover { color: var(--text); }
+
+.docs-body {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 40px;
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+/* The sidebar, which stays put while the page scrolls */
+.docs-nav {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 28px 0;
+}
+
+.docs-nav ul { list-style: none; margin: 0; padding: 0; }
+.docs-nav > ul > li + li { margin-top: 4px; }
+.docs-nav a { display: block; padding: 5px 10px; border-radius: 8px; color: var(--text); font-size: 0.92rem; text-decoration: none; }
+.docs-nav a:hover { background: var(--surface-2); }
+.docs-nav a.current { background: var(--surface-2); color: var(--accent); font-weight: 700; }
+.docs-nav ul ul { margin: 2px 0 0 10px; padding-left: 8px; border-left: 1px solid var(--border); }
+.docs-nav ul ul a { padding: 3px 10px; color: var(--muted); font-size: 0.85rem; }
+
+.docs-main { min-width: 0; padding: 28px 0 64px; }
+
+/* Guides and the reference */
+.docs-article { max-width: 760px; line-height: 1.6; }
+.docs-article h1 { font-family: "Jua", system-ui, sans-serif; font-weight: 400; font-size: 2.2rem; line-height: 1.2; margin: 0 0 12px; }
+.docs-article h2 { margin: 40px 0 12px; font-size: 1.35rem; scroll-margin-top: 16px; }
+.docs-article h3 { margin: 28px 0 8px; font-size: 1.05rem; scroll-margin-top: 16px; }
+.docs-article h4 { margin: 20px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.docs-article p, .docs-article ul { margin: 0 0 14px; }
+.docs-article li + li { margin-top: 6px; }
+.docs-article a { color: var(--accent); }
+.docs-article :not(pre) > code { padding: 1px 5px; background: var(--surface-2); border-radius: 5px; }
+.docs-lead { font-size: 1.1rem; color: var(--muted); }
+
+.docs-code { position: relative; margin: 0 0 16px; border-radius: 10px; background: var(--code-bg); color: var(--code-text); }
+.docs-code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font-size: 0.85rem; line-height: 1.55; }
+.docs-code code { overflow-wrap: normal; white-space: pre; }
+.docs-code-label { padding: 8px 16px 0; color: #9fb0c6; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.docs-copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 3px 10px;
+    border: 1px solid #3b5170;
+    border-radius: 999px;
+    background: var(--code-bg);
+    color: #9fb0c6;
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.docs-copy:hover { color: #fff; }
+
+.docs-table { width: 100%; margin: 0 0 16px; border-collapse: collapse; font-size: 0.9rem; }
+.docs-table th { text-align: left; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+.docs-table th, .docs-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.docs-fields td:first-child { white-space: nowrap; }
+.docs-type { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.docs-required { margin-left: 6px; color: var(--error); font-size: 0.72rem; font-weight: 700; }
+
+/* The reference */
+.docs-reference { max-width: none; }
+.docs-section { padding-top: 8px; }
+.docs-section > h2 { padding-top: 12px; border-top: 2px solid var(--uci-gold); }
+
+.docs-endpoint, .docs-schema {
+    margin: 0 0 20px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    scroll-margin-top: 16px;
+}
+
+.docs-endpoint h3, .docs-schema h3 { margin: 0 0 6px; font-size: 1rem; }
+.docs-endpoint h3 a { color: var(--text); text-decoration: none; }
+.docs-endpoint h3 code { padding: 0; background: none; font-size: 0.95rem; }
+.docs-summary { font-weight: 600; }
+
+.docs-method { display: inline-block; min-width: 58px; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-align: center; color: #fff; }
+.docs-method.get { background: #2f6f4e; }
+.docs-method.post { background: var(--uci-blue); }
+.docs-method.put, .docs-method.patch { background: #8a5a00; }
+.docs-method.delete { background: #a33a1a; }
+
+.docs-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.docs-badge { padding: 2px 10px; border-radius: 999px; background: var(--surface-2); font-size: 0.78rem; font-weight: 600; }
+.docs-badge.scope { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #fff3c4; }
+.docs-errors { color: var(--muted); font-size: 0.85rem; }
+
+.docs-examples { margin-top: 16px; }
+.docs-examples .docs-code pre { max-height: 420px; }
+
+/* Phones and narrow windows: the sidebar goes above, as a row of links */
+@media (max-width: 860px) {
+    .docs-header { padding: 14px 16px; }
+    .docs-body { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 16px; }
+    .docs-nav { position: static; max-height: none; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .docs-nav > ul { display: flex; flex-wrap: wrap; gap: 4px; }
+    .docs-nav > ul > li + li { margin-top: 0; }
+    .docs-nav ul ul { display: none; }
+    .docs-article h1 { font-size: 1.8rem; }
+    .docs-endpoint, .docs-schema { padding: 14px; }
+    .docs-fields td:first-child { white-space: normal; }
+}

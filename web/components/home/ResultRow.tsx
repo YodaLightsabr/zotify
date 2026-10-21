@@ -47,7 +47,7 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
         update({ busy: "Boosting…" });
 
         try {
-            const { response, data } = await postJson("/api/boost", { pickId: song.pickId, songId: song.id, venue });
+            const { response, data } = await postJson(`/v1/venues/${venue}/picks/${song.pickId}/votes`, { songId: song.id });
 
             if (response.status === 404) {
                 setButton({ label: "Not in queue", disabled: true });
@@ -71,9 +71,9 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
 
         // Into Zotify's queue, which puts it into the venue's queue when there's room
         try {
-            const { response, data } = await postJson("/api/queue", {
-                song: { id: song.id, name: song.name, artist: song.artist, cover: song.cover },
-                venue
+            const { response, data } = await postJson(`/v1/venues/${venue}/requests`, {
+                songId: song.id,
+                song: { id: song.id, name: song.name, artist: song.artist, cover: song.cover }
             });
 
             if (response.status === 409) {
@@ -84,7 +84,7 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
 
             if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`);
 
-            setQueuedAt(data.queuedAt ?? Date.now());
+            setQueuedAt(data.requestedAt ?? Date.now());
             setButton(QUEUED);
         } catch (err) {
             setError((err as Error).message || "Could not queue song");

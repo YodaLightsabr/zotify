@@ -3,9 +3,8 @@ import { AccountError, deleteAccount, listAccounts, saveAccount } from "../accou
 import { signInEmail } from "../auth.js";
 import {
     addSchoolAdmin, deleteSchool, deleteVenue, getSchoolAdmins, getSchools, getVenues, publicSchool, removeSchoolAdmin,
-    saveSchool, saveVenue, SchoolConfigError, schoolForHost
+    saveSchool, saveVenue, SchoolConfigError
 } from "../schools.js";
-import { requestSchool } from "./params.js";
 
 function sendConfigError(res: Response, error: unknown, context: string) {
     if (error instanceof SchoolConfigError || error instanceof AccountError) {
@@ -19,20 +18,9 @@ function sendConfigError(res: Response, error: unknown, context: string) {
 
 // For everyone
 
-/**
- * A school's name, sign-in details, wording and venues. The frontend's server passes ?host= (it has no Origin);
- * browsers get the school whose site they're on
- */
-export function school(req: Request, res: Response) {
-    const host = typeof req.query.host === "string" ? req.query.host : undefined;
-    const found = host ? schoolForHost(host) : requestSchool(res);
-
-    if (!found) {
-        res.status(404).json({ error: "There's no school at that address" });
-        return;
-    }
-
-    res.json(publicSchool(found));
+/** A school's name, sign-in details, wording and venues */
+export function school(_req: Request, res: Response) {
+    res.json(publicSchool(res.locals.school));
 }
 
 /** Every school, as above. The frontend uses this to tell which subdomains are real */
@@ -60,11 +48,10 @@ export function saveSchoolRoute(req: Request, res: Response) {
     }
 }
 
-/** Body: { id } */
 export function deleteSchoolRoute(req: Request, res: Response) {
     try {
-        deleteSchool(String(req.body?.id ?? ""));
-        res.json({ ok: true });
+        deleteSchool(String(req.params.id));
+        res.status(204).end();
     } catch (error) {
         sendConfigError(res, error, "Error removing a school:");
     }
@@ -79,21 +66,20 @@ export function saveVenueRoute(req: Request, res: Response) {
     }
 }
 
-/** Body: { id } */
 export function deleteVenueRoute(req: Request, res: Response) {
     try {
-        deleteVenue(String(req.body?.id ?? ""));
-        res.json({ ok: true });
+        deleteVenue(String(req.params.id));
+        res.status(204).end();
     } catch (error) {
         sendConfigError(res, error, "Error removing a venue:");
     }
 }
 
-/** Body: { schoolId, email, remove? }. Adds or removes one of a school's admins; a bare ID gets the school's email domain */
+/** PUT adds one of a school's admins and DELETE removes them; a bare ID gets the school's email domain. Answers with its admins */
 export function schoolAdminRoute(req: Request, res: Response) {
-    const schoolId = String(req.body?.schoolId ?? "");
+    const schoolId = String(req.params.id);
     const target = getSchools().find(school => school.id === schoolId);
-    const email = target ? signInEmail(req.body?.email, target) : null;
+    const email = target ? signInEmail(req.params.email, target) : null;
 
     if (!target || !email) {
         res.status(400).json({ error: "Pick a school and enter an email address." });
@@ -101,7 +87,7 @@ export function schoolAdminRoute(req: Request, res: Response) {
     }
 
     try {
-        if (req.body?.remove === true) removeSchoolAdmin(schoolId, email);
+        if (req.method === "DELETE") removeSchoolAdmin(schoolId, email);
         else addSchoolAdmin(schoolId, email);
         res.json({ admins: getSchoolAdmins(schoolId) });
     } catch (error) {
@@ -123,11 +109,10 @@ export function saveRockbotAccount(req: Request, res: Response) {
     }
 }
 
-/** Body: { username } */
 export function deleteRockbotAccount(req: Request, res: Response) {
     try {
-        deleteAccount(String(req.body?.username ?? ""));
-        res.json({ ok: true });
+        deleteAccount(String(req.params.username));
+        res.status(204).end();
     } catch (error) {
         sendConfigError(res, error, "Error removing a Rockbot account:");
     }

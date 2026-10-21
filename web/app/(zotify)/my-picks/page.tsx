@@ -20,13 +20,13 @@ export default function MyPicksPage() {
     const load = useCallback(async () => {
         try {
             // Sessions can end while the page is open; apiFetch sends them to sign in if so
-            const { response, data } = await getJson<Pick[]>("/api/my-picks");
+            const { response, data } = await getJson<Pick[]>("/v1/me/picks", { school: school.id });
             if (!response.ok) throw new Error(`Couldn't load your picks (${response.status})`);
             setPicks(data);
         } catch (error) {
             setError((error as Error).message);
         }
-    }, []);
+    }, [school.id]);
 
     useEffect(() => { if (user) load(); }, [user, load]);
 

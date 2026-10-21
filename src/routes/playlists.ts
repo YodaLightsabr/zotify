@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { getPlaylistQueueJob, startPlaylistQueueJob } from "../playlistQueue.js";
 import { getPlaylist, getPlaylistsFor, linkPlaylist, savePlaylist } from "../playlists.js";
 import { fetchPlaylist, parsePlaylistId, SpotifyPlaylistUnavailableError } from "../spotify.js";
-import { parseVenue, queryParam } from "./params.js";
+import { requestVenue } from "./params.js";
 
 const sessionEmail = (res: Response): string => res.locals.session.email;
 
@@ -13,24 +13,25 @@ const playlistIdParam = (req: Request) => {
 };
 
 /**
- * Body: { url }, a pasted Spotify playlist link. Reads the playlist from Spotify, saves it and its tracks, and links it to
- * whoever pasted it. Responds with where the frontend should go to see it: { id, name, redirect }
+ * Body: { url }, a Spotify playlist link (or its ID). Reads the playlist from Spotify, saves it and its tracks, and adds it to
+ * your playlists. Responds with the playlist, as GET /v1/playlists/:id does
  */
 export async function addPlaylist(req: Request, res: Response) {
-    const id = parsePlaylistId(typeof req.body?.url === "string" ? req.body.url : "");
+    const url = typeof req.body?.url === "string" ? req.body.url.trim() : "";
+    const id = /^[A-Za-z0-9]{22}$/.test(url) ? url : parsePlaylistId(url);
 
     if (!id) {
-        res.status(400).json({ error: "That doesn't look like a Spotify playlist link." });
+        res.status(400).json({ error: "That doesn't look like a Spotify playlist link.", code: "invalid_request" });
         return;
     }
 
     try {
         const playlist = await fetchPlaylist(id);
         savePlaylist(playlist, sessionEmail(res));
-        res.json({ id, name: playlist.name, redirect: `/playlist/${id}` });
+        res.status(201).json(getPlaylist(id));
     } catch (error) {
         if (error instanceof SpotifyPlaylistUnavailableError) {
-            res.status(404).json({ error: "Couldn't read that playlist. It's private or doesn't exist. Only public playlists work for now." });
+            res.status(404).json({ error: "Couldn't read that playlist. It's private or doesn't exist. Only public playlists work for now.", code: "not_found" });
             return;
         }
 
@@ -38,7 +39,7 @@ export async function addPlaylist(req: Request, res: Response) {
         if (getPlaylist(id)) {
             console.error(`Could not refresh Spotify playlist ${id}, using the saved copy:`, error);
             linkPlaylist(sessionEmail(res), id);
-            res.json({ id, redirect: `/playlist/${id}` });
+            res.json(getPlaylist(id));
             return;
         }
 
@@ -58,7 +59,7 @@ export function playlist(req: Request, res: Response) {
     const saved = id ? getPlaylist(id) : null;
 
     if (!saved) {
-        res.status(404).json({ error: "We don't have that playlist. Paste its Spotify link into the search box to add it." });
+        res.status(404).json({ error: "Zotify doesn't have that playlist. Add it first with its Spotify link.", code: "not_found" });
         return;
     }
 
@@ -66,34 +67,27 @@ export function playlist(req: Request, res: Response) {
     res.json(saved);
 }
 
-/** Body: { venue }. Starts queuing every song in the playlist that can be queued at the venue, in the background */
+/** Starts requesting every song in the playlist that can be requested at the venue, in the background. Answers with the job */
 export function queuePlaylist(req: Request, res: Response) {
     const id = playlistIdParam(req);
-    const venue = parseVenue(req.body?.venue, res);
     const saved = id ? getPlaylist(id) : null;
 
     if (!saved) {
-        res.status(404).json({ error: "We don't have that playlist." });
+        res.status(404).json({ error: "Zotify doesn't have that playlist. Add it first with its Spotify link.", code: "not_found" });
         return;
     }
 
-    if (!venue) {
-        res.status(400).json({ error: `Unknown venue "${req.body?.venue}"` });
-        return;
-    }
-
-    res.json(startPlaylistQueueJob(saved, venue, sessionEmail(res)));
+    res.status(202).json(startPlaylistQueueJob(saved, requestVenue(res), sessionEmail(res)));
 }
 
-/** ?venue=. How queuing the playlist there is going, or null if nobody has started it lately */
+/** How requesting the playlist at the venue is going, or null if nobody has started it lately */
 export function playlistQueueStatus(req: Request, res: Response) {
     const id = playlistIdParam(req);
-    const venue = parseVenue(queryParam(req, "venue"), res);
 
-    if (!id || !venue) {
-        res.status(400).json({ error: "Missing playlist or venue" });
+    if (!id) {
+        res.status(404).json({ error: "There's no playlist with that ID.", code: "not_found" });
         return;
     }
 
-    res.json(getPlaylistQueueJob(id, venue));
+    res.json(getPlaylistQueueJob(id, requestVenue(res)));
 }

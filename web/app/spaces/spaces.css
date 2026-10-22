@@ -206,9 +206,9 @@
 .spaces-week { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .spaces-week-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
 
-/* The footer: every room's day, midnight to midnight, a 5px stripe each with no gaps, across the whole page. Free is lighter than the
-   page, booked darker, and closed is the page itself */
-.spaces-footer { width: 100%; margin-top: 32px; }
+/* The footer: every room's day, midnight to midnight, a 5px stripe each with no gaps, across the whole page, on white. Free
+   is the page's color, booked darker, and closed is white */
+.spaces-footer { width: 100%; margin-top: 32px; background: #ffffff; }
 
 .spaces-footer-chart { position: relative; }
 .spaces-footer-room { position: relative; height: 5px; }
@@ -230,7 +230,7 @@
     pointer-events: none;
 }
 .spaces-footer-room span { position: absolute; top: 0; bottom: 0; }
-.spaces-footer .free { background: #ffffff; }
+.spaces-footer .free { background: var(--bg); }
 .spaces-footer .booked { background: #ddd6c8; }
 
 /* Faint lines at 6 AM, noon and 6 PM, and one for now */

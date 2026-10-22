@@ -221,7 +221,7 @@
     left: 0;
     z-index: 2;
     padding: 1px 8px;
-    color: var(--muted);
+    color: color-mix(in srgb, var(--muted) 65%, var(--bg));
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.08em;

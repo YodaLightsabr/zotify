@@ -7,9 +7,9 @@ import { timeOf, useSpaces, type SpaceRoom, type SpaceSlot } from "@/lib/spaces"
 import { minuteOf } from "./Timeline";
 
 // Zotify Spaces' footer: every room's day at once, midnight to midnight, one thin stripe each, across the whole page. It's on
-// white: free is the page's color, booked is darker, and closed is white. Each location's rooms are together, with its name in
-// the top left corner. Slots that have started come from Zotify's record
-// of them (see src/spaces/availability.ts). It refreshes like the pages do
+// white: free is the page's color, booked is darker, and closed is white. Each location's rooms are together, with its name
+// in the top left corner, which can't be selected. Slots that have started come from Zotify's record of them (see
+// src/spaces/availability.ts). It refreshes like the pages do
 
 const DAY_MINUTES = 24 * 60;
 

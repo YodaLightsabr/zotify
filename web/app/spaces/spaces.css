@@ -228,6 +228,8 @@
     line-height: 1.3;
     text-transform: uppercase;
     pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 .spaces-footer-room span { position: absolute; top: 0; bottom: 0; }
 .spaces-footer .free { background: var(--bg); }

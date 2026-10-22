@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import SpacesFooter from "@/components/spaces/SpacesFooter";
 import SpacesHeader from "@/components/spaces/SpacesHeader";
 import "./spaces.css";
 
@@ -21,6 +22,7 @@ export default function SpacesLayout({ children }: { children: React.ReactNode }
         <div className="spaces">
             <SpacesHeader />
             {children}
+            <SpacesFooter />
         </div>
     );
 }

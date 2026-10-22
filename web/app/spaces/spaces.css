@@ -206,9 +206,39 @@
 .spaces-week { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .spaces-week-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
 
+/* The footer: every room's day, midnight to midnight, a 10px stripe each. Free is lighter than the page, booked darker,
+   and closed is the page itself */
+.spaces-footer { width: 100%; max-width: 1100px; margin: 24px auto 0; padding: 0 24px 32px; }
+.spaces-footer-head { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.spaces-footer-legend { display: flex; align-items: center; gap: 6px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.spaces-footer-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-left: 6px; }
+
+.spaces-footer-chart { position: relative; }
+.spaces-footer-room { position: relative; height: 10px; }
+.spaces-footer-room.new-location { margin-top: 4px; }
+.spaces-footer-room span { position: absolute; top: 0; bottom: 1px; }
+.spaces-footer .free { background: #ffffff; }
+.spaces-footer .booked { background: #ddd6c8; }
+
+/* Faint lines at 6 AM, noon and 6 PM, one for now, and hatching before it */
+.spaces-footer-hour, .spaces-footer-now { position: absolute; top: 0; bottom: 0; z-index: 1; width: 1px; pointer-events: none; }
+.spaces-footer-hour { background: rgba(19, 36, 58, 0.08); }
+.spaces-footer-now { width: 2px; margin-left: -1px; background: var(--accent); }
+/* Earlier today, which the booking sites no longer say anything about */
+.spaces-footer-past {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background: repeating-linear-gradient(135deg, rgba(19, 36, 58, 0.05) 0 2px, transparent 2px 7px);
+    pointer-events: none;
+}
+
+.spaces-footer-hours { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted); font-size: 0.7rem; }
+
 /* Phones */
 @media (max-width: 700px) {
-    .spaces-header, .spaces-main { padding-left: 16px; padding-right: 16px; }
+    .spaces-header, .spaces-main, .spaces-footer { padding-left: 16px; padding-right: 16px; }
     .spaces-cards { grid-template-columns: minmax(0, 1fr); }
     /* Each row of chips scrolls sideways, so free rooms stay near the top */
     .spaces-filters .spaces-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }

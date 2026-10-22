@@ -117,8 +117,8 @@
     font-weight: 400;
 }
 
-/* Free rooms as cards, under each location's name. Every card has the same shape: a photo edge to edge, then the name
-   (two lines at most), its size, and when it's free. The whole card opens the booking site */
+/* Free rooms as cards, under each location's name. Every card has the same shape: a small photo on the left, running to
+   the card's edges, then the name (two lines at most), its size, and when it's free. The whole card opens the booking site */
 .spaces-location-name { margin: 22px 0 10px; font-size: 0.95rem; }
 
 .spaces-cards {
@@ -126,13 +126,12 @@
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 12px;
 }
 
 .spaces-card {
     display: flex;
-    flex-direction: column;
     height: 100%;
     overflow: hidden;
     background: var(--surface);
@@ -146,9 +145,9 @@
 .spaces-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(19, 36, 58, 0.1); }
 .spaces-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.spaces-card-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-2); }
+.spaces-card-photo { flex-shrink: 0; align-self: stretch; width: 84px; min-height: 84px; object-fit: cover; background: var(--surface-2); }
 
-.spaces-card-body { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; font-size: 0.85rem; }
+.spaces-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; font-size: 0.85rem; }
 
 .spaces-card-name {
     display: -webkit-box;
@@ -210,7 +209,7 @@
 /* Phones */
 @media (max-width: 700px) {
     .spaces-header, .spaces-main { padding-left: 16px; padding-right: 16px; }
-    .spaces-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .spaces-cards { grid-template-columns: minmax(0, 1fr); }
     /* Each row of chips scrolls sideways, so free rooms stay near the top */
     .spaces-filters .spaces-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
     .spaces-filters .spaces-chips::-webkit-scrollbar { display: none; }

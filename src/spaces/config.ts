@@ -18,6 +18,8 @@ export interface SpaceArea {
     id: string;
     // Shown instead of LibCal's name, when that isn't clear on its own
     name?: string;
+    // What people call it, like "Langson", for tight spots like the dashboard's footer
+    shortName: string;
 }
 
 export interface SpaceSite {
@@ -42,11 +44,11 @@ export const SPACES: Record<string, SpacesConfig> = {
                 name: "UCI Libraries",
                 url: "https://spaces.lib.uci.edu",
                 areas: [
-                    { lid: 6539, gid: 0, id: "langson" },
-                    { lid: 6579, gid: 0, id: "gateway" },
-                    { lid: 6580, gid: 0, id: "science" },
-                    { lid: 6581, gid: 0, id: "mrc" },
-                    { lid: 12189, gid: 0, id: "grunigen" }
+                    { lid: 6539, gid: 0, id: "langson", shortName: "Langson" },
+                    { lid: 6579, gid: 0, id: "gateway", shortName: "Gateway" },
+                    { lid: 6580, gid: 0, id: "science", shortName: "Science Library" },
+                    { lid: 6581, gid: 0, id: "mrc", shortName: "Multimedia" },
+                    { lid: 12189, gid: 0, id: "grunigen", shortName: "Grunigen" }
                 ]
             },
             {
@@ -54,8 +56,8 @@ export const SPACES: Record<string, SpacesConfig> = {
                 name: "UCI Student Housing",
                 url: "https://spaces.hsg.uci.edu",
                 areas: [
-                    { lid: 7337, gid: 13002, id: "upper-mesa", name: "Mesa Court (Upper Mesa)" },
-                    { lid: 7337, gid: 53431, id: "oasis", name: "The Oasis Community Center" }
+                    { lid: 7337, gid: 13002, id: "upper-mesa", name: "Mesa Court (Upper Mesa)", shortName: "Upper Mesa" },
+                    { lid: 7337, gid: 53431, id: "oasis", name: "The Oasis Community Center", shortName: "Oasis" }
                 ]
             }
         ]

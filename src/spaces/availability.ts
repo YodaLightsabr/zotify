@@ -15,6 +15,8 @@ export interface Room {
     // The area's ID, like "langson"
     location: string;
     locationName: string;
+    // What people call it, like "Langson"
+    locationShortName: string;
     // LibCal's group within the location, like "LL Collaboration Zone (360)"
     group: string;
     image: string | null;
@@ -137,6 +139,7 @@ async function loadRooms(schoolId: string, config: SpacesConfig): Promise<RoomsC
                     capacity: room.capacity,
                     location: area.id,
                     locationName: areaName(area, locationName, room.group),
+                    locationShortName: area.shortName,
                     group: room.group,
                     image: room.image,
                     description: details.get(id)?.description ?? null,

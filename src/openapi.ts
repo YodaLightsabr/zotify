@@ -262,6 +262,7 @@ const schemas: Record<string, Schema> = {
         capacity: integer("How many people it's for."),
         location: string("Its location's ID, for ?location=.", "langson"),
         locationName: string(undefined, "Langson Library"),
+        locationShortName: string("What people call it, for tight spots.", "Langson"),
         group: string("The booking site's group within the location."),
         image: nullable(string("A photo.")),
         description: nullable(string("Plain text; lists are lines starting with •. Fills in over the first minute after the API starts.")),
@@ -506,7 +507,7 @@ const paths: Record<string, Record<string, unknown>> = {
             tag: "Zotify Spaces", access: "public", summary: "Study rooms and their locations",
             description: "Every bookable study room at the school's libraries and housing, from their LibCal booking sites. Zotify Spaces is public: no token needed, and any site can call it.",
             parameters: [school],
-            response: { description: "Locations and rooms.", schema: object({ school: string(), timezone: string(), locations: array(object({ id: string(), name: string(), site: string(), siteName: string(), url: string(), rooms: integer() })), rooms: array(ref("SpaceRoom")) }) },
+            response: { description: "Locations and rooms.", schema: object({ school: string(), timezone: string(), locations: array(object({ id: string(), name: string(), shortName: string(), site: string(), siteName: string(), url: string(), rooms: integer() })), rooms: array(ref("SpaceRoom")) }) },
             errors: [404, 502]
         })
     },

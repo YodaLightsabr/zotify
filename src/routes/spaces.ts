@@ -85,7 +85,7 @@ export async function spacesSchool(req: Request, res: Response) {
 function locationsOf(config: SpacesConfig, rooms: Room[]) {
     return config.sites.flatMap(site => site.areas.map(area => {
         const here = rooms.filter(room => room.location === area.id);
-        return { id: area.id, name: here[0]?.locationName ?? area.name ?? area.id, site: site.id, siteName: site.name, url: site.url, rooms: here.length };
+        return { id: area.id, name: here[0]?.locationName ?? area.name ?? area.id, shortName: area.shortName, site: site.id, siteName: site.name, url: site.url, rooms: here.length };
     }));
 }
 

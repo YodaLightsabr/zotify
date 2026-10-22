@@ -13,6 +13,8 @@ export interface SpaceRoom {
     capacity: number;
     location: string;
     locationName: string;
+    // What people call it, like "Langson"
+    locationShortName: string;
     group: string;
     image: string | null;
     description: string | null;
@@ -23,6 +25,7 @@ export interface SpaceRoom {
 export interface SpaceLocation {
     id: string;
     name: string;
+    shortName: string;
     site: string;
     siteName: string;
     url: string;

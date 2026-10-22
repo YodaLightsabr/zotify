@@ -42,7 +42,7 @@ function sections(rooms: Day["rooms"]) {
     for (const room of rooms) {
         const last = groups.at(-1);
         if (last && last.rooms[0].location === room.location) last.rooms.push(room);
-        else groups.push({ name: room.locationName, rooms: [room] });
+        else groups.push({ name: room.locationShortName, rooms: [room] });
     }
     return groups;
 }

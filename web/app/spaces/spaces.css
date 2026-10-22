@@ -206,22 +206,21 @@
 .spaces-week { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .spaces-week-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; }
 
-/* The footer: every room's day, midnight to midnight, a 10px stripe each, across the whole page. Free is lighter than the
+/* The footer: every room's day, midnight to midnight, a 5px stripe each with no gaps, across the whole page. Free is lighter than the
    page, booked darker, and closed is the page itself */
 .spaces-footer { width: 100%; margin-top: 32px; }
 
 .spaces-footer-chart { position: relative; }
-.spaces-footer-room { position: relative; height: 10px; }
+.spaces-footer-room { position: relative; height: 5px; }
 .spaces-footer-location { position: relative; }
 
-/* Each location's name over the top right of its rooms */
+/* Each location's name over the top left of its rooms, where it's closed overnight */
 .spaces-footer-label {
     position: absolute;
     top: 0;
-    right: 0;
+    left: 0;
     z-index: 2;
     padding: 1px 8px;
-    background: var(--bg);
     color: var(--muted);
     font-size: 0.6rem;
     font-weight: 700;
@@ -230,7 +229,7 @@
     text-transform: uppercase;
     pointer-events: none;
 }
-.spaces-footer-room span { position: absolute; top: 0; bottom: 1px; }
+.spaces-footer-room span { position: absolute; top: 0; bottom: 0; }
 .spaces-footer .free { background: #ffffff; }
 .spaces-footer .booked { background: #ddd6c8; }
 

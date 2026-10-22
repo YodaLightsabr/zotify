@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { API_PORT, DOCS_URL, FRONTEND_URL } from "./config.js";
-import { adminCache, adminHistory, adminTestAccounts, adminVersion, publicVersion } from "./routes/admin.js";
+import { adminCache, adminDeploys, adminHistory, adminTestAccounts, adminVersion, publicVersion } from "./routes/admin.js";
 import {
     anyAdmin, developer, logout, me, member, requestCode, schoolAdmin, sessionOnly, signedIn, siteAdmin, verifyCode
 } from "./routes/auth.js";
@@ -32,6 +32,7 @@ import { venueQueue } from "./routes/venue-queue.js";
 import { pickVotes, votePick } from "./routes/votes.js";
 import { clearZotifyQueue, removeFromZotifyQueue, reorderZotifyQueue, zotifyQueue } from "./routes/zotify-queue.js";
 import { SCOPES, TOKEN_LIFETIMES } from "./developers.js";
+import { recordGoLive } from "./deploys.js";
 import { startLive } from "./live.js";
 import { startMealsSync } from "./meals/sync.js";
 import { schoolForOrigin } from "./schools.js";
@@ -152,6 +153,7 @@ v1.post("/schools/:school/invite-codes", schoolParam, schoolAdmin, createCodeRou
 v1.delete("/schools/:school/invite-codes/:code", schoolParam, schoolAdmin, revokeCodeRoute);
 v1.get("/schools/:school/history", schoolParam, schoolAdmin, adminHistory);
 v1.get("/admin/version", anyAdmin, adminVersion);
+v1.get("/admin/deploys", anyAdmin, adminDeploys);
 
 // Developers' tokens and apps, and the apps you've signed in to: Zotify's own pages only
 v1.get("/me/tokens", developer, myTokens);
@@ -209,6 +211,9 @@ app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
 const server = app.listen(API_PORT, () => {
     console.log(`API running at http://localhost:${API_PORT}/ for ${FRONTEND_URL}`);
 });
+
+// How long this release took to go live, for the deploy progress bar
+recordGoLive();
 
 // Live updates for pages, on the same port
 startLive(server);

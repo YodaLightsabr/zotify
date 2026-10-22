@@ -272,6 +272,16 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS oauth_grants_email ON oauth_grants (email, app_id);
 `);
 
+// How long each deployed commit took from being committed to going live, for the admin dashboard's deploy progress bar
+// (see src/deploys.ts). Times are milliseconds since 1970
+db.exec(`
+    CREATE TABLE IF NOT EXISTS deploy_times (
+        commit_hash TEXT PRIMARY KEY,
+        committed_at INTEGER NOT NULL,
+        live_at INTEGER NOT NULL
+    );
+`);
+
 // Which school's dining site and which of its locations Zotify Meals reads: schools.dining_config (JSON, see
 // src/meals/config.ts) and venues.dining_location_key, like "the-anteatery". Added after both tables existed
 for (const [table, column] of [["schools", "dining_config"], ["venues", "dining_location_key"]]) {

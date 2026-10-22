@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { testAccountCodes } from "../auth.js";
+import { averageTimeToLive, deployStatus } from "../deploys.js";
 import { snapshot } from "../db.js";
 import { getHistory } from "../history.js";
 import { getVenues } from "../schools.js";
@@ -20,6 +21,15 @@ export function publicVersion(_req: Request, res: Response) {
 /** Which commit the API is running, and when it was committed and deployed. null if it can't be told */
 export function adminVersion(_req: Request, res: Response) {
     res.json(getVersion());
+}
+
+/**
+ * For the deploy progress bar: the newest commit on GitHub (null off the server) and whether it's building, failed or live,
+ * the running commit, and how long deploys take on average, from commit to live
+ */
+export function adminDeploys(_req: Request, res: Response) {
+    const status = deployStatus();
+    res.json({ running: getVersion()?.commit ?? null, latest: status, ...averageTimeToLive() });
 }
 
 /** Every song queued through Zotify at the school's venues, newest first */

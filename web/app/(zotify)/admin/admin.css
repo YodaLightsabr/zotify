@@ -111,6 +111,16 @@
     .version-commit a.code:hover { text-decoration: underline; }
     .version-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+    /* A new commit on its way (DeployProgress) */
+    .deploy { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .deploy.done { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; border-color: var(--accent); }
+    .deploy-label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+    .deploy-label > span:first-child { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+    .deploy-bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+    .deploy-bar > div { height: 100%; border-radius: 999px; background: var(--accent); transition: width 1s linear; }
+    .deploy.failed .deploy-bar > div { background: var(--error); }
+    .small-note { font-size: 0.75rem; }
+
     h3 {
         margin: 20px 0 8px;
         font-size: 0.75rem;

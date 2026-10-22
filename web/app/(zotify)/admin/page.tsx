@@ -96,6 +96,7 @@ function Version() {
                         {data.deployedAt ? ` · deployed ${timestamp(data.deployedAt)}` : ""}
                         {` · API up since ${timestamp(data.startedAt)}`}
                     </div>
+                    <DeployProgress running={data.commit} />
                     {/* Both are built from the same commit, so a difference means one of them didn't restart */}
                     {FRONTEND_COMMIT && FRONTEND_COMMIT !== data.commit && (
                         <div className="error">
@@ -104,6 +105,79 @@ function Version() {
                     )}
                 </div>}
         </section>
+    );
+}
+
+// A new commit on its way: a bar from when it was committed to 1.5 times the average time deploys take, so it's usually
+// done before the end. The deploy script reports the newest commit on GitHub every minute (see src/deploys.ts)
+
+interface Deploys {
+    running: string | null;
+    latest: { commit: string, committedAt: string, state: "building" | "failed" | "live", subject: string } | null;
+    averageMs: number;
+    samples: number;
+}
+
+const loadDeploys = () => adminGet<Deploys>("/v1/admin/deploys", "deploys");
+
+const minutes = (ms: number) => {
+    const total = Math.max(1, Math.round(ms / 60_000));
+    return total === 1 ? "about a minute" : `about ${total} minutes`;
+};
+
+function DeployProgress({ running }: { running: string }) {
+    const { data, reload } = useLoad(loadDeploys);
+    const [now, setNow] = useState(Date.now());
+
+    // Check for news every 10 seconds, and move the bar along every second
+    useEffect(() => {
+        const poll = setInterval(() => { if (!document.hidden) reload(); }, 10_000);
+        const tick = setInterval(() => setNow(Date.now()), 1000);
+        return () => {
+            clearInterval(poll);
+            clearInterval(tick);
+        };
+    }, [reload]);
+
+    const latest = data?.latest;
+    if (!data || !latest) return null;
+
+    // It went live since this page loaded
+    if (latest.commit === data.running && data.running !== running) {
+        return (
+            <div className="deploy done">
+                <span>Deployed <span className="code">{latest.commit.slice(0, 7)}</span> {latest.subject}</span>
+                <button type="button" className="small" onClick={() => location.reload()}>Reload</button>
+            </div>
+        );
+    }
+
+    if (latest.commit === data.running) return null;
+
+    const committedAt = Date.parse(latest.committedAt);
+    const expected = data.averageMs * 1.5;
+    const elapsed = now - committedAt;
+    // Never quite full until it's live
+    const progress = Math.min(Math.max(elapsed / expected, 0), 0.98);
+    const failed = latest.state === "failed";
+
+    return (
+        <div className={cx("deploy", failed && "failed")} role="status">
+            <div className="deploy-label">
+                <span>{failed ? "Build failed for" : "Deploying"} <span className="code">{latest.commit.slice(0, 7)}</span> <span className="version-subject">{latest.subject}</span></span>
+                <span className="muted">
+                    {failed ? `${running.slice(0, 7)} keeps running`
+                        : elapsed < data.averageMs ? `${minutes(data.averageMs - elapsed)} left`
+                        : "Taking longer than usual"}
+                </span>
+            </div>
+            <div className="deploy-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
+                <div style={{ width: `${failed ? 100 : progress * 100}%` }} />
+            </div>
+            <span className="muted small-note">
+                Deploys take {minutes(data.averageMs)} on average{data.samples ? `, over the last ${plural(data.samples, "deploy")}` : " (a guess until one's been timed)"}
+            </span>
+        </div>
     );
 }
 

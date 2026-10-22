@@ -30,10 +30,19 @@ main() {
     local building="$release.building"
 
     if [ "$force" != "--force" ]; then
-        [ "$target" = "$running" ] && return 0
+        if [ "$target" = "$running" ]; then
+            write_status "$target" live
+            return 0
+        fi
+
         # A commit that didn't build isn't tried again every minute; the next push (or --force) tries again
-        [ -e "$release.failed" ] && return 0
+        if [ -e "$release.failed" ]; then
+            write_status "$target" failed
+            return 0
+        fi
     fi
+
+    write_status "$target" building
 
     echo "Deploying ${target:0:7} (running: ${running:0:7})"
 
@@ -56,6 +65,7 @@ main() {
 
     if ! build "$building" "$running"; then
         touch "$release.failed"
+        write_status "$target" failed
         echo "The build for ${target:0:7} failed, so ${running:0:7} keeps running. It's tried again on the next push, or with --force" >&2
         return 1
     fi
@@ -68,6 +78,7 @@ main() {
     mv -T current.next current
 
     sudo -n systemctl restart zotify-api.service zotify-web.service
+    write_status "$target" live
     echo "Deployed ${target:0:7}"
 
     # Drop leftovers from failed builds, then keep the newest few releases for rolling back
@@ -76,6 +87,14 @@ main() {
     for old in $(ls -1dt releases/*/ | sed 's:/$::' | tail -n +$((keep + 1))); do
         [ "$old" = "$release" ] || rm -rf "$old"
     done
+}
+
+# The newest commit on GitHub and where it stands, for the admin dashboard's deploy progress bar (see src/deploys.ts): its
+# hash, commit time, state (building, failed or live) and message, one per line. Swapped in whole, so it's never read half-written
+write_status() {
+    local target="$1" state="$2"
+    git -C repo log -1 --format="%H%n%cI%n$state%n%s" "$target" > shared/deploy-status.next
+    mv shared/deploy-status.next shared/deploy-status
 }
 
 # Installs packages and builds a release in its folder

@@ -22,6 +22,68 @@
     h1 { font-size: 1.8rem; }
     h2 { font-size: 1.2rem; }
 
+    /* The sidebar beside the pages */
+    .admin-layout {
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 28px;
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 24px 24px;
+    }
+
+    .admin-layout main { max-width: none; margin: 0; padding: 0; }
+
+    .admin-nav { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 4px; }
+    .admin-nav ul { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+    .admin-nav-title {
+        margin: 0 0 4px;
+        padding: 0 10px;
+        color: var(--muted);
+        font-family: inherit;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .admin-nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 0.92rem;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .admin-nav-link:hover { background: var(--surface); }
+    .admin-nav-link.current { background: var(--surface); color: var(--accent); font-weight: 700; }
+
+    .admin-nav-badge {
+        min-width: 20px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--on-accent);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    /* Phones: the sidebar becomes a row of links along the top */
+    @media (max-width: 760px) {
+        .admin-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 0 16px 24px; }
+        .admin-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+        .admin-nav-title { display: none; }
+        .admin-nav ul { flex-direction: row; margin: 0; }
+    }
+
     .panel {
         padding: 16px 18px;
         background: var(--surface);

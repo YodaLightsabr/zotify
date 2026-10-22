@@ -69,3 +69,11 @@ export function SmallButton({ label, className, onClick }: { label: string, clas
 export function FormMessage({ message }: { message: { text: string, error?: boolean } }) {
     return <p className={cx("form-message", message.error && "error")} role="status">{message.text}</p>;
 }
+
+/** Refreshes every 20 seconds while the page is visible */
+export function useEvery20s(callback: () => void) {
+    useEffect(() => {
+        const timer = setInterval(() => { if (!document.hidden) callback(); }, 20_000);
+        return () => clearInterval(timer);
+    }, [callback]);
+}

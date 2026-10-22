@@ -1,7 +1,7 @@
 "use client";
 
 import Filters from "@/components/spaces/Filters";
-import RoomCard from "@/components/spaces/RoomCard";
+import { RoomsByLocation } from "@/components/spaces/RoomCard";
 import { Spinner } from "@/components/Spinner";
 import { useSchool } from "@/lib/school";
 import { filterQuery, useSpaceFilters, useSpaces, type AreaError, type FreeRoom, type SpacesOverview } from "@/lib/spaces";
@@ -14,7 +14,7 @@ interface Now {
     errors: AreaError[];
 }
 
-/** The front page: rooms free right now, longest first, and rooms free soon */
+/** The front page: rooms free right now by location, longest first, and rooms free soon */
 export default function FreeNowPage() {
     const school = useSchool();
     const [filters] = useSpaceFilters();
@@ -28,21 +28,20 @@ export default function FreeNowPage() {
                 <h1>Free right now</h1>
                 <Updated at={now.updatedAt} loading={now.loading} onRefresh={now.reload} />
             </div>
-            <p className="spaces-lead">Study rooms you can book from now or the next half hour, longest free first.</p>
 
             {overview.data && <Filters locations={overview.data.locations} />}
             <Problems errors={now.data?.errors} />
 
-            {!now.data ? (
-                now.error ? <p className="spaces-message">{now.error}</p> : <div className="spaces-message"><Spinner /></div>
+            {!now.data || !overview.data ? (
+                now.error || overview.error ? <p className="spaces-message">{now.error ?? overview.error}</p> : <div className="spaces-message"><Spinner /></div>
             ) : <>
                 {now.data.rooms.length
-                    ? <ul className="spaces-cards">{now.data.rooms.map(room => <RoomCard key={room.id} room={room} now />)}</ul>
+                    ? <RoomsByLocation rooms={now.data.rooms} locations={overview.data.locations} now />
                     : <p className="spaces-message">Nothing's free right now{filters.capacity || filters.locations.length ? " with these filters" : ""}. Try Find a Time.</p>}
 
                 {now.data.soon.length > 0 && <>
                     <h2 className="spaces-subheading">Free soon</h2>
-                    <ul className="spaces-cards compact">{now.data.soon.map(room => <RoomCard key={room.id} room={room} />)}</ul>
+                    <RoomsByLocation rooms={now.data.soon} locations={overview.data.locations} />
                 </>}
             </>}
         </main>

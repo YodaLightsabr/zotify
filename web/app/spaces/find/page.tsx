@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Filters from "@/components/spaces/Filters";
-import RoomCard from "@/components/spaces/RoomCard";
+import { RoomsByLocation } from "@/components/spaces/RoomCard";
 import { Spinner } from "@/components/Spinner";
 import { clock, timeIn, todayIn } from "@/lib/meals";
 import { useSchool } from "@/lib/school";
@@ -51,10 +51,6 @@ export default function FindPage() {
     query.set("to", to);
     const free = useSpaces<Free>(from < to ? `/${school.id}/free?${query}` : null);
 
-    const byLocation = overview.data?.locations
-        .map(location => ({ location, rooms: free.data?.rooms.filter(room => room.location === location.id) ?? [] }))
-        .filter(entry => entry.rooms.length) ?? [];
-
     return (
         <main className="spaces-main">
             <div className="spaces-heading">
@@ -85,16 +81,11 @@ export default function FindPage() {
 
             <Problems errors={free.data?.errors} />
 
-            {!free.data ? (
-                free.error ? <p className="spaces-message">{free.error}</p> : <div className="spaces-message"><Spinner /></div>
+            {!free.data || !overview.data ? (
+                free.error || overview.error ? <p className="spaces-message">{free.error ?? overview.error}</p> : <div className="spaces-message"><Spinner /></div>
             ) : !free.data.rooms.length ? (
                 <p className="spaces-message">Nothing&apos;s free for all of that time. Try a shorter stretch, or another day.</p>
-            ) : byLocation.map(({ location, rooms }) => (
-                <section key={location.id} className="spaces-location">
-                    <h2 className="spaces-subheading">{location.name} <span className="spaces-muted">{rooms.length}</span></h2>
-                    <ul className="spaces-cards compact">{rooms.map(room => <RoomCard key={room.id} room={room} />)}</ul>
-                </section>
-            ))}
+            ) : <RoomsByLocation rooms={free.data.rooms} locations={overview.data.locations} />}
         </main>
     );
 }

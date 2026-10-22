@@ -117,36 +117,54 @@
     font-weight: 400;
 }
 
-/* Free rooms as cards */
+/* Free rooms as cards, under each location's name. Every card has the same shape: a photo edge to edge, then the name
+   (two lines at most), its size, and when it's free. The whole card opens the booking site */
+.spaces-location-name { margin: 22px 0 10px; font-size: 0.95rem; }
+
 .spaces-cards {
     list-style: none;
-    margin: 12px 0 0;
+    margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 12px;
 }
 
 .spaces-card {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 4px solid var(--free);
     border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.spaces-card-photo { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--surface-2); }
-.spaces-cards.compact .spaces-card-photo { width: 44px; height: 44px; }
-.spaces-card-body { flex: 1; min-width: 0; }
-.spaces-card-body p { margin: 2px 0 0; font-size: 0.85rem; }
-.spaces-card-name { color: var(--text); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
-.spaces-card-name:hover { text-decoration: underline; }
-.spaces-card-time { font-size: 0.95rem !important; }
+.spaces-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(19, 36, 58, 0.1); }
+.spaces-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.spaces-card-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-2); }
+
+.spaces-card-body { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; font-size: 0.85rem; }
+
+.spaces-card-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+    line-height: 1.3;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.spaces-card-time { margin-top: auto; padding-top: 6px; font-size: 0.9rem; }
 .spaces-card-time strong { color: var(--free); }
 
+/* The room page's link to its booking site */
 .spaces-book {
     flex-shrink: 0;
     padding: 7px 14px;
@@ -192,7 +210,7 @@
 /* Phones */
 @media (max-width: 700px) {
     .spaces-header, .spaces-main { padding-left: 16px; padding-right: 16px; }
-    .spaces-cards { grid-template-columns: minmax(0, 1fr); }
+    .spaces-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     /* Each row of chips scrolls sideways, so free rooms stay near the top */
     .spaces-filters .spaces-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
     .spaces-filters .spaces-chips::-webkit-scrollbar { display: none; }

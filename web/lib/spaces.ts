@@ -102,8 +102,11 @@ export function useSpaces<T>(path: string | null, refresh = true) {
     return { ...state, reload: load };
 }
 
-/** For room photos: some sites won't serve theirs to other sites, so a photo that fails leaves just its background */
-export const hideBrokenPhoto = (event: React.SyntheticEvent<HTMLImageElement>) => { event.currentTarget.style.opacity = "0"; };
+// A transparent pixel, which leaves a photo's placeholder background showing
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+/** For room photos: some sites won't serve theirs to other sites, so a photo that fails shows just its placeholder */
+export const hideBrokenPhoto = (event: React.SyntheticEvent<HTMLImageElement>) => { event.currentTarget.src = BLANK; };
 
 // Times from the API are ISO 8601 in the school's timezone, so the date and clock time can be read straight off them
 

@@ -66,7 +66,8 @@ export default function SpacesFooter() {
         return () => clearInterval(timer);
     }, []);
 
-    const rooms = day.data?.rooms ?? [];
+    // Rooms that can't be booked at all today would only be empty rows
+    const rooms = day.data?.rooms.filter(room => room.slots.some(slot => slot.status !== "unavailable")) ?? [];
     if (!rooms.length) return null;
 
     const date = todayIn("America/Los_Angeles");

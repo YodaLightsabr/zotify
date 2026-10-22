@@ -7,13 +7,14 @@ import { timeOf, useSpaces, type SpaceRoom, type SpaceSlot } from "@/lib/spaces"
 import { minuteOf } from "./Timeline";
 
 // Zotify Spaces' footer: every room's day at once, midnight to midnight, one thin stripe each, across the whole page. Free is
-// lighter than the page and booked is darker; closed is the page itself. Slots that have started come from Zotify's record
+// lighter than the page and booked is darker; closed is the page itself. Each location's rooms are together, with its name in
+// the corner. Slots that have started come from Zotify's record
 // of them (see src/spaces/availability.ts). It refreshes like the pages do
 
 const DAY_MINUTES = 24 * 60;
 
 interface Day {
-    rooms: (SpaceRoom & { slots: SpaceSlot[] })[];
+    rooms: (SpaceRoom & { slots: (SpaceSlot & { past?: true })[] })[];
 }
 
 type Run = { from: number, to: number, free: boolean };
@@ -33,6 +34,17 @@ function runsOf(slots: SpaceSlot[], date: string): Run[] {
     }
 
     return runs;
+}
+
+/** Rooms grouped by location, in the order they come */
+function sections(rooms: Day["rooms"]) {
+    const groups: { name: string, rooms: Day["rooms"] }[] = [];
+    for (const room of rooms) {
+        const last = groups.at(-1);
+        if (last && last.rooms[0].location === room.location) last.rooms.push(room);
+        else groups.push({ name: room.locationName, rooms: [room] });
+    }
+    return groups;
 }
 
 const percent = (minute: number) => `${(minute / DAY_MINUTES) * 100}%`;
@@ -65,14 +77,18 @@ export default function SpacesFooter() {
                 {[6, 12, 18].map(hour => <span key={hour} className="spaces-footer-hour" style={{ left: percent(hour * 60) }} />)}
                 {now !== null && <span className="spaces-footer-now" style={{ left: percent(now) }} />}
 
-                {rooms.map((room, i) => (
-                    // A little gap between locations
-                    <div key={room.id} className={`spaces-footer-room${i > 0 && rooms[i - 1].location !== room.location ? " new-location" : ""}`}
-                        title={`${room.name}, ${room.locationName}${room.slots.some(slot => slot.status === "available") ? `: free from ${timeOf(room.slots.find(slot => slot.status === "available")!.start)}` : ""}`}>
-                        {runsOf(room.slots, date).map(run => (
-                            <span key={run.from} className={run.free ? "free" : "booked"} style={{ left: percent(run.from), width: percent(run.to - run.from) }} />
+                {sections(rooms).map(({ name, rooms: here }) => (
+                    <section key={here[0].location} className="spaces-footer-location" aria-label={name}>
+                        <span className="spaces-footer-label">{name}</span>
+                        {here.map(room => (
+                            <div key={room.id} className="spaces-footer-room"
+                                title={`${room.name}, ${room.locationName}${room.slots.some(slot => slot.status === "available" && !slot.past) ? `: free from ${timeOf(room.slots.find(slot => slot.status === "available" && !slot.past)!.start)}` : ""}`}>
+                                {runsOf(room.slots, date).map(run => (
+                                    <span key={run.from} className={run.free ? "free" : "booked"} style={{ left: percent(run.from), width: percent(run.to - run.from) }} />
+                                ))}
+                            </div>
                         ))}
-                    </div>
+                    </section>
                 ))}
             </div>
 

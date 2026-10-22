@@ -212,7 +212,24 @@
 
 .spaces-footer-chart { position: relative; }
 .spaces-footer-room { position: relative; height: 10px; }
-.spaces-footer-room.new-location { margin-top: 4px; }
+.spaces-footer-location { position: relative; }
+
+/* Each location's name over the top right of its rooms */
+.spaces-footer-label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    padding: 1px 8px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    pointer-events: none;
+}
 .spaces-footer-room span { position: absolute; top: 0; bottom: 1px; }
 .spaces-footer .free { background: #ffffff; }
 .spaces-footer .booked { background: #ddd6c8; }

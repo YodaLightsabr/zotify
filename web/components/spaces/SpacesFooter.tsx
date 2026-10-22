@@ -6,9 +6,9 @@ import { useSchool } from "@/lib/school";
 import { timeOf, useSpaces, type SpaceRoom, type SpaceSlot } from "@/lib/spaces";
 import { minuteOf } from "./Timeline";
 
-// Zotify Spaces' footer: every room's day at once, midnight to midnight, one thin stripe each. Free is lighter than the page
-// and booked is darker; closed is the page itself. The booking sites never list a slot once it's started, so the part of
-// today that's gone is hatched instead. It refreshes like the pages do
+// Zotify Spaces' footer: every room's day at once, midnight to midnight, one thin stripe each, across the whole page. Free is
+// lighter than the page and booked is darker; closed is the page itself. Slots that have started come from Zotify's record
+// of them (see src/spaces/availability.ts). It refreshes like the pages do
 
 const DAY_MINUTES = 24 * 60;
 
@@ -61,19 +61,9 @@ export default function SpacesFooter() {
 
     return (
         <footer className="spaces-footer" aria-label="Every room today">
-            <div className="spaces-footer-head">
-                <span>Every room, today</span>
-                <span className="spaces-footer-legend">
-                    <i className="free" /> Free <i className="booked" /> Booked
-                </span>
-            </div>
-
             <div className="spaces-footer-chart">
                 {[6, 12, 18].map(hour => <span key={hour} className="spaces-footer-hour" style={{ left: percent(hour * 60) }} />)}
-                {now !== null && <>
-                    <span className="spaces-footer-past" style={{ width: percent(now) }} />
-                    <span className="spaces-footer-now" style={{ left: percent(now) }} />
-                </>}
+                {now !== null && <span className="spaces-footer-now" style={{ left: percent(now) }} />}
 
                 {rooms.map((room, i) => (
                     // A little gap between locations

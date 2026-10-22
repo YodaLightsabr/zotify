@@ -35,6 +35,7 @@ import { SCOPES, TOKEN_LIFETIMES } from "./developers.js";
 import { recordGoLive } from "./deploys.js";
 import { startLive } from "./live.js";
 import { startMealsSync } from "./meals/sync.js";
+import { startSpacesRecorder } from "./spaces/availability.js";
 import { schoolForOrigin } from "./schools.js";
 
 const app = express();
@@ -220,3 +221,6 @@ startLive(server);
 
 // Keeps Zotify Meals' menus fresh: two weeks nightly and on first start, today and tomorrow hourly
 startMealsSync();
+
+// Keeps a record of study room availability, so a whole day can be shown after its slots have started
+startSpacesRecorder();

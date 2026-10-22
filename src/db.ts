@@ -272,6 +272,20 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS oauth_grants_email ON oauth_grants (email, app_id);
 `);
 
+// Zotify Spaces' record of availability (see src/spaces/availability.ts). The booking sites stop listing a slot once it's
+// started, so each slot's status is saved every time it's seen, and the last one saved is how it was when it could last be
+// booked. room is like "lib-44696"; times are milliseconds since 1970. Kept, so past days can be shown too
+db.exec(`
+    CREATE TABLE IF NOT EXISTS space_slots (
+        room TEXT NOT NULL,
+        start_ms INTEGER NOT NULL,
+        end_ms INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        observed_at INTEGER NOT NULL,
+        PRIMARY KEY (room, start_ms)
+    );
+`);
+
 // How long each deployed commit took from being committed to going live, for the admin dashboard's deploy progress bar
 // (see src/deploys.ts). Times are milliseconds since 1970
 db.exec(`

@@ -1,3 +1,4 @@
+import { db, transaction } from "../db.js";
 import { addDays, todayIn } from "../meals/sync.js";
 import { AVAILABILITY_CACHE_MS, ROOMS_CACHE_MS, SPACES, type SpaceArea, type SpaceSite, type SpacesConfig } from "./config.js";
 import { fetchArea, fetchRoomDetails, fetchSlots, LibCalError, type LibCalSlot, type SlotStatus } from "./libcal.js";
@@ -194,8 +195,21 @@ export async function getRooms(schoolId: string, config: SpacesConfig) {
 
 const slotsCache = new Map<string, { slots: Promise<LibCalSlot[]>, fetchedAt: number }>();
 
-/** An area's slots from start up to end, shared by requests within AVAILABILITY_CACHE_MS of each other */
-function areaSlots(site: SpaceSite, area: SpaceArea, start: string, end: string) {
+const saveSlot = db.prepare(`
+    INSERT INTO space_slots (room, start_ms, end_ms, status, observed_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (room, start_ms) DO UPDATE SET end_ms = excluded.end_ms, status = excluded.status, observed_at = excluded.observed_at
+`);
+
+/** Saves every slot just fetched, so once LibCal stops listing one, how it last looked is still known */
+function recordSlots(site: SpaceSite, slots: LibCalSlot[], timeZone: string) {
+    const now = Date.now();
+    transaction(() => {
+        for (const slot of slots) saveSlot.run(`${site.id}-${slot.eid}`, localMs(slot.start, timeZone), localMs(slot.end, timeZone), slot.status, now);
+    });
+}
+
+/** An area's slots from start up to end, shared by requests within AVAILABILITY_CACHE_MS of each other. Fresh ones are recorded */
+function areaSlots(site: SpaceSite, area: SpaceArea, start: string, end: string, timeZone: string) {
     const key = `${site.url}|${area.lid}|${area.gid}|${start}|${end}`;
     const cached = slotsCache.get(key);
     if (cached && Date.now() - cached.fetchedAt < AVAILABILITY_CACHE_MS) return cached.slots;
@@ -205,16 +219,33 @@ function areaSlots(site: SpaceSite, area: SpaceArea, start: string, end: string)
 
     const slots = fetchSlots(site, area, start, end);
     slotsCache.set(key, { slots, fetchedAt: Date.now() });
+    slots.then(fetched => recordSlots(site, fetched, timeZone)).catch(error => {
+        if (!(error instanceof LibCalError)) console.error("Couldn't record study space availability:", error);
+    });
     slots.catch(() => slotsCache.delete(key));
     return slots;
 }
 
 export interface RoomAvailability {
     room: Room;
-    // Every slot LibCal lists, in order. Slots that have started aren't listed
-    slots: (Slot & { startMs: number, endMs: number })[];
-    // Back-to-back free slots joined into stretches
+    // Every slot, in order: what LibCal lists, and before that, slots that have started as they were last seen (past)
+    slots: (Slot & { startMs: number, endMs: number, past?: true })[];
+    // Back-to-back free slots joined into stretches. Only slots that can still be booked count
     free: (FreeTime & { startMs: number, endMs: number })[];
+}
+
+/** Slots LibCal no longer lists, as last recorded, for these rooms from one time up to another */
+function recordedSlots(rooms: string[], from: number, to: number) {
+    if (!rooms.length || to <= from) return new Map<string, { startMs: number, endMs: number, status: SlotStatus }[]>();
+
+    const rows = db.prepare(`
+        SELECT room, start_ms, end_ms, status FROM space_slots
+        WHERE room IN (${rooms.map(() => "?").join(", ")}) AND start_ms >= ? AND start_ms < ?
+    `).all(...rooms, from, to) as { room: string, start_ms: number, end_ms: number, status: SlotStatus }[];
+
+    const byRoom = new Map<string, { startMs: number, endMs: number, status: SlotStatus }[]>();
+    for (const row of rows) byRoom.set(row.room, [...(byRoom.get(row.room) ?? []), { startMs: row.start_ms, endMs: row.end_ms, status: row.status }]);
+    return byRoom;
 }
 
 /**
@@ -233,7 +264,7 @@ export async function getAvailability(schoolId: string, config: SpacesConfig, st
 
     await Promise.all(areas.map(async ({ site, area }) => {
         try {
-            for (const slot of await areaSlots(site, area, start, end)) {
+            for (const slot of await areaSlots(site, area, start, end, tz)) {
                 const id = `${site.id}-${slot.eid}`;
                 slotsByRoom.set(id, [...(slotsByRoom.get(id) ?? []), slot]);
             }
@@ -247,15 +278,22 @@ export async function getAvailability(schoolId: string, config: SpacesConfig, st
     const failed = new Set(errors.map(error => error.location));
     errors.push(...roomErrors.filter(error => !failed.has(error.location)));
 
-    const availability = wanted.filter(room => !failed.has(room.location)).map((room): RoomAvailability => {
-        const slots = (slotsByRoom.get(room.id) ?? [])
-            .map(slot => ({ startMs: localMs(slot.start, tz), endMs: localMs(slot.end, tz), status: slot.status }))
+    // Slots in the range that have already started come from the record
+    const shown = wanted.filter(room => !failed.has(room.location));
+    const past = recordedSlots(shown.map(room => room.id), localMs(`${start} 00:00:00`, tz), Math.min(Date.now(), localMs(`${end} 00:00:00`, tz)));
+
+    const availability = shown.map((room): RoomAvailability => {
+        const live = (slotsByRoom.get(room.id) ?? []).map(slot => ({ startMs: localMs(slot.start, tz), endMs: localMs(slot.end, tz), status: slot.status }));
+        const listed = new Set(live.map(slot => slot.startMs));
+        const recorded = (past.get(room.id) ?? []).filter(slot => !listed.has(slot.startMs)).map(slot => ({ ...slot, past: true as const }));
+
+        const slots = [...recorded, ...live]
             .sort((a, b) => a.startMs - b.startMs)
             .map(slot => ({ ...slot, start: isoIn(slot.startMs, tz), end: isoIn(slot.endMs, tz) }));
 
         const free: RoomAvailability["free"] = [];
         for (const slot of slots) {
-            if (slot.status !== "available") continue;
+            if (slot.status !== "available" || "past" in slot) continue;
             const last = free.at(-1);
             if (last && last.endMs === slot.startMs) last.endMs = slot.endMs;
             else free.push({ startMs: slot.startMs, endMs: slot.endMs, start: "", end: "", minutes: 0 });
@@ -268,6 +306,28 @@ export async function getAvailability(schoolId: string, config: SpacesConfig, st
     return { availability, errors };
 }
 
-/** Leaves out the millisecond fields used for working things out */
-export const plainSlot = ({ start, end, status }: Slot) => ({ start, end, status });
+/** Leaves out the millisecond fields used for working things out. past marks slots that have started, as they were last seen */
+export const plainSlot = ({ start, end, status, past }: Slot & { past?: true }) => ({ start, end, status, ...(past ? { past } : {}) });
+
+// How often today's availability is fetched in the background, so the record is never more than this out of date when a
+// slot starts, even with nobody looking
+const RECORD_EVERY_MS = 5 * 60 * 1000;
+
+/** Keeps the record of every school's availability going: today's, every RECORD_EVERY_MS */
+export function startSpacesRecorder() {
+    const record = () => {
+        for (const config of Object.values(SPACES)) {
+            const today = todayIn(config.timezone);
+            for (const site of config.sites) {
+                for (const area of site.areas) {
+                    areaSlots(site, area, today, addDays(today, 1), config.timezone)
+                        .catch(error => console.warn(`Couldn't record ${area.id}'s availability:`, (error as Error).message));
+                }
+            }
+        }
+    };
+
+    record();
+    setInterval(record, RECORD_EVERY_MS);
+}
 export const plainFree = ({ start, end, minutes }: FreeTime) => ({ start, end, minutes });

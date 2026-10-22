@@ -271,7 +271,8 @@ const schemas: Record<string, Schema> = {
     SpaceSlot: object({
         start: string("ISO 8601 with the school's offset.", "2026-10-21T14:30:00-07:00"),
         end: string(undefined, "2026-10-21T15:00:00-07:00"),
-        status: { type: "string", enum: ["available", "booked", "unavailable"], description: "unavailable means it can't be booked, like when the room's closed or held." }
+        status: { type: "string", enum: ["available", "booked", "unavailable"], description: "unavailable means it can't be booked, like when the room's closed or held." },
+        "past?": { type: "boolean", const: true, description: "The slot has started, so the booking site no longer lists it; this is how it was when it could last be booked. Never counted as free." }
     }),
     FreeTime: object({ start: string(), end: string(), minutes: integer() }, "Back-to-back free slots, joined."),
     Favorite: object({

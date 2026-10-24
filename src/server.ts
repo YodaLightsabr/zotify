@@ -21,7 +21,7 @@ import { spacesDay, spacesFree, spacesIndex, spacesNow, spacesRoom, spacesSchool
 import { decideAuthorization, describeAuthorization, metadata, revoke, token } from "./routes/oauth.js";
 import { openApi } from "./routes/openapi.js";
 import { schoolOfRequest, schoolParam, venueParam } from "./routes/params.js";
-import { addPlaylist, myPlaylists, playlist, playlistQueueStatus, queuePlaylist } from "./routes/playlists.js";
+import { addPlaylist, matchPlaylist, myPlaylists, playlist, playlistMatches, playlistQueueStatus, queuePlaylist } from "./routes/playlists.js";
 import { requestSong } from "./routes/requests.js";
 import {
     adminSchools, deleteRockbotAccount, deleteSchoolRoute, deleteVenueRoute, rockbotAccounts, saveRockbotAccount, saveSchoolRoute,
@@ -122,6 +122,8 @@ v1.get("/venues/:venue/zotify-queue", venueParam, signedIn("music:read"), zotify
 v1.delete("/venues/:venue/zotify-queue/:id", venueParam, member("music:write"), removeFromZotifyQueue);
 v1.put("/venues/:venue/zotify-queue/order", venueParam, schoolAdmin, reorderZotifyQueue);
 v1.delete("/venues/:venue/zotify-queue", venueParam, schoolAdmin, clearZotifyQueue);
+v1.post("/venues/:venue/playlists/:id/matches", venueParam, member("music:read"), matchPlaylist);
+v1.get("/venues/:venue/playlists/:id/matches", venueParam, member("music:read"), playlistMatches);
 v1.post("/venues/:venue/playlists/:id/queue", venueParam, member("music:write"), queuePlaylist);
 v1.get("/venues/:venue/playlists/:id/queue", venueParam, member("music:read"), playlistQueueStatus);
 

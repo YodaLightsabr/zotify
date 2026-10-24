@@ -203,6 +203,20 @@ const schemas: Record<string, Schema> = {
         fetchedAt: timestamp("When its tracks were last read from Spotify."),
         tracks: array(object({ title: string(), artist: string(), "durationMs?": integer(), "uri?": string("Spotify URI.") }))
     }),
+    PlaylistMatches: object({
+        playlistId: string(),
+        venue: string(),
+        startedAt: timestamp("When it started."),
+        finishedAt: nullable(timestamp("When every track had been looked up; null while it's running.")),
+        tracks: array(object({
+            title: string(),
+            artist: string(),
+            "uri?": string("Spotify URI."),
+            state: { type: "string", enum: ["waiting", "done", "failed"], description: "failed means the search didn't work, not that Rockbot doesn't have it." },
+            match: nullable(ref("SearchResult")),
+            duplicate: boolean("An earlier track matched the same song.")
+        }), "Every track in playlist order, with its Rockbot song: null when Rockbot doesn't have it.")
+    }),
     PlaylistJob: object({
         playlistId: string(),
         venue: string(),
@@ -472,6 +486,22 @@ const paths: Record<string, Record<string, unknown>> = {
             body: { schema: object({ ids: array(integer(), "Every waiting song's id, in the new order.") }), example: { ids: [415, 412, 413] } },
             response: { description: "The queue in its new order.", schema: ref("ZotifyQueue") },
             errors: [400, ...AUTH_ERRORS, 404, 409]
+        })
+    },
+    "/v1/venues/{venue}/playlists/{id}/matches": {
+        post: operation("matchPlaylist", {
+            tag: "Playlists", scope: "music:read", access: "member", summary: "Find a playlist's tracks on Rockbot",
+            description: "Starts finding every track of the playlist on Rockbot at the venue, in the background, four at a time, so you can show what can be requested before anyone requests anything. Poll the GET until finishedAt is set. A finished job is kept for ten minutes; send ?fresh=1 to search again. Searches are cached, so requesting the whole playlist afterwards is quick.",
+            parameters: [venue, path("id", "Spotify's playlist ID. Add it first with POST /v1/me/playlists.", "37i9dQZF1DXcBWIGoYBM5M"), query("fresh", "1 to search again even if a recent job finished.")],
+            status: 202,
+            response: { description: "The job.", schema: ref("PlaylistMatches") },
+            errors: [...AUTH_ERRORS, 404]
+        }),
+        get: operation("playlistMatches", {
+            tag: "Playlists", scope: "music:read", access: "member", summary: "How finding a playlist's tracks is going",
+            parameters: [venue, path("id", "Spotify's playlist ID.", "37i9dQZF1DXcBWIGoYBM5M")],
+            response: { description: "The latest job, or null if none was started in the last ten minutes.", schema: nullable(ref("PlaylistMatches")) },
+            errors: [...AUTH_ERRORS, 404]
         })
     },
     "/v1/venues/{venue}/playlists/{id}/queue": {

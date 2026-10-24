@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getPlaylistMatchJob, startPlaylistMatchJob } from "../playlistMatch.js";
 import { getPlaylistQueueJob, startPlaylistQueueJob } from "../playlistQueue.js";
 import { getPlaylist, getPlaylistsFor, linkPlaylist, savePlaylist } from "../playlists.js";
 import { fetchPlaylist, parsePlaylistId, SpotifyPlaylistUnavailableError } from "../spotify.js";
@@ -65,6 +66,34 @@ export function playlist(req: Request, res: Response) {
 
     linkPlaylist(sessionEmail(res), saved.id);
     res.json(saved);
+}
+
+/**
+ * ?fresh=1 to search again. Starts finding every track of the playlist on Rockbot at the venue, in the background, and answers
+ * with the job; GET follows it. Each track gets its Rockbot match (or null), so apps can show what can be requested first
+ */
+export function matchPlaylist(req: Request, res: Response) {
+    const id = playlistIdParam(req);
+    const saved = id ? getPlaylist(id) : null;
+
+    if (!saved) {
+        res.status(404).json({ error: "Zotify doesn't have that playlist. Add it first with its Spotify link.", code: "not_found" });
+        return;
+    }
+
+    res.status(202).json(startPlaylistMatchJob(saved, requestVenue(res), req.query.fresh === "1"));
+}
+
+/** How finding the playlist's tracks at the venue is going, or null if nobody has started it in the last ten minutes */
+export function playlistMatches(req: Request, res: Response) {
+    const id = playlistIdParam(req);
+
+    if (!id) {
+        res.status(404).json({ error: "There's no playlist with that ID.", code: "not_found" });
+        return;
+    }
+
+    res.json(getPlaylistMatchJob(id, requestVenue(res)));
 }
 
 /** Starts requesting every song in the playlist that can be requested at the venue, in the background. Answers with the job */

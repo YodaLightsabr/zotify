@@ -69,9 +69,11 @@ accessory says where each song stands: "In Queue", "Waiting", "Played Recently",
 
 - A **track** link is looked up on Rockbot (`GET /v1/venues/:venue/match?spotify=`), and the matching song shows as the
   only result, with the same actions as any other.
-- A **playlist** link shows "Open Playlist", which pushes a list of its tracks (`POST /v1/me/playlists`). ↵ finds a track on
-  Rockbot and requests it; ⌘↵ asks, then requests the whole playlist in the background
-  (`POST /v1/venues/:venue/playlists/:id/queue`), and each track's tag shows how it went as the server works through them.
+- A **playlist** link shows "Open Playlist", which pushes the playlist (`POST /v1/me/playlists`). The server first finds every
+  track on Rockbot (`POST /v1/venues/:venue/playlists/:id/matches`, then polling it), behind a loading screen that counts up,
+  so only songs that are really there are listed: grouped like search results, then "Not on Rockbot" and "Couldn't Look Up".
+  ↵ does what it does for any search result (Request Song, Upvote…). Request All (⌘⇧↵) asks, then requests every song in the
+  background (`POST /v1/venues/:venue/playlists/:id/queue`), and each song's tag shows how it went. ⌘R searches again.
 
 ### Actions
 

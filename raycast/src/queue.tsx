@@ -354,10 +354,6 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
         {rockbot?.onDeck.map((entry) => entryItem(entry, true))}
       </List.Section>
 
-      <List.Section title="Coming Up" subtitle="By votes">
-        {rockbot?.comingUp.map((entry) => entryItem(entry, true))}
-      </List.Section>
-
       <List.Section title="Waiting in Zotify" subtitle="Goes into Rockbot's queue as there's room">
         {waiting.map((song, index) => (
           <List.Item
@@ -394,6 +390,10 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
             }
           />
         ))}
+      </List.Section>
+
+      <List.Section title="Coming Up" subtitle="By votes">
+        {rockbot?.comingUp.map((entry) => entryItem(entry, true))}
       </List.Section>
 
       <List.Section title="Couldn't Be Requested">

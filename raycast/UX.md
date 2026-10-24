@@ -53,8 +53,9 @@ fight with search. Esc clears the search bar and goes back to the queue, which R
 
 1. **Now Playing:** the song, its artist, album art, and the time left as an accessory, counting down.
 2. **On Deck:** next up, locked in by Rockbot.
-3. **Coming Up:** ordered by votes. Accessories show ▲ upvotes, ▼ downvotes, and a yellow "Zotify" tag for Zotify's picks.
-4. **Waiting in Zotify:** songs waiting for room in Rockbot's queue, numbered, with a "You" tag on yours.
+3. **Waiting in Zotify:** songs waiting for room in Rockbot's queue, numbered, with a "You" tag on yours. They go in after
+   On Deck, so this is where they'll play.
+4. **Coming Up:** ordered by votes. Accessories show ▲ upvotes, ▼ downvotes, and a yellow "Zotify" tag for Zotify's picks.
 5. **Couldn't Be Requested:** recent failures, with the reason as a tooltip.
 
 It refreshes every 15 seconds while open (the server only asks Rockbot that often anyway), and after every action.
@@ -136,12 +137,13 @@ Hovering shows the song, artist and venue. Nothing's playing, or the venue's clo
 ```
 Now Playing at The Anteatery
   ♪ Risk It All                     Bruno Mars · 1:32 left
-Up Next
+On Deck
   Dior Jeans                        GhostRyder
-  Walls (with Jon Bellion)          ▲2
-  … up to 8
 Waiting in Zotify                     (signed in only)
   1. Dancing Queen                  ABBA · You
+Coming Up
+  Walls (with Jon Bellion)          ▲2
+  … up to 8
 ──────────
 Add Song…                           ⌘N
 Open Zotify Queue                   ⌘O

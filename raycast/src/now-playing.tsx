@@ -28,7 +28,7 @@ import {
 // in the background and whenever it's clicked. It never asks to sign in: the queue is public, and Zotify's waiting songs
 // only show when a token is already saved (see savedToken)
 
-// How many upcoming songs the menu lists before "Open Zotify Queue"
+// How many Coming Up songs the menu lists before "more…"
 const UP_NEXT = 8;
 const MAX_TITLE = 24;
 
@@ -59,7 +59,9 @@ export default function NowPlaying() {
   );
 
   const playing = data?.queue?.nowPlaying;
-  const upNext = [...(data?.queue?.onDeck ?? []), ...(data?.queue?.comingUp ?? [])];
+  // In the same order as Zotify Queue: on deck, then Zotify's waiting songs, then the rest of Rockbot's queue
+  const onDeck = data?.queue?.onDeck ?? [];
+  const comingUp = data?.queue?.comingUp ?? [];
   const secondsLeft =
     playing?.secondsRemaining !== undefined && data
       ? Math.max(0, playing.secondsRemaining - (Date.now() - data.fetchedAt) / 1000)
@@ -100,6 +102,12 @@ export default function NowPlaying() {
     />
   );
 
+  const upcoming = (entry: QueueEntry) =>
+    songItem(
+      entry,
+      [entry.artist, entry.zotify ? "Zotify" : null, `▲${entry.upvotes ?? 0}`].filter(Boolean).join(" · "),
+    );
+
   return (
     <MenuBarExtra
       icon={{ source: "menu-bar.png", tintColor: Color.PrimaryText }}
@@ -122,21 +130,7 @@ export default function NowPlaying() {
 
       {!data?.closed && !playing && venue && data && <MenuBarExtra.Item title={`Nothing's playing at ${venue.name}`} />}
 
-      {upNext.length > 0 && (
-        <MenuBarExtra.Section title="Up Next">
-          {upNext
-            .slice(0, UP_NEXT)
-            .map((entry) =>
-              songItem(
-                entry,
-                [entry.artist, entry.zotify ? "Zotify" : null, `▲${entry.upvotes ?? 0}`].filter(Boolean).join(" · "),
-              ),
-            )}
-          {upNext.length > UP_NEXT && (
-            <MenuBarExtra.Item title={`${upNext.length - UP_NEXT} more…`} onAction={() => openQueue()} />
-          )}
-        </MenuBarExtra.Section>
-      )}
+      {onDeck.length > 0 && <MenuBarExtra.Section title="On Deck">{onDeck.map(upcoming)}</MenuBarExtra.Section>}
 
       {!!data?.waiting?.length && (
         <MenuBarExtra.Section title="Waiting in Zotify">
@@ -149,6 +143,15 @@ export default function NowPlaying() {
               onAction={() => openQueue()}
             />
           ))}
+        </MenuBarExtra.Section>
+      )}
+
+      {comingUp.length > 0 && (
+        <MenuBarExtra.Section title="Coming Up">
+          {comingUp.slice(0, UP_NEXT).map(upcoming)}
+          {comingUp.length > UP_NEXT && (
+            <MenuBarExtra.Item title={`${comingUp.length - UP_NEXT} more…`} onAction={() => openQueue()} />
+          )}
         </MenuBarExtra.Section>
       )}
 

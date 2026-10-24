@@ -209,6 +209,45 @@ export async function getVenueQueue(venue: string) {
   }
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  owner?: string;
+  // Spotify only shows the first 100 tracks
+  mayBeTruncated: boolean;
+  tracks: { title: string; artist: string; uri?: string }[];
+}
+
+export type TrackOutcome =
+  | "waiting"
+  | "working"
+  | "queued"
+  | "not-found"
+  | "unavailable"
+  | "already-queued"
+  | "played-recently"
+  | "duplicate"
+  | "failed";
+
+/** Requesting a whole playlist at a venue, which the server works through in the background */
+export interface PlaylistJob {
+  finishedAt: number | null;
+  stoppedEarly: string | null;
+  // Every track in playlist order, and what happened to it
+  tracks: { title: string; artist: string; outcome: TrackOutcome; error?: string }[];
+}
+
+/** A Spotify track or playlist link (or spotify: URI) in some text, like the search bar. Null for anything else */
+export function spotifyLink(text: string): { kind: "track" | "playlist"; url: string } | null {
+  const match = text
+    .trim()
+    .match(/(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?|spotify:)(track|playlist)[/:]([A-Za-z0-9]{22})/i);
+  return match ? { kind: match[1].toLowerCase() as "track" | "playlist", url: text.trim() } : null;
+}
+
+/** A Spotify URI like spotify:track:… as a link to open */
+export const spotifyUrl = (uri: string) => `https://open.spotify.com/${uri.split(":").slice(1).join("/")}`;
+
 export const getSchools = () => zotify<School[]>("/v1/schools", { token: null });
 
 /** "Song by Artist" */

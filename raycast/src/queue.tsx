@@ -11,6 +11,7 @@ import {
   UpvoteWithSubmenu,
   vote,
 } from "./actions";
+import PlaylistView from "./playlist";
 import { useVenue, venueName } from "./venues";
 import {
   clock,
@@ -21,6 +22,7 @@ import {
   ZotifyError,
   type Me,
   type QueueEntry,
+  spotifyLink,
   type SearchResult,
   type ZotifyQueue,
 } from "./zotify";
@@ -82,11 +84,21 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
   );
 
   const searching = searchText.trim().length > 0;
+  // A pasted Spotify link: a track is looked up on Rockbot instead of searched for, and a playlist opens on its own
+  const link = spotifyLink(searchText);
+  const spotifyTrack = useCachedPromise(
+    (id: string, url: string) =>
+      zotify<{ match: SearchResult | null; track: { title: string; artist: string } }>(
+        `/v1/venues/${id}/match?${new URLSearchParams({ spotify: url })}`,
+      ),
+    [venue?.id ?? "", link?.url ?? ""],
+    { execute: !!venue && link?.kind === "track", keepPreviousData: false },
+  );
   const search = useCachedPromise(
     (id: string, query: string) => zotify<SearchResult[]>(`/v1/venues/${id}/search?q=${encodeURIComponent(query)}`),
     [venue?.id ?? "", searchText.trim()],
     {
-      execute: !!venue && searching,
+      execute: !!venue && searching && !link,
       keepPreviousData: true,
       // Not being in the school's Zotify gets its own empty view, not a toast
       onError: (error) => {
@@ -127,7 +139,11 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
   );
 
   const notApproved = me.data && school && !membership?.approved;
-  const isLoading = venueLoading || queue.isLoading || (searching && search.isLoading);
+  const isLoading =
+    venueLoading ||
+    queue.isLoading ||
+    (searching && !link && search.isLoading) ||
+    (link?.kind === "track" && spotifyTrack.isLoading);
 
   if (!venue || !school) {
     return <List isLoading={isLoading || me.isLoading} searchBarAccessory={venueDropdown} />;
@@ -149,8 +165,10 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
 
   // Searching
   if (searching) {
-    const results = search.data ?? [];
-    const notApprovedError = search.error instanceof ZotifyError && search.error.code === "not_approved";
+    const track = link?.kind === "track" ? spotifyTrack : null;
+    const results = track ? (track.data?.match ? [track.data.match] : []) : link ? [] : (search.data ?? []);
+    const error = track ? track.error : search.error;
+    const notApprovedError = error instanceof ZotifyError && error.code === "not_approved";
 
     return (
       <List
@@ -158,17 +176,49 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
         searchText={searchText}
         onSearchTextChange={setSearchText}
         throttle
-        searchBarPlaceholder={`Search songs to request at ${venue.name}…`}
+        searchBarPlaceholder="Search songs or paste a Spotify link…"
         searchBarAccessory={venueDropdown}
       >
         {notApprovedError || notApproved ? (
           joinView
-        ) : search.error ? (
-          <List.EmptyView icon={Icon.Warning} title="Search didn't work" description={search.error.message} />
+        ) : error ? (
+          <List.EmptyView
+            icon={Icon.Warning}
+            title={track ? "Couldn't look up that track" : "Search didn't work"}
+            description={error.message}
+          />
+        ) : track ? (
+          track.data &&
+          !track.data.match && (
+            <List.EmptyView
+              icon={Icon.MagnifyingGlass}
+              title={`Rockbot doesn't have ${track.data.track.title}`}
+              description={`By ${track.data.track.artist}, from Spotify`}
+            />
+          )
         ) : (
+          !link &&
           !search.isLoading && (
             <List.EmptyView icon={Icon.MagnifyingGlass} title={`No songs found for "${searchText.trim()}"`} />
           )
+        )}
+        {link?.kind === "playlist" && !notApproved && (
+          <List.Section title="Spotify Playlist">
+            <List.Item
+              title="Open Playlist"
+              subtitle="See its tracks, and request them"
+              icon={Icon.List}
+              actions={
+                <ActionPanel>
+                  <Action.Push
+                    title="Open Playlist"
+                    icon={Icon.List}
+                    target={<PlaylistView venue={venue} url={link.url} />}
+                  />
+                </ActionPanel>
+              }
+            />
+          </List.Section>
         )}
         {RESULT_GROUPS.map(([group, title]) => {
           const songs = results.filter((song) => resultGroup(song) === group);
@@ -274,7 +324,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
       onSearchTextChange={setSearchText}
       throttle
       selectedItemId={selectedId}
-      searchBarPlaceholder={`Search songs to request at ${venue.name}…`}
+      searchBarPlaceholder="Search songs or paste a Spotify link…"
       searchBarAccessory={venueDropdown}
     >
       {closed ? (

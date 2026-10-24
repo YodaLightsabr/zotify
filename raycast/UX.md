@@ -65,6 +65,14 @@ what you can request first: Available to Play, Only Available at Brandywine, Una
 Rockbot's queue, so ↵ upvotes), and On Cooldown (Zotify already queued it, or played it in the last two hours). The
 accessory says where each song stands: "In Queue", "Waiting", "Played Recently", "At Brandywine", or "Unavailable".
 
+**Spotify links (pasted into the search bar)** aren't searched for:
+
+- A **track** link is looked up on Rockbot (`GET /v1/venues/:venue/match?spotify=`), and the matching song shows as the
+  only result, with the same actions as any other.
+- A **playlist** link shows "Open Playlist", which pushes a list of its tracks (`POST /v1/me/playlists`). ↵ finds a track on
+  Rockbot and requests it; ⌘↵ asks, then requests the whole playlist in the background
+  (`POST /v1/venues/:venue/playlists/:id/queue`), and each track's tag shows how it went as the server works through them.
+
 ### Actions
 
 The first action is ↵ and the second ⌘↵; the rest are in the action panel (⌘K), grouped in sections. Destructive actions

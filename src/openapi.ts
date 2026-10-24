@@ -379,10 +379,16 @@ const paths: Record<string, Record<string, unknown>> = {
     },
     "/v1/venues/{venue}/match": {
         get: operation("match", {
-            tag: "Music", scope: "music:read", access: "member", summary: "Find a song by title and artist",
-            description: "Finds the Rockbot song for a track from somewhere else, like Spotify. match is null when Rockbot doesn't have it.",
-            parameters: [venue, query("title", "The track's title.", "Dancing Queen", true), query("artist", "Its artist.", "ABBA", true)],
-            response: { description: "The best match, if there is one.", schema: object({ match: nullable(ref("SearchResult")) }) },
+            tag: "Music", scope: "music:read", access: "member", summary: "Find a song by title and artist, or a Spotify link",
+            description: "Finds the Rockbot song for a track from somewhere else, like Spotify: send title and artist, or a Spotify track link as spotify. match is null when Rockbot doesn't have it.",
+            parameters: [
+                venue, query("title", "The track's title.", "Dancing Queen"), query("artist", "Its artist.", "ABBA"),
+                query("spotify", "Instead of title and artist, a Spotify track link or URI, like https://open.spotify.com/track/….")
+            ],
+            response: {
+                description: "The best match, if there is one. With spotify, track is the title and artist Spotify gave.",
+                schema: object({ match: nullable(ref("SearchResult")), "track?": object({ title: string(), artist: string() }) })
+            },
             errors: [400, ...AUTH_ERRORS, 404, 502]
         })
     },

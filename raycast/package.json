@@ -2,19 +2,30 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "zotify",
   "title": "Zotify",
-  "description": "See what's playing at your dining hall, request songs on Rockbot, and vote on the queue, with Zotify.",
+  "description": "Request songs on your dining hall's Rockbot and vote on the queue, see what's on the menu, and find a free study room, with Zotify.",
   "icon": "icon.png",
   "author": "itmadden",
-  "categories": ["Media", "Fun"],
+  "categories": [
+    "Media",
+    "Fun"
+  ],
   "license": "MIT",
-  "platforms": ["macOS"],
+  "platforms": [
+    "macOS"
+  ],
   "commands": [
     {
       "name": "queue",
       "title": "Zotify Queue",
       "description": "See what's playing and what's next at a dining hall, and search for songs to request.",
       "mode": "view",
-      "keywords": ["rockbot", "music", "request", "song", "dining hall"]
+      "keywords": [
+        "rockbot",
+        "music",
+        "request",
+        "song",
+        "dining hall"
+      ]
     },
     {
       "name": "now-playing",
@@ -47,6 +58,44 @@
           "required": false
         }
       ]
+    },
+    {
+      "name": "picks",
+      "title": "My Zotify Picks",
+      "description": "Every song you've requested, by day, to request again.",
+      "mode": "view",
+      "keywords": [
+        "history",
+        "requested",
+        "songs"
+      ]
+    },
+    {
+      "name": "meals",
+      "title": "Zotify Meals",
+      "description": "What's on at the dining halls: every meal and dish, with allergens, nutrition and your favorites.",
+      "mode": "view",
+      "keywords": [
+        "menu",
+        "food",
+        "dining hall",
+        "anteatery",
+        "brandywine"
+      ]
+    },
+    {
+      "name": "spaces",
+      "title": "Zotify Spaces",
+      "description": "Study rooms free right now at the libraries and housing, and when every room is free.",
+      "mode": "view",
+      "keywords": [
+        "study room",
+        "library",
+        "book",
+        "room",
+        "langson",
+        "science library"
+      ]
     }
   ],
   "preferences": [
@@ -62,7 +111,7 @@
     {
       "name": "personalAccessToken",
       "title": "Personal Access Token",
-      "description": "Instead of signing in, use a token from www.zotify.app/developers. Give it the music:read and music:write scopes.",
+      "description": "Instead of signing in, use a token from www.zotify.app/developers. Give it the music:read, music:write, meals:read and meals:write scopes.",
       "type": "password",
       "placeholder": "zotify_pat_…",
       "required": false

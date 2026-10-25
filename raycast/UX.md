@@ -11,6 +11,9 @@ purpose.
 | **Zotify Queue** (`queue`) | `view` | The main command: what's playing, what's next, Zotify's own queue, and searching to request songs |
 | **Zotify Now Playing** (`now-playing`) | `menu-bar`, refreshed every minute | The song playing right now in the menu bar, and the queue in its menu |
 | **Add Song to Zotify** (`add-song`) | `no-view`, with a "Song" argument | A shortcut into Zotify Queue's search: type `Add Song`, Tab, a song name, ↵ |
+| **My Zotify Picks** (`picks`) | `view` | Every song you've requested, by day, to request again |
+| **Zotify Meals** (`meals`) | `view` | The dining halls' menus, with a detail pane for each dish, and your favorites |
+| **Zotify Spaces** (`spaces`) | `view` | Study rooms free right now, finding a time, and every room's week |
 
 Add Song is `no-view` because its only job is to launch Zotify Queue with `launchCommand`, passing the typed text as
 `launchContext.searchText`. Raycast then shows Zotify Queue already searching, so there's one search screen, not two.
@@ -180,3 +183,46 @@ raycast/
   src/actions.tsx       the action panels: request, votes, Zotify's queue
   src/downvote-form.tsx the karma override form
 ```
+
+## Joining the beta
+
+Someone who isn't in the venue's school's Zotify sees why in the queue's empty view, and can get in without leaving Raycast:
+**Request to Join** (↵) asks the school's admins, and **Use an Invite Code…** (⌘I) pushes a one-field form. Once they've
+asked, the view says the request is waiting (or wasn't approved).
+
+## Feedback, revisited
+
+- A request's success toast has **Undo** (⌘Z while it's showing), which takes the song back out of Zotify's queue if it hasn't
+  moved into Rockbot's yet. It's the quickest fix for a mistap, and safer than making requests ask first.
+- Failures say why, as text, rather than hiding the reason in a tooltip.
+- **Search Artist** (⌘⇧A) on every song searches for its artist, like clicking an artist on the website.
+
+## My Zotify Picks
+
+Your requests, grouped by day (Today, Yesterday, then dates), with the venue and time on each. The search bar's dropdown is
+the venue to request at, like the website's picker; ↵ is **Request Again**. Search Artist opens Zotify Queue searching.
+
+## Zotify Meals
+
+- **The dropdown is the meal**, like "Today · Lunch · 11 AM–2:30 PM", for the next week, built from both halls' hours. It
+  starts on the meal being served now, or the next one. ⌘] and ⌘[ step to the next and previous meal.
+- **Sections are kinds of counter** (Home-Style, Grill, Salad Bar…) across both halls, in the same order as the website, with
+  each dish's hall as a tag. Your favorites on the meal come first.
+- **The detail pane** has the photo, description, diet tags, allergens (tagged, found in the ingredients, and incomplete),
+  nutrition and ingredients, so browsing never needs another screen.
+- **Diet…** (⌘⇧D) and **Avoid Allergens…** (⌘⇧X) are submenus of toggles, remembered between runs.
+- **Add to Favorites** is ⌘. (Raycast's Pin). **Show Favorite Dishes** (⌘⇧F) pushes them, soonest served first, each with
+  its next serving.
+- Menus are public; favorites need the `meals:read` and `meals:write` scopes. Someone signed in before the extension asked for
+  them gets a toast offering to sign in again.
+
+## Zotify Spaces
+
+Public, so no sign-in. Zotify can't book rooms, so ↵ is always **Book Room**, which opens the room's booking page.
+
+- **The front screen** is rooms free now (or within half an hour), longest first, grouped by location under their casual
+  names (Langson, Science Library…), then **Free Soon**. The dropdown is the room size, remembered. The detail pane has the
+  photo, description, when it's free, size and directions. It refreshes every 30 seconds.
+- **Show This Week** (⌘↵) pushes the room's free times for each of the next seven days.
+- **Find a Time…** (⌘F) pushes a form (day, from, until, size); submitting pushes every room free for all of it.
+- **Browse All Rooms** (⌘B) pushes every room's free times on a day, picked in the dropdown.

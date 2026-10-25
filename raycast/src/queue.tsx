@@ -11,6 +11,7 @@ import {
   UpvoteWithSubmenu,
   vote,
 } from "./actions";
+import { JoinView } from "./join";
 import PlaylistView from "./playlist";
 import { cover, RESULT_GROUPS, resultGroup, SongItem } from "./songs";
 import { useVenue, venueName } from "./venues";
@@ -129,19 +130,8 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
     return <List isLoading={isLoading || me.isLoading} searchBarAccessory={venueDropdown} />;
   }
 
-  // Someone who isn't in the venue's school's Zotify can see the queue but can't search
-  const joinView = (
-    <List.EmptyView
-      icon={Icon.Lock}
-      title={`You're not in ${school.shortName}'s Zotify yet`}
-      description="It's in private beta. Ask to join on the website, and you'll get an email when you're in."
-      actions={
-        <ActionPanel>
-          <Action.OpenInBrowser title="Request to Join" url={`${school.url}/beta`} />
-        </ActionPanel>
-      }
-    />
-  );
+  // Someone who isn't in the venue's school's Zotify can see the queue, and join from here
+  const joinView = <JoinView school={school} request={membership?.request ?? null} onJoined={() => me.revalidate()} />;
 
   // Searching
   if (searching) {
@@ -199,6 +189,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
                         school={school}
                         url={link.url}
                         venueTitle={(id) => venueName(schools, id)}
+                        onSearchArtist={setSearchText}
                       />
                     }
                   />
@@ -250,7 +241,9 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
                     );
                     refresh();
                   }}
-                  common={<CommonActions song={song} school={school} onRefresh={refresh} />}
+                  common={
+                    <CommonActions song={song} school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
+                  }
                 />
               ))}
             </List.Section>
@@ -294,7 +287,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
               {admin && <DownvoteWithSubmenu venue={venue} entry={entry} onDone={refresh} />}
             </ActionPanel.Section>
           )}
-          <CommonActions song={entry} school={school} onRefresh={refresh} />
+          <CommonActions song={entry} school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
         </ActionPanel>
       }
     />
@@ -343,7 +336,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
             ]}
             actions={
               <ActionPanel title={playing.name}>
-                <CommonActions song={playing} school={school} onRefresh={refresh} />
+                <CommonActions song={playing} school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
               </ActionPanel>
             }
           />
@@ -385,7 +378,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
                   )}
                 </ActionPanel.Section>
                 {admin && <AdminQueueActions venue={venue} waiting={waiting} index={index} onChange={changeWaiting} />}
-                <CommonActions school={school} onRefresh={refresh} />
+                <CommonActions school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
               </ActionPanel>
             }
           />
@@ -404,7 +397,10 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
             title={song.name}
             subtitle={song.artist}
             icon={{ source: Icon.Warning, tintColor: Color.Orange }}
-            accessories={[{ date: new Date(song.failedAt), tooltip: song.error ?? "Rockbot wouldn't take it" }]}
+            accessories={[
+              { text: song.error ?? "Rockbot wouldn't take it", tooltip: song.error ?? undefined },
+              { date: new Date(song.failedAt) },
+            ]}
             actions={
               <ActionPanel title={song.name}>
                 <Action
@@ -415,7 +411,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
                     zotifyQueue.revalidate();
                   }}
                 />
-                <CommonActions song={song} school={school} onRefresh={refresh} />
+                <CommonActions song={song} school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
               </ActionPanel>
             }
           />

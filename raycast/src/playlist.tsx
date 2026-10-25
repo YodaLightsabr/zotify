@@ -1,4 +1,16 @@
-import { Action, ActionPanel, Color, confirmAlert, Detail, Icon, Keyboard, List, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  confirmAlert,
+  Detail,
+  Icon,
+  Keyboard,
+  List,
+  showToast,
+  Toast,
+  useNavigation,
+} from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { useEffect, useState } from "react";
 import { CommonActions, requestSong, vote, withToast } from "./actions";
@@ -64,9 +76,12 @@ interface Props {
   school: School;
   url: string;
   venueTitle: (id: string) => string;
+  // Back to Zotify Queue, searching for an artist
+  onSearchArtist: (artist: string) => void;
 }
 
-export default function PlaylistView({ venue, school, url, venueTitle }: Props) {
+export default function PlaylistView({ venue, school, url, venueTitle, onSearchArtist }: Props) {
+  const { pop } = useNavigation();
   // Adding it reads it fresh from Spotify, and puts it in your playlists on the website too
   const playlist = usePromise(() => zotify<Playlist>("/v1/me/playlists", { method: "POST", body: { url } }), [], {
     failureToastOptions: { title: "Couldn't open that playlist" },
@@ -191,7 +206,15 @@ export default function PlaylistView({ venue, school, url, venueTitle }: Props) 
           onAction={requestAll}
         />
       </ActionPanel.Section>
-      <CommonActions song={song} school={school} onRefresh={() => findTracks(true)} />
+      <CommonActions
+        song={song}
+        school={school}
+        onRefresh={() => findTracks(true)}
+        onSearchArtist={(artist) => {
+          pop();
+          onSearchArtist(artist);
+        }}
+      />
     </>
   );
 

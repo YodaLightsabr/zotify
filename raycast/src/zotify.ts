@@ -1,4 +1,4 @@
-import { getPreferenceValues, launchCommand, LaunchType, OAuth } from "@raycast/api";
+import { getPreferenceValues, launchCommand, LaunchType, OAuth, showToast, Toast } from "@raycast/api";
 import { getAccessToken, OAuthService } from "@raycast/utils";
 
 // Signing in to Zotify, and calling its API (docs.zotify.app). The queue command signs in with withAccessToken; the menu bar
@@ -23,7 +23,9 @@ export const client = new OAuth.PKCEClient({
 export const zotifyAuth = new OAuthService({
   client,
   clientId: CLIENT_ID,
-  scope: ["music:read", "music:write", ...(preferences.adminTools ? ["admin"] : [])].join(" "),
+  scope: ["music:read", "music:write", "meals:read", "meals:write", ...(preferences.adminTools ? ["admin"] : [])].join(
+    " ",
+  ),
   authorizeUrl: `${SITE_URL}/oauth/authorize`,
   tokenUrl: `${API_URL}/v1/oauth/token`,
   bodyEncoding: "url-encoded",
@@ -103,6 +105,27 @@ export async function zotify<T>(
   return data as T;
 }
 
+/**
+ * For a request the saved token isn't allowed to make (code insufficient_scope), like Zotify Meals' favorites for people who
+ * signed in before it asked for them: offers to sign in again, which asks for every scope the extension uses now
+ */
+export async function offerToSignInAgain(command: string, what: string) {
+  await showToast({
+    style: Toast.Style.Failure,
+    title: `Sign in again to use ${what}`,
+    message: preferences.personalAccessToken ? "Give your personal access token the scope it needs" : undefined,
+    primaryAction: preferences.personalAccessToken
+      ? undefined
+      : {
+          title: "Sign In Again",
+          onAction: async () => {
+            await client.removeTokens();
+            await launchCommand({ name: command, type: LaunchType.UserInitiated });
+          },
+        },
+  });
+}
+
 /** Tells the menu bar to fetch the queue again, after something changed it. Fine if it isn't turned on */
 export function refreshMenuBar() {
   launchCommand({ name: "now-playing", type: LaunchType.Background }).catch(() => {});
@@ -127,7 +150,14 @@ export interface Me {
   email: string;
   // What this token may do; null for sessions
   scopes: string[] | null;
-  schools: { id: string; name: string; admin: boolean; approved: boolean }[];
+  schools: {
+    id: string;
+    name: string;
+    admin: boolean;
+    approved: boolean;
+    // Their request to join, if they've asked
+    request: { status: "pending" | "approved" | "rejected"; requestedAt: number } | null;
+  }[];
 }
 
 export interface QueueEntry {

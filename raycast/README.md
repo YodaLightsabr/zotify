@@ -1,10 +1,13 @@
 # Zotify for Raycast
 
-See what's playing at your dining hall, request songs on Rockbot, and vote on the queue, with [Zotify](https://www.zotify.app).
+See what's playing at your dining hall, request songs on Rockbot, vote on the queue, see what's on the menu, and find a study room, with [Zotify](https://www.zotify.app).
 
 - **Zotify Queue:** what's playing, what's next, and Zotify's own queue. Type to search for a song, and ↵ to request it.
 - **Zotify Now Playing:** the song playing right now in your menu bar, with the queue in its menu.
 - **Add Song to Zotify:** type `Add Song`, Tab, a song, and ↵.
+- **My Zotify Picks:** every song you've requested, to request again.
+- **Zotify Meals:** what's on at the dining halls, with allergens, nutrition and your favorite dishes.
+- **Zotify Spaces:** study rooms free right now at the libraries and housing, and when every room is free.
 
 Zotify is in private beta at each school, so you'll need to be in your school's Zotify to search and request. Ask to join at www.zotify.app.
 

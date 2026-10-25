@@ -80,8 +80,42 @@ export function requestSong(venue: Venue, song: { id: string; name: string; arti
     (result) => ({
       title: result.alreadyWaiting ? `${song.name} was already waiting` : `Requested ${song.name}`,
       message: `#${result.position} in Zotify's queue at ${venue.name}`,
+      // Takes it back out, as long as it's still waiting in Zotify's queue
+      primaryAction: result.alreadyWaiting
+        ? undefined
+        : {
+            title: "Undo",
+            shortcut: { modifiers: ["cmd"], key: "z" },
+            onAction: (toast) => undoRequest(venue, song, toast),
+          },
     }),
   );
+}
+
+/** Takes a song you just requested back out of Zotify's queue, if it hasn't moved into Rockbot's yet */
+async function undoRequest(venue: Venue, song: { id: string; name: string }, toast: Toast) {
+  Object.assign(toast, {
+    style: Toast.Style.Animated,
+    title: `Taking ${song.name} back out…`,
+    message: undefined,
+    primaryAction: undefined,
+  });
+
+  try {
+    const { waiting } = await zotify<{ waiting: ZotifySong[] }>(`/v1/venues/${venue.id}/zotify-queue`);
+    const entry = waiting.find((candidate) => candidate.songId === song.id && candidate.mine);
+    if (!entry) throw new Error("It's already in Rockbot's queue");
+
+    await zotify(`/v1/venues/${venue.id}/zotify-queue/${entry.id}`, { method: "DELETE" });
+    Object.assign(toast, { style: Toast.Style.Success, title: `Took ${song.name} back out` });
+    refreshMenuBar();
+  } catch (error) {
+    Object.assign(toast, {
+      style: Toast.Style.Failure,
+      title: `Couldn't undo ${song.name}`,
+      message: (error as Error).message,
+    });
+  }
 }
 
 /** Upvote with every account that hasn't voted yet */
@@ -337,18 +371,29 @@ export function AdminQueueActions({
   );
 }
 
-/** Copy, refresh and open the website: at the bottom of every action panel */
+/** Search the artist, copy, refresh and open the website: at the bottom of every action panel */
 export function CommonActions({
   song,
   school,
   onRefresh,
+  onSearchArtist,
 }: {
   song?: { name: string; artist: string };
   school?: School;
   onRefresh: () => void;
+  // Searches for the song's artist, like clicking an artist on the website
+  onSearchArtist?: (artist: string) => void;
 }) {
   return (
     <ActionPanel.Section>
+      {song?.artist && onSearchArtist && (
+        <Action
+          title="Search Artist"
+          icon={Icon.MagnifyingGlass}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+          onAction={() => onSearchArtist(song.artist)}
+        />
+      )}
       {song && (
         <Action.CopyToClipboard
           title="Copy Song Name"

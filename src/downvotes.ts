@@ -8,9 +8,8 @@ import { castVotes, type VoteResult } from "./votes.js";
 // An admin tool for meme songs nobody wants, like the Gummy Bear Song. These rules keep it from being used on anything with real support
 export const ZOTIFY_DOWNVOTES = 6;
 // Songs with positive karma (more upvotes than downvotes) are protected; neutral and negative ones aren't.
-// Trolls can often get an upvote or two, so a raw upvote limit would protect them
-// Someone outside Zotify has to have downvoted it first
-const OUTSIDE_DOWNVOTES_NEEDED = 1;
+// Trolls can often get an upvote or two, so a raw upvote limit would protect them.
+// Nobody else has to have downvoted it first: admins asked to act on meme songs (like Swans) the moment they're queued
 // Picks never come back once played, so a day is plenty to remember them
 const RECORD_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -33,6 +32,7 @@ export interface DownvoteCheck {
     downvotes: number | null;
     // Upvotes minus downvotes
     karma: number | null;
+    // Downvotes from people outside Zotify, for information
     outsideDownvotes: number | null;
     downvotedAt: number | null;
     // True when karma protection is the only thing in the way, so an admin can override it with a reason
@@ -93,7 +93,6 @@ export async function checkDownvote(venue: VenueName, pickId: string): Promise<D
     const counts = { upvotes: upvoters.length, downvotes: downvoters.length, karma, outsideDownvotes };
 
     if (upvoters.some(name => ours.has(name.toLowerCase()))) return refuse("Zotify accounts have upvoted it", counts);
-    if (outsideDownvotes < OUTSIDE_DOWNVOTES_NEEDED) return refuse("Someone else needs to downvote it first", counts);
 
     // Upvotes usually mean real support, but coordinated groups can upvote their own griefing, so admins can override this one rule
     if (karma > 0) {

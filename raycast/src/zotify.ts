@@ -212,7 +212,9 @@ export interface DownvoteCheck {
   reason: string | null;
   karma: number | null;
   overridable: boolean;
-  // The most accounts that can downvote
+  // Downvotes Zotify has added already; it adds 6 at most, so a song can be downvoted again until then
+  zotifyDownvotes: number | null;
+  // How many more Zotify can add now
   count: number;
 }
 

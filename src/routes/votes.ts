@@ -27,7 +27,7 @@ export async function pickVotes(req: Request, res: Response) {
     try {
         const [{ total, voted, available }, down] = await Promise.all([
             getVoteCapacity(venue, pickId),
-            canDownvote(res) ? checkDownvote(venue, pickId).then(({ entry, ...check }) => ({ ...check, count: ZOTIFY_DOWNVOTES })) : null
+            canDownvote(res) ? checkDownvote(venue, pickId).then(({ entry, ...check }) => check) : null
         ]);
 
         res.json({ up: { total, voted, available }, down });
@@ -43,8 +43,9 @@ export async function pickVotes(req: Request, res: Response) {
  * Up (the default): count is how many accounts vote, all of them by default; a negative count means all but that many. songId,
  * from search results, lets later searches show the song as boosted.
  *
- * Down, admins only: count is 1 to ZOTIFY_DOWNVOTES accounts, all of them by default, if every rule allows it; 409 with the
- * reason if not. overrideReason gets past karma protection only, and is recorded
+ * Down, admins only: count more accounts downvote it (all that are left by default), if every rule allows it, up to
+ * ZOTIFY_DOWNVOTES from Zotify in all; it can be downvoted again until then. 409 with the reason if not. overrideReason gets past
+ * karma protection only, and is recorded
  */
 export async function votePick(req: Request, res: Response) {
     const body = req.body ?? {};
@@ -112,14 +113,14 @@ async function downvote(req: Request, res: Response) {
     const pickId = pickIdParam(req);
     const venue = requestVenue(res);
     const overrideReason = typeof req.body?.overrideReason === "string" ? req.body.overrideReason.trim() : undefined;
-    const count = req.body?.count ?? ZOTIFY_DOWNVOTES;
+    const count = req.body?.count;
 
     if (!canDownvote(res)) {
         res.status(403).json({ error: "Only admins can downvote, with the admin scope.", code: "forbidden" });
         return;
     }
 
-    if (!Number.isInteger(count) || count < 1 || count > ZOTIFY_DOWNVOTES) {
+    if (count !== undefined && (!Number.isInteger(count) || count < 1 || count > ZOTIFY_DOWNVOTES)) {
         res.status(400).json({ error: `Downvote with 1 to ${ZOTIFY_DOWNVOTES} accounts.`, code: "invalid_request" });
         return;
     }

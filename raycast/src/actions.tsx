@@ -216,7 +216,8 @@ export async function downvote(venue: Venue, entry: QueueEntry, count: number, o
 }
 
 /**
- * For admins: Zotify's downvote rules, loaded when it opens. Lists counts when they allow it, the override form when karma
+ * For admins: Zotify's downvote rules, loaded when it opens. A song can be downvoted again, a few accounts at a time, until
+ * Zotify has added 6. Lists counts when they allow it, the override form when karma
  * protection is all that's in the way, and the reason when they don't
  */
 export function DownvoteWithSubmenu({ venue, entry, onDone }: { venue: Venue; entry: QueueEntry; onDone: () => void }) {
@@ -233,18 +234,22 @@ export function DownvoteWithSubmenu({ venue, entry, onDone }: { venue: Venue; en
     >
       {error && <Action title={error} icon={Icon.Warning} />}
       {votes && !check && <Action title="Only Admins Can Downvote" icon={Icon.Lock} />}
+      {!!check?.zotifyDownvotes && <Action title={`Zotify Has Added ${check.zotifyDownvotes} of 6`} icon={Icon.Info} />}
+      {/* Fewest first: start with as few as will do, and come back for more */}
       {check?.allowed &&
-        counts(check.count).map((count) => (
-          <Action
-            key={count}
-            title={count === check.count ? `All ${accounts(count)}` : accounts(count)}
-            icon={Icon.ArrowDown}
-            style={Action.Style.Destructive}
-            onAction={async () => {
-              if (await downvote(venue, entry, count)) onDone();
-            }}
-          />
-        ))}
+        counts(check.count)
+          .reverse()
+          .map((count) => (
+            <Action
+              key={count}
+              title={count === check.count && count > 1 ? `All ${count} Left` : accounts(count)}
+              icon={Icon.ArrowDown}
+              style={Action.Style.Destructive}
+              onAction={async () => {
+                if (await downvote(venue, entry, count)) onDone();
+              }}
+            />
+          ))}
       {check && !check.allowed && (
         <Action title={check.reason ?? "Zotify's rules don't allow it"} icon={Icon.XMarkCircle} />
       )}

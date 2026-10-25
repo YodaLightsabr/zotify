@@ -174,9 +174,9 @@ const schemas: Record<string, Schema> = {
         downvotes: nullable(integer()),
         karma: nullable(integer("Upvotes minus downvotes. Songs with positive karma are protected.")),
         outsideDownvotes: nullable(integer("Downvotes from people outside Zotify, for information.")),
-        downvotedAt: nullable(timestamp("When Zotify last downvoted it.")),
+        zotifyDownvotes: nullable(integer("Downvotes Zotify has added already. It adds 6 at most, so a song can be downvoted again until then.")),
         overridable: boolean("Whether karma protection is the only thing in the way, so an overrideReason gets past it."),
-        count: integer("The most accounts that can downvote.")
+        count: integer("How many more downvotes Zotify can add now: what's left of its 6, among accounts that haven't downvoted it.")
     }),
     Pick: object({
         pickId: string(),
@@ -435,12 +435,12 @@ const paths: Record<string, Record<string, unknown>> = {
         }),
         post: operation("votePick", {
             tag: "Votes", scope: "music:write", access: "member", summary: "Vote on a song in the queue",
-            description: "Votes on a pick with Zotify's Rockbot accounts, then checks the votes landed and re-sends any that didn't, so it can take a few seconds.\n\nUp is for anyone. Down is only for the school's admins, with the admin scope, and only for songs nobody really wants: it's refused (409) for songs Zotify queued, boosted or upvoted, and for songs with positive karma. An overrideReason gets past karma protection, and is recorded.",
+            description: "Votes on a pick with Zotify's Rockbot accounts, then checks the votes landed and re-sends any that didn't, so it can take a few seconds.\n\nUp is for anyone. Down is only for the school's admins, with the admin scope, and only for songs nobody really wants: it's refused (409) for songs Zotify queued, boosted or upvoted, and for songs with positive karma. An overrideReason gets past karma protection, and is recorded. A song can be downvoted again, a few accounts at a time, until Zotify has added 6.",
             parameters: [venue, path("pickId", "From the queue or search results.", "50556543023105")],
             body: {
                 schema: object({
                     "direction?": { type: "string", enum: ["up", "down"], default: "up" },
-                    "count?": integer("How many accounts vote. Up: all of them by default, and a negative number means all but that many. Down: 1 to 6, 6 by default."),
+                    "count?": integer("How many accounts vote. Up: all of them by default, and a negative number means all but that many. Down: how many more to add, all that are left by default; Zotify adds 6 at most in all, so start with as few as will do."),
                     "songId?": string("Up only: the song's ID from search results, so later searches show it as voted up."),
                     "overrideReason?": string("Down only: why it's worth overriding karma protection, 3 to 200 characters.")
                 }),

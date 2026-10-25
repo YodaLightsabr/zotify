@@ -55,7 +55,9 @@ interface DownvoteCheck {
     karma: number | null;
     upvotes: number | null;
     downvotes: number | null;
-    // The most accounts that can downvote
+    // Downvotes Zotify has added already; it adds 6 at most, so a song can be downvoted again until then
+    zotifyDownvotes: number | null;
+    // How many more Zotify can add now
     count: number;
 }
 
@@ -143,7 +145,7 @@ function Content({ song, venue, admin, close, onVoted, onArtist }: ContentProps)
     // For admins: why downvoting is or isn't possible
     const downvoteNote = !canDownvote ? null
         : check === null ? "Couldn't check whether this can be downvoted."
-        : check?.allowed ? `${check.karma! > 0 ? `+${check.karma}` : check.karma} karma (${check.upvotes} up, ${check.downvotes} down). Downvotes are only for meme songs.`
+        : check?.allowed ? `${check.karma! > 0 ? `+${check.karma}` : check.karma} karma (${check.upvotes} up, ${check.downvotes} down).${check.zotifyDownvotes ? ` Zotify has added ${check.zotifyDownvotes} of its 6.` : ""} Downvotes are only for meme songs; start with as few as will do.`
         : check?.overridable ? `${check.reason} Go below zero to override it with a reason.`
         : check?.reason ?? null;
 

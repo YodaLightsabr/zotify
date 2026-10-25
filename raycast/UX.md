@@ -109,7 +109,8 @@ Every result also has Copy Song Name (⌘⇧C), Refresh (⌘R) and Open Zotify (
 
 - **Upvote with…** is an `ActionPanel.Submenu` that loads, when opened (`onOpen`), how many of Zotify's accounts can still
   vote, and lists "1 Account" to "All 12 Accounts". This replaces the website's vote dialog: picking a number is the confirmation.
-- **Downvote with…** loads Zotify's downvote rules when opened. If they allow it, it lists counts, and picking one asks with a
+- **Downvote with…** loads Zotify's downvote rules when opened. Counts are listed fewest first, since a song can be
+  downvoted again (until Zotify has added 6), so admins start with as few as will do; it says how many Zotify has added. If they allow it, it lists counts, and picking one asks with a
   destructive `confirmAlert`. If karma protection is the only thing in the way, it has "Override Karma Protection…", which
   pushes a small `Form` (count and reason, ⌘↵ to submit). Otherwise it shows the reason as a disabled item.
 - **Remove from Queue** and **Clear Zotify's Queue** ask with `confirmAlert` first.

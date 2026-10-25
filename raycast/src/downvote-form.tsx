@@ -46,12 +46,17 @@ export default function DownvoteForm({ venue, entry, most, karma, onDone }: Prop
         title="Karma Protection"
         text={`${entry.name} has ${karma === null ? "positive" : `+${karma}`} karma, so people want it. Override only for a good reason; it's recorded.`}
       />
-      <Form.Dropdown id="count" title="Accounts" defaultValue={String(most)}>
-        {Array.from({ length: most }, (_, i) => most - i).map((count) => (
+      <Form.Dropdown
+        id="count"
+        title="Accounts"
+        defaultValue="1"
+        info="Start with as few as will do; you can add more later."
+      >
+        {Array.from({ length: most }, (_, i) => i + 1).map((count) => (
           <Form.Dropdown.Item
             key={count}
             value={String(count)}
-            title={count === most ? `All ${count}` : String(count)}
+            title={count === most && count > 1 ? `All ${count} Left` : String(count)}
           />
         ))}
       </Form.Dropdown>

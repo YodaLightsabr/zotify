@@ -1,11 +1,12 @@
-import { getHomeAccount, getLiveAccounts, rockbotVenue, type VenueName } from "./accounts.js";
+import { getAccountsForVenue, getHomeAccount, getLiveAccounts, rockbotVenue, type VenueName } from "./accounts.js";
 import type { QueueEntry } from "./client.js";
 import { cache } from "./cache.js";
 import { getRecentlyBoosted, getRecentlyQueued } from "./queued.js";
 import { getVenueQueue, isFromZotify, queueEntries } from "./venueQueue.js";
 import { castVotes, type VoteResult } from "./votes.js";
 
-// An admin tool for meme songs nobody wants, like the Gummy Bear Song. These rules keep it from being used on anything with real support
+// An admin tool for meme songs nobody wants, like the Gummy Bear Song. These rules keep it from being used on anything with real support.
+// Zotify adds at most this many downvotes to a pick in all. Admins add as few as will do, and more later if they need to
 export const ZOTIFY_DOWNVOTES = 6;
 // Songs with positive karma (more upvotes than downvotes) are protected; neutral and negative ones aren't.
 // Trolls can often get an upvote or two, so a raw upvote limit would protect them.
@@ -13,16 +14,16 @@ export const ZOTIFY_DOWNVOTES = 6;
 // Picks never come back once played, so a day is plenty to remember them
 const RECORD_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Who downvoted what, and why when they overrode karma protection: each time, since a pick can be downvoted more than once
 interface DownvoteRecord {
+    pickId: string;
     name: string;
     artist: string;
     by: string;
+    count: number;
     downvotedAt: number;
-    // Set when an admin overrode karma protection, with why and what the karma was
     override?: { reason: string, karma: number | null };
 }
-
-type DownvoteLog = Record<string, Record<string, DownvoteRecord>>;
 
 export interface DownvoteCheck {
     allowed: boolean;
@@ -34,7 +35,10 @@ export interface DownvoteCheck {
     karma: number | null;
     // Downvotes from people outside Zotify, for information
     outsideDownvotes: number | null;
-    downvotedAt: number | null;
+    // Downvotes Zotify has added already
+    zotifyDownvotes: number | null;
+    // How many more Zotify can add now: what's left of ZOTIFY_DOWNVOTES, among accounts that haven't downvoted it
+    count: number;
     // True when karma protection is the only thing in the way, so an admin can override it with a reason
     overridable: boolean;
 }
@@ -49,30 +53,26 @@ export class DownvoteRefusedError extends Error {
     }
 }
 
-async function readLog(): Promise<DownvoteLog> {
-    const log: DownvoteLog = (await cache.get(["downvoted"])) ?? {};
+/** Adds a downvote to the record, dropping ones from more than a day ago */
+async function record(entry: DownvoteRecord, venue: VenueName) {
+    const log: Record<string, DownvoteRecord[]> = (await cache.get(["downvoted"])) ?? {};
     const cutoff = Date.now() - RECORD_TTL_MS;
+    // Records from before a pick could be downvoted more than once were one object per pick, not a list
+    const kept = Array.isArray(log[venue]) ? log[venue].filter(old => old.downvotedAt >= cutoff) : [];
 
-    for (const picks of Object.values(log)) {
-        for (const [pickId, record] of Object.entries(picks)) {
-            if (record.downvotedAt < cutoff) delete picks[pickId];
-        }
-    }
-
-    return log;
+    log[venue] = [...kept, entry];
+    await cache.set(["downvoted"], log);
 }
 
-// Two admins clicking at once shouldn't both get through before the record is saved
+// Two admins clicking at once shouldn't both get through before Rockbot shows the first one's downvotes
 const inProgress = new Set<string>();
 
 const refuse = (reason: string, counts: Partial<DownvoteCheck> = {}): DownvoteCheck =>
-    ({ allowed: false, reason, upvotes: null, downvotes: null, karma: null, outsideDownvotes: null, downvotedAt: null, overridable: false, ...counts });
+    ({ allowed: false, reason, upvotes: null, downvotes: null, karma: null, outsideDownvotes: null, zotifyDownvotes: null, count: 0, overridable: false, ...counts });
 
-/** Whether Zotify may downvote this pick right now, checked against Rockbot's current votes */
+/** Whether Zotify may downvote this pick right now, and how many more times, checked against Rockbot's current votes */
 export async function checkDownvote(venue: VenueName, pickId: string): Promise<DownvoteCheck & { entry?: QueueEntry }> {
-    const record = (await readLog())[venue]?.[pickId];
-    if (record) return refuse(`Already downvoted by ${record.by.replace(/@uci\.edu$/, "")}`, { downvotedAt: record.downvotedAt });
-    if (inProgress.has(`${venue}:${pickId}`)) return refuse("Already being downvoted");
+    if (inProgress.has(`${venue}:${pickId}`)) return refuse("It's being downvoted right now");
 
     const queue = await getVenueQueue(venue).queue;
     const entry = queueEntries(queue).find(entry => entry.pickId === pickId);
@@ -83,30 +83,38 @@ export async function checkDownvote(venue: VenueName, pickId: string): Promise<D
     if (boosted.some(song => song.pickId === pickId)) return refuse("Zotify boosted this song");
 
     // Fresh from Rockbot, not the queue cache, since votes change quickly
-    const [{ upvoters, downvoters }, accounts] = await Promise.all([
+    const [{ upvoters, downvoters }, accounts, eligible] = await Promise.all([
         rockbotVenue((await getHomeAccount(venue)).client, venue).fetchPickVotes(pickId),
-        getLiveAccounts()
+        getLiveAccounts(),
+        getAccountsForVenue(venue)
     ]);
     const ours = new Set(accounts.map(account => account.username.toLowerCase()));
-    const outsideDownvotes = downvoters.filter(name => !ours.has(name.toLowerCase())).length;
+    const downvoted = new Set(downvoters.map(name => name.toLowerCase()));
+    const zotifyDownvotes = downvoters.filter(name => ours.has(name.toLowerCase())).length;
     const karma = upvoters.length - downvoters.length;
-    const counts = { upvotes: upvoters.length, downvotes: downvoters.length, karma, outsideDownvotes };
+
+    // What's left of the cap, among this venue's accounts that haven't downvoted it yet
+    const left = eligible.filter(account => !downvoted.has(account.username.toLowerCase())).length;
+    const count = Math.max(0, Math.min(ZOTIFY_DOWNVOTES - zotifyDownvotes, left));
+    const counts = { upvotes: upvoters.length, downvotes: downvoters.length, karma, outsideDownvotes: downvoters.length - zotifyDownvotes, zotifyDownvotes, count };
 
     if (upvoters.some(name => ours.has(name.toLowerCase()))) return refuse("Zotify accounts have upvoted it", counts);
+    if (!count) return refuse(`Zotify has added ${zotifyDownvotes} downvotes, the most it will`, counts);
 
     // Upvotes usually mean real support, but coordinated groups can upvote their own griefing, so admins can override this one rule
     if (karma > 0) {
         return { ...refuse(`It has +${karma} karma (${upvoters.length} up, ${downvoters.length} down), so it's protected`, counts), overridable: true, entry };
     }
 
-    return { allowed: true, reason: null, ...counts, downvotedAt: null, overridable: false, entry };
+    return { allowed: true, reason: null, ...counts, overridable: false, entry };
 }
 
 /**
- * Downvotes a pick from up to ZOTIFY_DOWNVOTES accounts (count of them), once, if every rule allows it. An admin can get past
- * karma protection (and only that) by giving a reason, which is recorded. Throws DownvoteRefusedError otherwise
+ * Downvotes a pick with count more of Zotify's accounts, if every rule allows it, up to ZOTIFY_DOWNVOTES in all; asking for more
+ * than are left adds what's left. An admin can get past karma protection (and only that) by giving a reason, which is recorded.
+ * Throws DownvoteRefusedError otherwise
  */
-export async function downvotePick(venue: VenueName, pickId: string, adminEmail: string, overrideReason?: string, count = ZOTIFY_DOWNVOTES): Promise<VoteResult> {
+export async function downvotePick(venue: VenueName, pickId: string, adminEmail: string, overrideReason?: string, count?: number): Promise<VoteResult> {
     const check = await checkDownvote(venue, pickId);
     const overriding = !check.allowed && check.overridable && !!overrideReason;
 
@@ -116,22 +124,18 @@ export async function downvotePick(venue: VenueName, pickId: string, adminEmail:
     inProgress.add(key);
 
     try {
-        const result = await castVotes(venue, pickId, check.entry, Math.min(Math.max(1, count), ZOTIFY_DOWNVOTES), "down");
+        const result = await castVotes(venue, pickId, check.entry, Math.min(Math.max(1, count ?? check.count), check.count), "down");
 
-        // Record it unless nothing at all went through, in which case it can be tried again
-        if (result.confirmed !== 0 || !result.requested) {
-            const log = await readLog();
-            log[venue] = {
-                ...log[venue],
-                [pickId]: {
-                    name: check.entry.name,
-                    artist: check.entry.artist,
-                    by: adminEmail,
-                    downvotedAt: Date.now(),
-                    ...(overriding ? { override: { reason: overrideReason!, karma: check.karma } } : {})
-                }
-            };
-            await cache.set(["downvoted"], log);
+        if (result.requested) {
+            await record({
+                pickId,
+                name: check.entry.name,
+                artist: check.entry.artist,
+                by: adminEmail,
+                count: result.confirmed ?? result.requested,
+                downvotedAt: Date.now(),
+                ...(overriding ? { override: { reason: overrideReason!, karma: check.karma } } : {})
+            }, venue);
         }
 
         const override = overriding ? ` (overrode +${check.karma} karma: "${overrideReason}")` : "";

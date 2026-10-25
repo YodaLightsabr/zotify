@@ -54,8 +54,8 @@ fight with search. Esc clears the search bar and goes back to the queue, which R
 
 **The queue (empty search bar)**, in sections:
 
-1. **Now Playing:** the song, its artist, album art, and the minutes left as an accessory. It moves on with each
-   15-second refresh rather than a timer of its own, since every render sends the whole list to Raycast.
+1. **Now Playing:** the song, its artist, album art, and the time left as an accessory, counting down every second. The
+   timer lives in the row's own component, so only that row re-renders, not the whole list.
 2. **On Deck:** next up, locked in by Rockbot.
 3. **Waiting in Zotify:** songs waiting for room in Rockbot's queue, numbered, with a "You" tag on yours. They go in after
    On Deck, so this is where they'll play.

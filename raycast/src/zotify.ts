@@ -171,8 +171,10 @@ export interface QueueEntry {
   zotify: boolean;
 }
 
+export type NowPlaying = QueueEntry & { duration?: number; secondsRemaining?: number };
+
 export interface VenueQueue {
-  nowPlaying: (QueueEntry & { duration?: number; secondsRemaining?: number }) | null;
+  nowPlaying: NowPlaying | null;
   onDeck: QueueEntry[];
   comingUp: QueueEntry[];
 }

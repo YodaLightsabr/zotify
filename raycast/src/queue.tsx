@@ -16,12 +16,14 @@ import PlaylistView from "./playlist";
 import { cover, RESULT_GROUPS, resultGroup, SongItem } from "./songs";
 import { useVenue, venueName } from "./venues";
 import {
+  clock,
   getVenueQueue,
   songName,
   zotify,
   zotifyAuth,
   ZotifyError,
   type Me,
+  type NowPlaying,
   type QueueEntry,
   spotifyLink,
   type SearchResult,
@@ -92,8 +94,8 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
     if (searching) search.revalidate();
   };
 
-  // Keep the queue fresh while it's open. There's no separate timer for the playing song's time left: every render sends the
-  // whole list to Raycast, so it moves on with each refresh instead, in whole minutes
+  // Keep the queue fresh while it's open. The playing song's time left counts down in NowPlayingItem, so only that row
+  // re-renders every second
   useEffect(() => {
     const poll = setInterval(() => {
       queue.revalidate();
@@ -254,10 +256,6 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
   const waiting = zotifyQueue.data?.waiting ?? [];
   const failures = zotifyQueue.data?.failures ?? [];
   const playing = rockbot?.nowPlaying;
-  const secondsLeft =
-    playing?.secondsRemaining !== undefined
-      ? Math.max(0, playing.secondsRemaining - (now - fetchedAt) / 1000)
-      : undefined;
   const empty = !playing && !rockbot?.onDeck.length && !rockbot?.comingUp.length && !waiting.length;
 
   const entryItem = (entry: QueueEntry, upcoming: boolean) => (
@@ -319,25 +317,9 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
 
       {playing && (
         <List.Section title={`Now Playing at ${venue.name}`}>
-          <List.Item
-            id={`pick-${playing.pickId}`}
-            title={playing.name}
-            subtitle={playing.artist}
-            icon={cover(playing.cover)}
-            accessories={[
-              ...(playing.zotify
-                ? [{ tag: { value: "Zotify", color: Color.Yellow }, tooltip: "Requested through Zotify" }]
-                : []),
-              ...(secondsLeft !== undefined
-                ? [
-                    {
-                      icon: Icon.Clock,
-                      text: secondsLeft < 60 ? "Ending" : `${Math.round(secondsLeft / 60)} min left`,
-                      tooltip: `Ends about ${new Date(now + secondsLeft * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
-                    },
-                  ]
-                : []),
-            ]}
+          <NowPlayingItem
+            playing={playing}
+            fetchedAt={fetchedAt}
             actions={
               <ActionPanel title={playing.name}>
                 <CommonActions song={playing} school={school} onRefresh={refresh} onSearchArtist={setSearchText} />
@@ -422,6 +404,48 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
         ))}
       </List.Section>
     </List>
+  );
+}
+
+/**
+ * The playing song, counting down its time left. The timer is in here so that only this row re-renders every second, not the
+ * whole list
+ */
+function NowPlayingItem({
+  playing,
+  fetchedAt,
+  actions,
+}: {
+  playing: NowPlaying;
+  fetchedAt: number;
+  actions: React.ReactNode;
+}) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const secondsLeft =
+    playing.secondsRemaining !== undefined
+      ? Math.max(0, playing.secondsRemaining - (now - fetchedAt) / 1000)
+      : undefined;
+
+  return (
+    <List.Item
+      id={`pick-${playing.pickId}`}
+      title={playing.name}
+      subtitle={playing.artist}
+      icon={cover(playing.cover)}
+      accessories={[
+        ...(playing.zotify
+          ? [{ tag: { value: "Zotify", color: Color.Yellow }, tooltip: "Requested through Zotify" }]
+          : []),
+        ...(secondsLeft !== undefined ? [{ icon: Icon.Clock, text: `${clock(secondsLeft)} left` }] : []),
+      ]}
+      actions={actions}
+    />
   );
 }
 

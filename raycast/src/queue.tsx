@@ -16,7 +16,6 @@ import PlaylistView from "./playlist";
 import { cover, RESULT_GROUPS, resultGroup, SongItem } from "./songs";
 import { useVenue, venueName } from "./venues";
 import {
-  clock,
   getVenueQueue,
   songName,
   zotify,
@@ -47,7 +46,6 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
   const [selectedId, setSelectedId] = useState<string | undefined>(
     launchContext?.pickId ? `pick-${launchContext.pickId}` : undefined,
   );
-  const [now, setNow] = useState(Date.now());
 
   const me = useCachedPromise(() => zotify<Me>("/v1/me"), [], { keepPreviousData: true });
   const { venue, school, schools, setVenue, isLoading: venueLoading } = useVenue(me.data);
@@ -94,17 +92,14 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
     if (searching) search.revalidate();
   };
 
-  // Keep the queue fresh while it's open, and the playing song's time counting down
+  // Keep the queue fresh while it's open. There's no separate timer for the playing song's time left: every render sends the
+  // whole list to Raycast, so it moves on with each refresh instead, in whole minutes
   useEffect(() => {
     const poll = setInterval(() => {
       queue.revalidate();
       zotifyQueue.revalidate();
     }, REFRESH_MS);
-    const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => {
-      clearInterval(poll);
-      clearInterval(tick);
-    };
+    return () => clearInterval(poll);
   }, [venue?.id]);
 
   const venueDropdown = (
@@ -254,6 +249,7 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
   }
 
   // The queue
+  const now = Date.now();
   const { queue: rockbot, closed, fetchedAt } = queue.data ?? { queue: null, closed: null, fetchedAt: now };
   const waiting = zotifyQueue.data?.waiting ?? [];
   const failures = zotifyQueue.data?.failures ?? [];
@@ -332,7 +328,15 @@ function Queue({ launchContext }: LaunchProps<{ launchContext: Context }>) {
               ...(playing.zotify
                 ? [{ tag: { value: "Zotify", color: Color.Yellow }, tooltip: "Requested through Zotify" }]
                 : []),
-              ...(secondsLeft !== undefined ? [{ icon: Icon.Clock, text: `${clock(secondsLeft)} left` }] : []),
+              ...(secondsLeft !== undefined
+                ? [
+                    {
+                      icon: Icon.Clock,
+                      text: secondsLeft < 60 ? "Ending" : `${Math.round(secondsLeft / 60)} min left`,
+                      tooltip: `Ends about ${new Date(now + secondsLeft * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
+                    },
+                  ]
+                : []),
             ]}
             actions={
               <ActionPanel title={playing.name}>

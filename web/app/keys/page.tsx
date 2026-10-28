@@ -351,7 +351,6 @@ function Dashboard({ overview, onChange, reload, setStep }: {
                 </div>
             </div>
             <dl className="keys-facts">
-                {device.serial !== null && <div><dt>Serial</dt><dd>{device.serial}</dd></div>}
                 <div><dt>Public ID</dt><dd><code>{device.publicId}</code></dd></div>
                 <div><dt>Passcodes left</dt><dd>{device.countersLeft.toLocaleString()}</dd></div>
             </dl>

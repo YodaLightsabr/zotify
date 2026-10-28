@@ -222,7 +222,6 @@ function RegisterStep({ draft, message, onBack, onDone }: {
             </p>
             <a className="keys-button primary big" href={DUO_ENROLL_URL} target="_blank" rel="noreferrer">Open UCI&apos;s YubiKey enrollment ↗</a>
             <div className="copy-fields">
-                <CopyField label="Serial number" value={String(draft.serial)} />
                 <CopyField label="Public ID" value={draft.publicId} />
                 <CopyField label="Private ID" value={draft.privateId} />
                 <CopyField label="AES key" value={draft.aesKey} />

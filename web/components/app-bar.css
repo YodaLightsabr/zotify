@@ -148,7 +148,7 @@ button.app-bar-avatar:hover, button.app-bar-avatar[aria-expanded="true"] { box-s
 .apps-tile:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
 .apps-tile.current { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .apps-tile strong { margin-top: 4px; font-size: 0.9rem; }
-.apps-tile span { color: var(--muted); font-size: 0.75rem; line-height: 1.25; }
+.apps-tile-description { color: var(--muted); font-size: 0.75rem; line-height: 1.25; }
 
 .app-icon {
     display: grid;

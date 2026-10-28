@@ -133,7 +133,7 @@ function AppSwitcher({ current, open, onToggle, onClose }: MenuProps & { current
                                 href={app.id === current ? "/" : app.url} onClick={onClose}>
                                 <AppIcon app={app} />
                                 <strong>{app.name}</strong>
-                                <span>{app.description}</span>
+                                <span className="apps-tile-description">{app.description}</span>
                             </a>
                         ))}
                     </div>

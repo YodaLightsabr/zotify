@@ -163,5 +163,5 @@ In development, run `npm run dev` and `npm run dev:web` side by side.
 - `src/scripts/`: one-off scripts
 - `web/app/`: the pages (home, sign in, private beta, invite links, My picks, admin, developers, OAuth sign-in), Zotify Meals (`meals/`), Zotify Spaces (`spaces/`), Zotify Keys (`keys/`) and the API docs (`docs/`)
 - `keys-extension/`: the Zotify Keys Chrome extension
-- `web/components/`: shared components, including the `Navbar` on the homepage, My picks and admin
+- `web/components/`: shared components, including the `AppBar` every app shares (its app switcher and account menu are always top right) and Zotify's `Navbar` and `TabBar`
 - `web/lib/`: the API client, the signed-in user, and formatting helpers

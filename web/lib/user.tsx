@@ -14,6 +14,16 @@ export interface CurrentUser {
     developer: boolean;
     approved: boolean;
     request: { status: "pending" | "approved" | "rejected", requestedAt: number } | null;
+    // Where they stand at every school, for the account menu
+    schools: SchoolStanding[];
+}
+
+export interface SchoolStanding {
+    id: string;
+    name: string;
+    admin: boolean;
+    approved: boolean;
+    request: CurrentUser["request"];
 }
 
 /** GET /v1/me, which says where someone stands at every school */
@@ -21,7 +31,7 @@ interface Me {
     email: string;
     siteAdmin: boolean;
     developer: boolean;
-    schools: { id: string, admin: boolean, approved: boolean, request: CurrentUser["request"] }[];
+    schools: SchoolStanding[];
 }
 
 interface UserState {
@@ -50,7 +60,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 siteAdmin: me.siteAdmin,
                 developer: me.developer,
                 approved: here?.approved ?? false,
-                request: here?.request ?? null
+                request: here?.request ?? null,
+                schools: me.schools
             };
             setUser(current);
             return current;

@@ -35,7 +35,7 @@
 
     .admin-layout main { max-width: none; margin: 0; padding: 0; }
 
-    .admin-nav { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 4px; }
+    .admin-nav { position: sticky; top: calc(var(--app-bar-height) + 16px); align-self: start; display: flex; flex-direction: column; gap: 4px; }
     .admin-nav ul { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 
     .admin-nav-title {

@@ -18,44 +18,11 @@
 
 .keys { display: contents; }
 
-/* The bar along the top */
-.keys-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 16px 24px;
-    max-width: 680px;
-    width: 100%;
-    margin: 0 auto;
-}
-
-.keys-logo span { color: var(--accent); }
-
-.keys-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-
-.keys-nav-link {
-    padding: 6px 14px;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: none;
-    color: var(--muted);
-    font: inherit;
-    font-size: 0.9rem;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.keys-nav-link:hover { color: var(--text); }
-.keys-nav-link.signin { color: var(--on-accent); background: var(--accent); font-weight: 700; }
-.keys-nav-link.subtle { font-size: 0.8rem; }
-
 .keys-main {
     width: 100%;
     max-width: 680px;
     margin: 0 auto;
-    padding: 8px 24px 48px;
+    padding: 24px 24px 48px;
     color: var(--text);
 
     h1 {
@@ -302,8 +269,4 @@
         .copy-field { grid-template-columns: 1fr auto; }
         .copy-label { grid-column: 1 / -1; }
     }
-}
-
-@media (max-width: 560px) {
-    .keys-header { padding: 12px 16px; }
 }

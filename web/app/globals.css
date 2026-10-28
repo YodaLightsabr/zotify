@@ -23,7 +23,9 @@
 
 * { box-sizing: border-box; }
 
-html, body { margin: 0; height: 100%; }
+/* body grows with the page (min-height below), so the app bar can stick to the top all the way down */
+html, body { margin: 0; }
+html { height: 100%; }
 
 button, input { font-family: inherit; }
 

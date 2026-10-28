@@ -20,36 +20,7 @@
 
 .spaces { display: contents; }
 
-/* The bar along the top */
-.spaces-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 16px 24px;
-}
-
-.spaces-logo span { color: var(--accent); }
-.spaces-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-
-.spaces-nav-link {
-    padding: 6px 14px;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    color: var(--muted);
-    font-size: 0.9rem;
-    text-decoration: none;
-}
-
-.spaces-nav-link:hover { color: var(--text); }
-.spaces-nav-link.current { color: var(--text); border-color: var(--border); background: var(--surface); }
-.spaces-nav-link.subtle { font-size: 0.8rem; }
-
-.spaces-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 8px 24px 48px; }
+.spaces-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 20px 24px 48px; }
 .spaces-main.narrow { max-width: 760px; }
 
 .spaces-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
@@ -244,7 +215,7 @@
 
 /* Phones */
 @media (max-width: 700px) {
-    .spaces-header, .spaces-main { padding-left: 16px; padding-right: 16px; }
+    .spaces-main { padding-left: 16px; padding-right: 16px; }
     .spaces-cards { grid-template-columns: minmax(0, 1fr); }
     /* Each row of chips scrolls sideways, so free rooms stay near the top */
     .spaces-filters .spaces-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }

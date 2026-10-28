@@ -19,45 +19,11 @@
 
 .meals { display: contents; }
 
-/* The bar along the top */
-.meals-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 16px 24px;
-    max-width: 1100px;
-    width: 100%;
-    margin: 0 auto;
-}
-
-.meals-logo span { color: var(--accent); }
-
-.meals-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-
-.meals-nav-link {
-    padding: 6px 14px;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: none;
-    color: var(--muted);
-    font: inherit;
-    font-size: 0.9rem;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.meals-nav-link:hover { color: var(--text); }
-.meals-nav-link.current { color: var(--text); border-color: var(--border); }
-.meals-nav-link.signin { color: var(--on-accent); background: var(--accent); font-weight: 700; }
-.meals-nav-link.subtle { font-size: 0.8rem; }
-
 .meals-main {
     width: 100%;
     max-width: 1100px;
     margin: 0 auto;
-    padding: 0 24px 48px;
+    padding: 20px 24px 48px;
 }
 
 .meals-main.narrow { max-width: 640px; }
@@ -76,7 +42,8 @@
 /* Day, meal and filters, kept in reach while scrolling */
 .meals-controls {
     position: sticky;
-    top: 0;
+    /* Under the app bar */
+    top: var(--app-bar-height);
     z-index: 5;
     display: flex;
     flex-direction: column;
@@ -340,7 +307,7 @@
 
 /* Phones: one hall at a time, picked with the toggle */
 @media (max-width: 760px) {
-    .meals-header, .meals-main { padding-left: 16px; padding-right: 16px; }
+    .meals-main { padding-left: 16px; padding-right: 16px; }
     .meals-controls { margin: 0 -16px 16px; padding: 10px 16px; }
     .meals-hall-toggle { display: flex; }
     .meals-grid { grid-template-columns: minmax(0, 1fr); }

@@ -104,8 +104,8 @@ export function getVenue(id: unknown) {
 export function schoolForHost(host: string | undefined) {
     const name = host?.toLowerCase().trim();
     if (!name) return null;
-    // zotify.app (which redirects to www), Zotify Meals, Zotify Spaces and Zotify Keys are the main school's
-    if (name === MAIN_HOST || name === SITE_DOMAIN || [MEALS_SUBDOMAIN, SPACES_SUBDOMAIN, KEYS_SUBDOMAIN].some(subdomain => name === `${subdomain}.${SITE_DOMAIN}`)) return mainSchool();
+    // zotify.app (which redirects to www), Zotify Meals, Zotify Spaces, Zotify Keys and the API docs are the main school's
+    if (name === MAIN_HOST || name === SITE_DOMAIN || [MEALS_SUBDOMAIN, SPACES_SUBDOMAIN, KEYS_SUBDOMAIN, DOCS_SUBDOMAIN].some(subdomain => name === `${subdomain}.${SITE_DOMAIN}`)) return mainSchool();
     if (!name.endsWith(`.${SITE_DOMAIN}`)) return null;
 
     const row = selectBySubdomain.get(name.slice(0, -SITE_DOMAIN.length - 1)) as SchoolRow | undefined;

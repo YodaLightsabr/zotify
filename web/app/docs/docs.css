@@ -23,20 +23,6 @@
 .docs code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; overflow-wrap: anywhere; }
 
 /* The bar along the top */
-.docs-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-}
-
-.docs-logo span { color: var(--accent); }
-.docs-header-link { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
-.docs-header-link:hover { color: var(--text); }
-
 .docs-body {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
@@ -50,9 +36,10 @@
 /* The sidebar, which stays put while the page scrolls */
 .docs-nav {
     position: sticky;
-    top: 0;
+    /* Under the app bar */
+    top: var(--app-bar-height);
     align-self: start;
-    max-height: 100vh;
+    max-height: calc(100vh - var(--app-bar-height));
     overflow-y: auto;
     padding: 28px 0;
 }
@@ -142,7 +129,6 @@
 
 /* Phones and narrow windows: the sidebar goes above, as a row of links */
 @media (max-width: 860px) {
-    .docs-header { padding: 14px 16px; }
     .docs-body { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 16px; }
     .docs-nav { position: static; max-height: none; padding: 12px 0; border-bottom: 1px solid var(--border); }
     .docs-nav > ul { display: flex; flex-wrap: wrap; gap: 4px; }

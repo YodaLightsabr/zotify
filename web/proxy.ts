@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DOCS_HOST, DOCS_URL, INTERNAL_API_URL, MAIN_HOST, MAIN_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SPACES_HOST, SPACES_URL } from "./lib/config";
+import { DOCS_HOST, DOCS_URL, INTERNAL_API_URL, KEYS_HOST, KEYS_URL, MAIN_HOST, MAIN_URL, MEALS_HOST, MEALS_URL, SITE_DOMAIN, SPACES_HOST, SPACES_URL } from "./lib/config";
 import { SCHOOL_HEADER } from "./lib/currentSchool";
 import type { SchoolInfo } from "./lib/school";
 
@@ -7,7 +7,7 @@ import type { SchoolInfo } from "./lib/school";
 // www.zotify.app is the main school, a configured subdomain like uf.zotify.app is that school, and zotify.app itself and any
 // other subdomain are sent to www.zotify.app. The school is handed to the pages in a request header, so they render as that school from the start.
 // meals.zotify.app is Zotify Meals, the main school's, served from the pages under app/meals; spaces.zotify.app is Zotify
-// Spaces, from app/spaces; and docs.zotify.app is the API's docs, from app/docs
+// Spaces, from app/spaces; keys.zotify.app is Zotify Keys, from app/keys; and docs.zotify.app is the API's docs, from app/docs
 
 // How long the list of schools is reused before asking the API again
 const SCHOOLS_TTL_MS = 30_000;
@@ -53,16 +53,16 @@ export async function proxy(request: NextRequest) {
         return NextResponse.rewrite(new URL(`/meals${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
     }
 
-    // The API's docs and Zotify Spaces, the same way: docs.zotify.app/authentication is app/docs/authentication
-    for (const [subsite, subsiteHost] of [["docs", DOCS_HOST], ["spaces", SPACES_HOST]]) {
+    // The API's docs, Zotify Spaces and Zotify Keys, the same way: docs.zotify.app/authentication is app/docs/authentication
+    for (const [subsite, subsiteHost] of [["docs", DOCS_HOST], ["spaces", SPACES_HOST], ["keys", KEYS_HOST]]) {
         if (host !== subsiteHost || !main) continue;
         headers.set(SCHOOL_HEADER, encodeURIComponent(JSON.stringify(main)));
         if (pathname === "/og" || pathname.startsWith(`/${subsite}`)) return NextResponse.next({ request: { headers } });
         return NextResponse.rewrite(new URL(`/${subsite}${pathname === "/" ? "" : pathname}${search}`, request.url), { request: { headers } });
     }
 
-    // Zotify Meals, Zotify Spaces and the docs live at their own addresses
-    for (const [subsite, url] of [["meals", MEALS_URL], ["spaces", SPACES_URL], ["docs", DOCS_URL]]) {
+    // Zotify Meals, Zotify Spaces, Zotify Keys and the docs live at their own addresses
+    for (const [subsite, url] of [["meals", MEALS_URL], ["spaces", SPACES_URL], ["keys", KEYS_URL], ["docs", DOCS_URL]]) {
         if (pathname === `/${subsite}` || pathname.startsWith(`/${subsite}/`)) {
             return NextResponse.redirect(`${url}${pathname.slice(subsite.length + 1) || "/"}${search}`);
         }

@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Zotify Keys",
+  "version": "1.0.0",
+  "description": "Completes Duo prompts with a one-time passcode from your Zotify Keys virtual YubiKey.",
+  "homepage_url": "https://keys.zotify.app",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.zotify.app/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.duosecurity.com/*"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "action": {
+    "default_title": "Zotify Keys"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

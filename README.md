@@ -23,6 +23,7 @@ The API and the frontend run separately and talk over CORS, with the session coo
 | API (`src/`) | http://localhost:3001 | https://api.zotify.app |
 | Frontend (`web/`) | http://localhost:3000 | https://www.zotify.app |
 | API docs (`web/app/docs`) | http://docs.localhost:3000 | https://docs.zotify.app |
+| Zotify Keys (`web/app/keys`) | http://keys.localhost:3000 | https://keys.zotify.app |
 
 The API always listens on port 3001 (`API_PORT` can move it, for testing) and the frontend on 3000. The URLs are hardcoded in `src/config.ts` and `web/lib/config.ts`, picked by `NODE_ENV`: `npm start` runs the API as production, and `next build` builds the frontend as production. Only schools' own sites get the session cookie; any other site can call the API with a token. Magic links and invite links in emails point at the frontend.
 
@@ -86,6 +87,14 @@ Availability changes by the minute, so unlike Meals it's fetched from LibCal for
 | `GET /v1/spaces/uci/rooms/lib-44696?days=7` | One room's slots over the next few days |
 
 `?capacity=4` and `?location=langson,science` narrow any of them. Times are ISO 8601 in the school's timezone. If a booking site can't be reached, its rooms are left out and listed in `errors`.
+
+## Zotify Keys
+
+A virtual YubiKey for Duo, at keys.zotify.app (`web/app/keys`), ported from [yksim](https://github.com/MikhailRyazanov/yksim)'s JavaScript version. People in the beta add a Yubico OTP key (serial number or public ID, private ID, AES key and usage counter) and make API keys for the Zotify Keys Chrome extension (`keys-extension/`). On a Duo prompt, the extension picks the YubiKey option, asks `POST /v1/keys/otp` for a passcode and submits it. `npm run build` packs the extension into `web/public/keys/zotify-keys.zip`, which the page links to. `src/keys/yubikey.ts` and the extension are GPL-3.0-or-later, like yksim.
+
+- The private ID and AES key are encrypted with AES-256-GCM using `KEYS_SECRET` (64 hex digits) from `.env`, or `.keys-secret` next to the database, made the first time it's needed. Backups don't include it, so keep a copy of it somewhere safe: without it, saved keys can't be used.
+- Duo rejects any passcode whose counter isn't higher than the last it accepted, so each passcode is made and the counter raised in one transaction, and it can only go up (to 32767). Restoring an older database rolls counters back: afterwards, have everyone raise theirs on keys.zotify.app.
+- API keys (`zotify_key_…`) are stored hashed, can only make passcodes (30 an hour) and check themselves (`GET /v1/keys/whoami`), and nothing else in the API accepts them. Every passcode is listed on the page.
 
 ## Live updates
 
@@ -152,6 +161,7 @@ In development, run `npm run dev` and `npm run dev:web` side by side.
 - `src/openapi.ts`: the API's OpenAPI description, which the docs are built from
 - `src/`: Rockbot client, caching, search, queuing, voting and Spotify modules
 - `src/scripts/`: one-off scripts
-- `web/app/`: the pages (home, sign in, private beta, invite links, My picks, admin, developers, OAuth sign-in), Zotify Meals (`meals/`) and the API docs (`docs/`)
+- `web/app/`: the pages (home, sign in, private beta, invite links, My picks, admin, developers, OAuth sign-in), Zotify Meals (`meals/`), Zotify Spaces (`spaces/`), Zotify Keys (`keys/`) and the API docs (`docs/`)
+- `keys-extension/`: the Zotify Keys Chrome extension
 - `web/components/`: shared components, including the `Navbar` on the homepage, My picks and admin
 - `web/lib/`: the API client, the signed-in user, and formatting helpers

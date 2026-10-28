@@ -12,6 +12,10 @@ import {
     createAppRoute, createTokenRoute, deleteAppRoute, deleteTokenRoute, developerRoute, developers, myApps, myAuthorizations,
     myTokens, resetSecretRoute, revokeAuthorizationRoute, updateAppRoute
 } from "./routes/developers.js";
+import {
+    createTokenRoute as createKeysTokenRoute, deleteDeviceRoute, deleteTokenRoute as deleteKeysTokenRoute, keysMember, keysOverview, otpRoute,
+    raiseCounterRoute, randomSecretsRoute, saveDeviceRoute, whoamiRoute
+} from "./routes/keys.js";
 import { match } from "./routes/match.js";
 import {
     addFavoriteRoute, mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus, myFavorites, removeFavoriteRoute
@@ -147,6 +151,17 @@ v1.get("/spaces/:school/now", spacesNow);
 v1.get("/spaces/:school/availability", spacesDay);
 v1.get("/spaces/:school/free", spacesFree);
 v1.get("/spaces/:school/rooms/:room", spacesRoom);
+
+// Zotify Keys (see routes/keys.ts): managed on keys.zotify.app, and the extension's OTPs, by its own API keys
+v1.get("/keys", sessionOnly, keysMember, keysOverview);
+v1.put("/keys/device", sessionOnly, keysMember, saveDeviceRoute);
+v1.patch("/keys/device", sessionOnly, keysMember, raiseCounterRoute);
+v1.delete("/keys/device", sessionOnly, keysMember, deleteDeviceRoute);
+v1.get("/keys/random", sessionOnly, keysMember, randomSecretsRoute);
+v1.post("/keys/tokens", sessionOnly, keysMember, createKeysTokenRoute);
+v1.delete("/keys/tokens/:id", sessionOnly, keysMember, deleteKeysTokenRoute);
+v1.post("/keys/otp", otpRoute);
+v1.get("/keys/whoami", whoamiRoute);
 
 // A school's admins (and site admins): its beta, history and Zotify's queue (above)
 v1.get("/schools/:school/beta", schoolParam, schoolAdmin, overviewRoute);

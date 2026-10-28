@@ -1,0 +1,182 @@
+/* Zotify Keys (keys.zotify.app). Its pages are only ever reached on that address, so these don't meet Zotify's own pages.
+   It keeps Zotify's dark theme */
+
+.keys { display: contents; }
+
+/* The bar along the top */
+.keys-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.keys-logo span { color: var(--accent); }
+
+.keys-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+.keys-nav-link {
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.keys-nav-link:hover { color: var(--text); }
+.keys-nav-link.signin { color: var(--on-accent); background: var(--accent); font-weight: 700; }
+.keys-nav-link.subtle { font-size: 0.8rem; }
+
+.keys-main {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+
+    h1 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 0 0 8px;
+    }
+
+    .intro { margin: 0 0 20px; color: var(--muted); }
+    a { color: var(--accent); }
+
+    .keys-panel {
+        margin-bottom: 20px;
+        padding: 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .keys-panel.subtle { background: none; }
+    .keys-panel h2 { margin: 0 0 8px; font-size: 1.15rem; }
+    .keys-panel > p { margin: 0 0 12px; }
+
+    .muted { color: var(--muted); }
+    .small { font-size: 0.85rem; }
+    .error { margin: 8px 0 0; color: var(--error); font-size: 0.9rem; }
+    .warning { margin: 0 0 12px; color: var(--accent); font-weight: 600; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; overflow-wrap: anywhere; }
+
+    .keys-facts {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 6px 16px;
+        margin: 0 0 16px;
+    }
+
+    .keys-facts dt { color: var(--muted); font-size: 0.9rem; }
+    .keys-facts dd { margin: 0; }
+
+    .keys-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+    .keys-list li {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--bg);
+        border-radius: 10px;
+    }
+
+    .keys-list li > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .keys-name { font-weight: 700; }
+
+    .keys-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+    .keys-button {
+        padding: 9px 16px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: none;
+        color: var(--text);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .keys-button:hover { border-color: var(--accent); }
+    .keys-button.small { padding: 5px 12px; font-size: 0.8rem; }
+    .keys-button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .keys-button.danger { color: var(--error); border-color: var(--error); }
+
+    .keys-link { padding: 0; border: none; background: none; color: var(--placeholder); font: inherit; font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
+
+    .keys-form { display: flex; flex-direction: column; gap: 10px; }
+    .keys-form .keys-actions { margin-top: 4px; }
+
+    /* One field and its button side by side */
+    .keys-form.inline { flex-direction: row; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+    .keys-form.inline label { flex: 1; min-width: 180px; }
+
+    .keys-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 600; }
+    .keys-form label .muted { font-weight: 400; }
+
+    .keys-form input[type="text"], .keys-form input[type="number"] {
+        padding: 9px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font: inherit;
+        font-weight: 400;
+    }
+
+    .keys-form input[spellcheck="false"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; }
+    .keys-form ::placeholder { color: var(--placeholder); }
+
+    .keys-choice { display: flex; flex-wrap: wrap; gap: 16px; margin: 0; padding: 0; border: none; }
+    .keys-choice legend { margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; }
+    .keys-choice label { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; font-size: 0.9rem; }
+
+    .keys-steps { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+    .keys-uses { list-style: none; margin: 0; padding: 0; font-size: 0.9rem; }
+
+    .keys-uses li {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .keys-uses li:last-child { border-bottom: none; }
+
+    .keys-rules { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 0.9rem; }
+
+    .reveal {
+        margin-bottom: 16px;
+        padding: 12px;
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+    }
+
+    .reveal p { margin: 0 0 8px; }
+    .keys-form .reveal { margin: 0; }
+    .keys-form .reveal p { margin: 0; font-weight: 400; }
+    .reveal-value { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .reveal-value code { flex: 1; padding: 8px 10px; background: var(--bg); border-radius: 8px; }
+
+    @media (max-width: 560px) {
+        padding: 0 16px 24px;
+        .keys-list li { flex-direction: column; }
+    }
+}
+
+@media (max-width: 560px) {
+    .keys-header { padding: 12px 16px; }
+}

@@ -9,9 +9,10 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.ts",
     "dev:web": "next dev web --port 3000",
-    "build": "tsc && next build web",
+    "build": "tsc && npm run pack:keys && next build web",
     "build:api": "tsc",
     "build:web": "next build web",
+    "pack:keys": "node dist/scripts/pack-keys-extension.js",
     "start": "NODE_ENV=production node --env-file-if-exists=.env --disable-warning=ExperimentalWarning dist/server.js",
     "start:web": "next start web --port 3000",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web",

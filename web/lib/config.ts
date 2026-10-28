@@ -21,6 +21,10 @@ export const MEALS_URL = `${SITE_PROTOCOL}://${MEALS_HOST}`;
 export const SPACES_HOST = `spaces.${SITE_DOMAIN}`;
 export const SPACES_URL = `${SITE_PROTOCOL}://${SPACES_HOST}`;
 
+// Zotify Keys, a virtual YubiKey for Duo: keys.zotify.app, served from the pages under app/keys (see proxy.ts)
+export const KEYS_HOST = `keys.${SITE_DOMAIN}`;
+export const KEYS_URL = `${SITE_PROTOCOL}://${KEYS_HOST}`;
+
 // The API's docs: docs.zotify.app, served from the pages under app/docs (see proxy.ts)
 export const DOCS_HOST = `docs.${SITE_DOMAIN}`;
 export const DOCS_URL = `${SITE_PROTOCOL}://${DOCS_HOST}`;

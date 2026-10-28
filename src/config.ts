@@ -20,6 +20,9 @@ export const MEALS_SUBDOMAIN = "meals";
 // Zotify Spaces' dashboard, at spaces.zotify.app
 export const SPACES_SUBDOMAIN = "spaces";
 
+// Zotify Keys, a virtual YubiKey for Duo, at keys.zotify.app
+export const KEYS_SUBDOMAIN = "keys";
+
 // The API's docs, at docs.zotify.app
 export const DOCS_SUBDOMAIN = "docs";
 export const DOCS_URL = siteUrl(DOCS_SUBDOMAIN);

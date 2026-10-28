@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Zotify Keys</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 14px system-ui, sans-serif; margin: 16px; min-width: 380px; }
+    h1 { margin: 0 0 8px; font-size: 16px; }
+    label { display: block; margin-bottom: 12px; }
+    input { display: block; box-sizing: border-box; width: 100%; margin-top: 4px; padding: 6px; font: inherit; font-family: ui-monospace, Menlo, monospace; }
+    p { margin: 0 0 12px; color: GrayText; }
+    #status { margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Zotify Keys</h1>
+  <p>Make an API key at <a href="https://keys.zotify.app" target="_blank">keys.zotify.app</a> and paste it here. Duo prompts then fill themselves in with your virtual YubiKey.</p>
+  <form id="settings">
+    <label>
+      API key
+      <input id="api-key" type="password" placeholder="zotify_key_…" autocomplete="off" spellcheck="false" required>
+    </label>
+    <button type="submit">Save</button>
+    <button type="button" id="test">Test</button>
+    <span id="status" role="status"></span>
+  </form>
+  <script src="options.js"></script>
+</body>
+</html>

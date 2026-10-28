@@ -13,7 +13,7 @@ import {
     myTokens, resetSecretRoute, revokeAuthorizationRoute, updateAppRoute
 } from "./routes/developers.js";
 import {
-    createTokenRoute as createKeysTokenRoute, deleteDeviceRoute, deleteTokenRoute as deleteKeysTokenRoute, keysMember, keysOverview, otpRoute,
+    createTokenRoute as createKeysTokenRoute, deleteDeviceRoute, deleteTokenRoute as deleteKeysTokenRoute, keysOverview, otpRoute,
     raiseCounterRoute, randomSecretsRoute, saveDeviceRoute, whoamiRoute
 } from "./routes/keys.js";
 import { match } from "./routes/match.js";
@@ -152,14 +152,14 @@ v1.get("/spaces/:school/availability", spacesDay);
 v1.get("/spaces/:school/free", spacesFree);
 v1.get("/spaces/:school/rooms/:room", spacesRoom);
 
-// Zotify Keys (see routes/keys.ts): managed on keys.zotify.app, and the extension's OTPs, by its own API keys
-v1.get("/keys", sessionOnly, keysMember, keysOverview);
-v1.put("/keys/device", sessionOnly, keysMember, saveDeviceRoute);
-v1.patch("/keys/device", sessionOnly, keysMember, raiseCounterRoute);
-v1.delete("/keys/device", sessionOnly, keysMember, deleteDeviceRoute);
-v1.get("/keys/random", sessionOnly, keysMember, randomSecretsRoute);
-v1.post("/keys/tokens", sessionOnly, keysMember, createKeysTokenRoute);
-v1.delete("/keys/tokens/:id", sessionOnly, keysMember, deleteKeysTokenRoute);
+// Zotify Keys (see routes/keys.ts), for anyone signed in, not just the beta: managed on keys.zotify.app, and the extension's OTPs, by its own API keys
+v1.get("/keys", sessionOnly, keysOverview);
+v1.put("/keys/device", sessionOnly, saveDeviceRoute);
+v1.patch("/keys/device", sessionOnly, raiseCounterRoute);
+v1.delete("/keys/device", sessionOnly, deleteDeviceRoute);
+v1.get("/keys/random", sessionOnly, randomSecretsRoute);
+v1.post("/keys/tokens", sessionOnly, createKeysTokenRoute);
+v1.delete("/keys/tokens/:id", sessionOnly, deleteKeysTokenRoute);
 v1.post("/keys/otp", otpRoute);
 v1.get("/keys/whoami", whoamiRoute);
 

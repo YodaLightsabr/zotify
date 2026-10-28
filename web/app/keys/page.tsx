@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Spinner } from "@/components/Spinner";
 import { deleteJson, getJson, goToLogin, postJson, putJson, sendJson } from "@/lib/api";
-import { MAIN_URL } from "@/lib/config";
 import { cx } from "@/lib/format";
 import { useUser } from "@/lib/user";
 
@@ -55,13 +54,13 @@ function publicIdFor(serial: number) {
 export default function KeysPage() {
     const { user } = useUser();
     const [overview, setOverview] = useState<Overview | null>(null);
-    const [error, setError] = useState<{ message: string, notApproved: boolean } | null>(null);
+    const [error, setError] = useState("");
     // The wizard's step, or null for the dashboard. Undefined until the first load decides
     const [step, setStep] = useState<Step | null | undefined>(undefined);
 
     const load = useCallback(async () => {
-        const { response, data } = await getJson<Overview & { error?: string, code?: string }>("/v1/keys");
-        if (!response.ok) return setError({ message: data?.error ?? `Couldn't load your key (${response.status}).`, notApproved: data?.code === "not_approved" });
+        const { response, data } = await getJson<Overview & { error?: string }>("/v1/keys");
+        if (!response.ok) return setError(data?.error ?? `Couldn't load your key (${response.status}).`);
         setOverview(data);
         // First visit: start at whatever's left to set up
         setStep(current => current !== undefined ? current : !data.device ? "choose" : data.apiKeys.length ? null : "install");
@@ -77,7 +76,7 @@ export default function KeysPage() {
             <main className="keys-main">
                 <section className="keys-panel">
                     <h1>Zotify Keys</h1>
-                    <p>{error.message} {error.notApproved && <a href={MAIN_URL}>Ask to join Zotify</a>}</p>
+                    <p>{error}</p>
                 </section>
             </main>
         );

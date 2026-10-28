@@ -33,7 +33,7 @@ Each school gets its own Zotify. The main school (UCI) is at www.zotify.app (zot
 
 - `web/proxy.ts` works out the school from each request's host. Unknown subdomains go to www.zotify.app, so every `*.zotify.app` address (other than `api.`) can point at the frontend.
 - API routes say which school they're about in their path: `/v1/venues/:venue/…` is that venue's school, and `/v1/schools/:school/…` that school. Membership and admin checks use it. Signing in still goes by the `Origin`, for the school's email domain.
-- One sign-in works at every school, but each school has its own private beta, members and admins. Site admins (in `src/auth.ts`) run every school.
+- One sign-in works at every school and every app. Only the music is invite-only: each school has its own private beta, members and admins. Zotify Meals, Spaces and Keys are open to everyone. Site admins (in `src/auth.ts`) run every school.
 - Schools and venues live in the `schools` and `venues` tables, Rockbot accounts in `rockbot_accounts`. On first start, UCI's Anteatery and Brandywine and UF's The Eatery are added, `.accounts.json` is imported (and kept as a backup), and the existing beta becomes UCI's.
 
 ## The API
@@ -90,7 +90,7 @@ Availability changes by the minute, so unlike Meals it's fetched from LibCal for
 
 ## Zotify Keys
 
-A virtual YubiKey for Duo, at keys.zotify.app (`web/app/keys`), ported from [yksim](https://github.com/MikhailRyazanov/yksim)'s JavaScript version. People in the beta add a Yubico OTP key (serial number or public ID, private ID, AES key and usage counter) and make API keys for the Zotify Keys Chrome extension (`keys-extension/`). On a Duo prompt, the extension picks the YubiKey option, asks `POST /v1/keys/otp` for a passcode and submits it. `npm run build` packs the extension into `web/public/keys/zotify-keys.zip`, which the page links to. `src/keys/yubikey.ts` and the extension are GPL-3.0-or-later, like yksim.
+A virtual YubiKey for Duo, at keys.zotify.app (`web/app/keys`), ported from [yksim](https://github.com/MikhailRyazanov/yksim)'s JavaScript version. Anyone signed in (not just people in the music beta) can add a Yubico OTP key (serial number or public ID, private ID, AES key and usage counter) and make API keys for the Zotify Keys Chrome extension (`keys-extension/`). On a Duo prompt, the extension picks the YubiKey option, asks `POST /v1/keys/otp` for a passcode and submits it. `npm run build` packs the extension into `web/public/keys/zotify-keys.zip`, which the page links to. `src/keys/yubikey.ts` and the extension are GPL-3.0-or-later, like yksim.
 
 - The private ID and AES key are encrypted with AES-256-GCM using `KEYS_SECRET` (64 hex digits) from `.env`, or `.keys-secret` next to the database, made the first time it's needed. Backups don't include it, so keep a copy of it somewhere safe: without it, saved keys can't be used.
 - Duo rejects any passcode whose counter isn't higher than the last it accepted, so each passcode is made and the counter raised in one transaction, and it can only go up (to 32767). Restoring an older database rolls counters back: afterwards, have everyone raise theirs on keys.zotify.app.

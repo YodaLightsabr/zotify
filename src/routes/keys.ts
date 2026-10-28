@@ -1,15 +1,12 @@
-import type { NextFunction, Request, Response } from "express";
-import { isApproved } from "../beta.js";
-import { isSiteAdmin } from "../auth.js";
+import type { Request, Response } from "express";
 import {
     createToken, deleteDevice, deleteToken, getDevice, KeysError, listTokens, listUses, nextOtp, raiseCounter, saveDevice, tokenOwner
 } from "../keys/store.js";
 import { MAX_COUNTER, randomSecrets } from "../keys/yubikey.js";
-import { getSchools } from "../schools.js";
 import { deny } from "./auth.js";
 
-// Zotify Keys: a virtual YubiKey for Duo, at keys.zotify.app. People add their key there and make API keys for the Zotify
-// Keys Chrome extension, which asks for an OTP whenever Duo wants one
+// Zotify Keys: a virtual YubiKey for Duo, at keys.zotify.app. Anyone signed in can use it; only Zotify's music is invite-only.
+// People add their key there and make API keys for the Zotify Keys Chrome extension, which asks for an OTP whenever Duo wants one
 //
 //   GET    /v1/keys                 your key, API keys and recent OTPs (Zotify's own pages)
 //   PUT    /v1/keys/device          adds or replaces your key
@@ -34,18 +31,6 @@ function sendError(res: Response, error: unknown) {
     if (error instanceof KeysError) return deny(res, error.status, error.status === 404 ? "not_found" : "invalid", error.message);
     console.error("Zotify Keys:", error);
     deny(res, 500, "internal", "Something went wrong. Please try again.");
-}
-
-/** For keys.zotify.app: signed in with the session cookie, and approved at some school's Zotify. Use after sessionOnly */
-export async function keysMember(_req: Request, res: Response, next: NextFunction) {
-    const { email } = res.locals.session as { email: string };
-    try {
-        if (isSiteAdmin(email)) return next();
-        for (const school of getSchools()) if (await isApproved(email, school.id)) return next();
-        deny(res, 403, "not_approved", "Zotify Keys is for people in Zotify's beta.");
-    } catch (error) {
-        next(error);
-    }
 }
 
 const overview = (email: string) => ({ device: getDevice(email), apiKeys: listTokens(email), uses: listUses(email), maxCounter: MAX_COUNTER });

@@ -191,7 +191,9 @@ function AccountMenu({ app, open, onToggle, onClose }: MenuProps & { app: AppId 
                         </div>
                     </div>
 
-                    <ul className="account-schools" aria-label="Schools">
+                    {/* Only Zotify's music is invite-only; everything else is open to anyone signed in */}
+                    <div className="account-section-label">Music beta</div>
+                    <ul className="account-schools" aria-label="Music beta">
                         {schools.length ? schools.map(entry => (
                             <li key={entry.id}><span>{entry.name}</span><span className={cx("account-standing", entry.approved && "ok")}>{entry.standing}</span></li>
                         )) : (

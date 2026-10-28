@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import KeysHeader from "@/components/keys/KeysHeader";
 import "./keys.css";
 
@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     twitter: { card: "summary_large_image", title: "Zotify Keys", description },
     robots: { index: false }
 };
+
+// Matches the light theme in keys.css
+export const viewport: Viewport = { themeColor: "#f7f5f0" };
 
 /** Zotify Keys (keys.zotify.app; see proxy.ts): a virtual YubiKey, and API keys for its Chrome extension */
 export default function KeysLayout({ children }: { children: React.ReactNode }) {

@@ -35,7 +35,7 @@ const time = (timestamp: number) => new Date(timestamp).toLocaleTimeString(undef
 
 /**
  * Songs waiting in Zotify's queue, front first. They aren't in the venue's queue yet, so there's nothing to vote on.
- * Admins can move songs up and down and remove any of them; everyone can remove their own
+ * Admins can move songs up and down, bring one to the front, and remove any of them; everyone can remove their own
  */
 export function WaitingList({ waiting, venue, admin }: { waiting: ZotifyQueueSong[], venue: Venue, admin: boolean }) {
     const [busy, setBusy] = useState<number | null>(null);
@@ -56,9 +56,10 @@ export function WaitingList({ waiting, venue, admin }: { waiting: ZotifyQueueSon
         }
     }
 
-    const move = (index: number, by: number) => {
+    // Takes the song at index out and puts it back in at to
+    const move = (index: number, to: number) => {
         const ids = waiting.map(song => song.id);
-        [ids[index], ids[index + by]] = [ids[index + by], ids[index]];
+        ids.splice(to, 0, ...ids.splice(index, 1));
         act(waiting[index].id, () => putJson(`/v1/venues/${venue}/zotify-queue/order`, { ids }));
     };
 
@@ -82,10 +83,12 @@ export function WaitingList({ waiting, venue, admin }: { waiting: ZotifyQueueSon
                     </div>
                     <div className="waiting-actions">
                         {admin && <>
+                            <button type="button" className="row-icon" title="Bring to the front" aria-label={`Bring ${song.name} to the front`}
+                                disabled={i === 0 || busy !== null} onClick={() => move(i, 0)}>{ICONS.top}</button>
                             <button type="button" className="row-icon" title="Move up" aria-label={`Move ${song.name} up`}
-                                disabled={i === 0 || busy !== null} onClick={() => move(i, -1)}>{ICONS.up}</button>
+                                disabled={i === 0 || busy !== null} onClick={() => move(i, i - 1)}>{ICONS.up}</button>
                             <button type="button" className="row-icon" title="Move down" aria-label={`Move ${song.name} down`}
-                                disabled={i === waiting.length - 1 || busy !== null} onClick={() => move(i, 1)}>{ICONS.down}</button>
+                                disabled={i === waiting.length - 1 || busy !== null} onClick={() => move(i, i + 1)}>{ICONS.down}</button>
                         </>}
                         {(admin || song.mine) && (
                             <button type="button" className="row-icon remove" title="Remove from the queue" aria-label={`Remove ${song.name} from the queue`}
@@ -104,6 +107,7 @@ const icon = (path: React.ReactNode) => (
 );
 
 const ICONS = {
+    top: icon(<><path d="M6 5h12" /><path d="m6 17 6-6 6 6" /></>),
     up: icon(<path d="m6 15 6-6 6 6" />),
     down: icon(<path d="m6 9 6 6 6-6" />),
     remove: icon(<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>)

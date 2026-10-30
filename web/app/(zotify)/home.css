@@ -666,6 +666,11 @@
         .search { padding-left: 14px; }
         .search button { padding: 12px 16px; }
         .search svg { display: none; }
+        /* Badges go under a song's name when there isn't room beside it, rather than covering it */
+        .title-row { flex-wrap: wrap; row-gap: 2px; }
+        .title-row .name { max-width: 100%; }
+        .song .queue-btn { padding: 8px 12px; }
+        .title-row .badge { flex-shrink: 1; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
 }
 

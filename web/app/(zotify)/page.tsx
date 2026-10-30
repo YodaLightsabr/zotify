@@ -112,11 +112,11 @@ function Home() {
 
     useHomeReset(goHome);
 
-    function changeVenue(next: Venue) {
-        setVenue(next);
-        // Searching again shows the results for the new venue; at home the queue follows the venue by itself
-        if (!isHome && lastQuery.current) search(lastQuery.current, next);
-    }
+    // Results for another venue are searched again, whether the venue changed here or in the bar at the top. At home the queue
+    // follows the venue by itself
+    useEffect(() => {
+        if (output?.kind === "results" && output.venue !== venue && lastQuery.current) search(lastQuery.current, venue);
+    }, [output, venue, search]);
 
     // Once we know who's signed in: pick up a search someone started before signing in, and welcome people just let in
     const handledParams = useRef(false);
@@ -166,11 +166,11 @@ function Home() {
                     <button type="submit" id="search-btn" disabled={searching}>Search</button>
                 </form>
 
-                {/* Schools with one venue don't need a choice */}
+                {/* The same venue as the bar's picker, here too since it decides what's searched. Schools with one venue don't need a choice */}
                 {school.venues.length > 1 && (
                     <div className="venues" role="radiogroup" aria-label="Venue">
                         {school.venues.map(({ id, name }) => <Fragment key={id}>
-                            <input type="radio" name="venue" id={`venue-${id}`} value={id} checked={venue === id} onChange={() => changeVenue(id)} />
+                            <input type="radio" name="venue" id={`venue-${id}`} value={id} checked={venue === id} onChange={() => setVenue(id)} />
                             <label htmlFor={`venue-${id}`}>{name}</label>
                         </Fragment>)}
                     </div>

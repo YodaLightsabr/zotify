@@ -51,13 +51,15 @@ interface Props {
     app: AppId;
     // The app's own tabs and menus, between its name and the account menu. On phones they get a row of their own
     nav?: React.ReactNode;
+    // The app's own controls on the right, before the app switcher, like Zotify's venue
+    actions?: React.ReactNode;
     // Phones only: leave the app's tabs out of the bar, for apps that have their own navigation there (Zotify's tab bar)
     hideNavOnPhones?: boolean;
     // Clicking the app's name; preventDefault to stay put
     onBrandClick?: (event: React.MouseEvent) => void;
 }
 
-export default function AppBar({ app, nav, hideNavOnPhones, onBrandClick }: Props) {
+export default function AppBar({ app, nav, actions, hideNavOnPhones, onBrandClick }: Props) {
     const bar = useRef<HTMLElement>(null);
     const [open, setOpen] = useState<"apps" | "account" | null>(null);
     const current = APPS.find(entry => entry.id === app)!;
@@ -96,6 +98,7 @@ export default function AppBar({ app, nav, hideNavOnPhones, onBrandClick }: Prop
             </Link>
             <nav className="app-bar-nav" aria-label={current.id === "zotify" ? "Zotify" : `Zotify ${current.name}`}>{nav}</nav>
             <div className="app-bar-global">
+                {actions}
                 <AppSwitcher current={app} open={open === "apps"} onToggle={() => toggle("apps")} onClose={() => setOpen(null)} />
                 <AccountMenu app={app} open={open === "account"} onToggle={() => toggle("account")} onClose={() => setOpen(null)} />
             </div>

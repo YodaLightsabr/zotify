@@ -27,30 +27,6 @@
     .library-tab:hover { color: var(--text); }
     .library-tab.current { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
-    .venue-picker {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-        color: var(--muted);
-        font-size: 0.9rem;
-    }
-
-    .venue-option {
-        padding: 5px 14px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        background: none;
-        color: var(--text);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .venue-option:hover { border-color: var(--accent); }
-    .venue-option.current { background: var(--surface-2); border-color: var(--accent); }
-
     .library-intro, .library-empty { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
     .library-intro { margin: 0 0 16px; }
     .library-empty a { color: var(--accent); }

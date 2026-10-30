@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { TrackRow, type TrackState } from "@/components/home/ResultRow";
 import { Loading, Message, resultGroup, SongResults, type NotFound } from "@/components/home/Results";
 import type { Playlist, PlaylistTrack, QueueEntry, Song } from "@/components/home/types";
@@ -54,16 +54,17 @@ function PlaylistView() {
     const router = useRouter();
     const user = useMember(`/playlist/${id}`);
 
-    // A link's ?venue= wins, and becomes the venue remembered for next time; otherwise it's the one picked last
-    const school = useSchool();
+    // A link's ?venue= becomes the venue picked in the bar, then leaves the address so the bar's picker is the only one
     const [storedVenue, setVenue] = useVenue();
     const isVenue = useIsVenue();
     const linkVenue = params.get("venue");
     const venue = isVenue(linkVenue) ? linkVenue : storedVenue;
 
     useEffect(() => {
-        if (isVenue(linkVenue)) setVenue(linkVenue);
-    }, [linkVenue, setVenue, isVenue]);
+        if (!isVenue(linkVenue)) return;
+        setVenue(linkVenue);
+        router.replace(`/playlist/${id}`, { scroll: false });
+    }, [linkVenue, setVenue, isVenue, router, id]);
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [error, setError] = useState("");
     const [matching, setMatching] = useState<Matching | null>(null);
@@ -136,11 +137,6 @@ function PlaylistView() {
         if (playlist) match(playlist, venue);
     }, [playlist, venue, match]);
 
-    function changeVenue(next: Venue) {
-        setVenue(next);
-        router.replace(`/playlist/${id}?${new URLSearchParams({ venue: next })}`, { scroll: false });
-    }
-
     if (error) return <Page><Message text={error} /></Page>;
     if (!playlist) return <Page><Loading /></Page>;
 
@@ -156,16 +152,6 @@ function PlaylistView() {
                 </div>
                 <SavePlaylist playlist={playlist} venue={venue} onChange={savedAt => setPlaylist({ ...playlist, savedAt })} />
             </div>
-
-            {/* Schools with one venue don't need a choice */}
-            {school.venues.length > 1 && (
-                <div className="venues" role="radiogroup" aria-label="Venue">
-                    {school.venues.map(({ id, name }) => <Fragment key={id}>
-                        <input type="radio" name="venue" id={`venue-${id}`} value={id} checked={venue === id} onChange={() => changeVenue(id)} />
-                        <label htmlFor={`venue-${id}`}>{name}</label>
-                    </Fragment>)}
-                </div>
-            )}
 
             <QueueAll key={venue} playlist={playlist} venue={venue} available={available}
                 // Once it's done, look the songs up again so they show as queued

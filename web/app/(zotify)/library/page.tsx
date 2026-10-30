@@ -10,10 +10,11 @@ import { useLibrary, type LibrarySong } from "@/lib/library";
 import { useSchool } from "@/lib/school";
 import { useVenue } from "@/lib/venue";
 
-type Sort = "recent" | "requested" | "name" | "artist";
+type Sort = "recent" | "played" | "requested" | "name" | "artist";
 
 const SORTS: { id: Sort, label: string }[] = [
     { id: "recent", label: "Recently saved" },
+    { id: "played", label: "Last played" },
     { id: "requested", label: "Most requested" },
     { id: "name", label: "Title" },
     { id: "artist", label: "Artist" }
@@ -23,6 +24,8 @@ const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensiti
 
 function sorted(songs: LibrarySong[], sort: Sort) {
     const copy = [...songs];
+    // Songs you've never requested go after the rest, newest saved first
+    if (sort === "played") return copy.sort((a, b) => (b.lastRequestedAt ?? 0) - (a.lastRequestedAt ?? 0) || b.savedAt - a.savedAt);
     if (sort === "requested") return copy.sort((a, b) => b.requests - a.requests || (b.lastRequestedAt ?? 0) - (a.lastRequestedAt ?? 0) || b.savedAt - a.savedAt);
     if (sort === "name") return copy.sort((a, b) => byText(a.name, b.name));
     if (sort === "artist") return copy.sort((a, b) => byText(a.artist, b.artist) || byText(a.name, b.name));

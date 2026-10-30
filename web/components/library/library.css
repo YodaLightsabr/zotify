@@ -61,8 +61,8 @@
         margin: 16px 0 0;
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 14px;
     }
 
     .library-card {
@@ -70,8 +70,8 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 10px 10px 12px;
+        gap: 8px;
+        padding: 8px 8px 10px;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 16px;
@@ -108,15 +108,15 @@
 
     .library-card-body { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .library-name, .library-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .library-name { font-weight: 700; }
-    .library-artist { color: var(--muted); font-size: 0.9rem; }
+    .library-name { font-weight: 700; font-size: 0.92rem; }
+    .library-artist { color: var(--muted); font-size: 0.85rem; }
 
     .library-details { margin-top: 2px; color: var(--muted); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .library-details a { color: inherit; }
 
     .library-card .badge { align-self: flex-start; max-width: 100%; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .library-error { margin-top: 4px; color: var(--error); font-size: 0.8rem; }
-    .library-card .queue-btn { position: relative; z-index: 2; width: 100%; padding: 8px 12px; }
+    .library-card .queue-btn { position: relative; z-index: 2; width: 100%; padding: 6px 10px; font-size: 0.85rem; }
 
     .library-unavailable { margin-top: 32px; }
     .library-unavailable .library-card { opacity: 0.7; }
@@ -141,7 +141,7 @@
         margin: 0;
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 16px;
     }
 

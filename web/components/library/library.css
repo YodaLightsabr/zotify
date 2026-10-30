@@ -1,4 +1,11 @@
-/* The Library (components/library/LibraryFrame.tsx). Its song rows are the homepage's, from home.css */
+/* The Library (components/library/LibraryFrame.tsx). Its buttons and badges are the homepage's, from home.css */
+
+/* Wider than the homepage's single column, so the grid has room. Both classes, to win over home.css's .page-home main */
+.page-home.page-library main { max-width: 1240px; padding-left: 24px; padding-right: 24px; }
+
+@media (max-width: 520px) {
+    .page-home.page-library main { padding-left: 16px; padding-right: 16px; }
+}
 
 /* Scoped to these pages, since Next.js keeps global CSS loaded across navigation */
 .page-library {
@@ -33,7 +40,7 @@
 
     /* Songs */
 
-    .library-toolbar { display: flex; gap: 8px; }
+    .library-toolbar { display: flex; gap: 8px; max-width: 640px; }
 
     .library-filter, .library-sort {
         padding: 9px 14px;
@@ -47,13 +54,72 @@
 
     .library-filter { flex: 1; min-width: 0; }
     .library-filter:focus, .library-sort:focus { outline: none; border-color: var(--accent); }
-    .library-toolbar + .results { margin-top: 16px; }
 
-    .library-details { margin-top: 2px; color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* As many columns as fit; two on phones */
+    .library-grid {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+        gap: 16px;
+    }
+
+    .library-card {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 10px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        transition: border-color 0.15s;
+    }
+
+    .library-card:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+
+    .library-art { position: relative; z-index: 2; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+    .library-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .library-no-art { width: 100%; height: 100%; display: grid; place-items: center; font-size: 2.5rem; color: var(--muted); }
+
+    /* The heart sits on the cover's corner */
+    .library-art .row-icon.save {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .library-glow {
+        position: absolute;
+        z-index: 1;
+        inset: 40% 0 0;
+        width: 100%;
+        height: 60%;
+        object-fit: cover;
+        filter: blur(40px);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+
+    .library-card-body { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .library-name, .library-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .library-name { font-weight: 700; }
+    .library-artist { color: var(--muted); font-size: 0.9rem; }
+
+    .library-details { margin-top: 2px; color: var(--muted); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .library-details a { color: inherit; }
 
-    .library-unavailable { margin-top: 24px; }
-    .library-unavailable .results { margin-top: 12px; opacity: 0.75; }
+    .library-card .badge { align-self: flex-start; max-width: 100%; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .library-error { margin-top: 4px; color: var(--error); font-size: 0.8rem; }
+    .library-card .queue-btn { position: relative; z-index: 2; width: 100%; padding: 8px 12px; }
+
+    .library-unavailable { margin-top: 32px; }
+    .library-unavailable .library-card { opacity: 0.7; }
 
     .library-reveal {
         padding: 0;
@@ -70,25 +136,52 @@
 
     /* Playlists */
 
-    .library-playlists { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-
-    .library-playlists li {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 14px;
+    .library-playlists {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
     }
 
-    .library-playlists li:hover { border-color: var(--accent); }
+    .library-playlists li {
+        position: relative;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+    }
 
-    .library-playlist { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--text); text-decoration: none; }
-    .library-playlist strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .library-playlist span { color: var(--muted); font-size: 0.85rem; }
+    .library-playlists li:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+
+    .library-playlist { display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 14px; color: var(--text); text-decoration: none; }
+    .library-playlist strong { margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .library-playlist span:not(.library-playlist-art) { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Spotify doesn't give Zotify playlists' covers, so each gets a note on Zotify's colors */
+    .library-playlist-art {
+        aspect-ratio: 16 / 9;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 70%, transparent), color-mix(in srgb, var(--accent) 15%, var(--surface-2)));
+        color: var(--on-accent);
+    }
+
+    .library-playlist-art svg { width: 40px; height: 40px; }
+
+    /* Taking it out sits on the art's corner, outside the link */
+    .library-playlists .row-icon.remove {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+    }
 
     @media (max-width: 520px) {
-        .library-sort { max-width: 42%; }
+        .library-sort { flex-shrink: 0; }
+        .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .library-card { padding: 8px 8px 10px; gap: 8px; }
+        .library-details { white-space: normal; }
     }
 }

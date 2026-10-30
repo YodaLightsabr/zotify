@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/lib/format";
 import { useMember } from "@/lib/useMember";
-// The homepage's song rows, buttons and badges
+// The homepage's buttons and badges
 import "@/app/(zotify)/home.css";
 import "./library.css";
 
@@ -15,8 +15,8 @@ const TABS = [
 ];
 
 /**
- * Around every Library page: its heading and tabs. Requests go to the venue picked in the bar at the top. Song rows borrow the
- * homepage's styles, so they look the same as search results
+ * Around every Library page: its heading and tabs. Requests go to the venue picked in the bar at the top. Buttons and badges
+ * borrow the homepage's styles, so they look the same as in search results
  */
 export default function LibraryFrame({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();

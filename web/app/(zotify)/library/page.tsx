@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { SongBackdrop, SongCover } from "@/components/home/SongParts";
 import SaveButton from "@/components/SaveButton";
 import { Busy, Spinner } from "@/components/Spinner";
 import { postJson, type Venue } from "@/lib/api";
@@ -80,7 +79,7 @@ export default function LibrarySongsPage() {
         </div>
 
         {available.length ? (
-            <ul className="results">{available.map(song => <LibraryRow key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>
+            <ul className="library-grid">{available.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>
         ) : (
             <p className="library-empty">{filter ? "Nothing matches that." : `None of your songs can be played at ${venueName} right now.`}</p>
         )}
@@ -90,7 +89,7 @@ export default function LibrarySongsPage() {
                 <button type="button" className="library-reveal" aria-expanded={showUnavailable} onClick={() => setShowUnavailable(!showUnavailable)}>
                     {showUnavailable ? "Hide" : "Show"} {plural(unavailable.length, "song")} that can&apos;t be played at {venueName}
                 </button>
-                {showUnavailable && <ul className="results">{unavailable.map(song => <LibraryRow key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>}
+                {showUnavailable && <ul className="library-grid">{unavailable.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>}
             </section>
         )}
     </>;
@@ -106,7 +105,8 @@ function details(song: LibrarySong) {
     return parts.map((part, i) => <span key={i}>{i > 0 && " · "}{part}</span>);
 }
 
-function LibraryRow({ song, venue }: { song: LibrarySong, venue: Venue }) {
+/** A saved song as a card: its cover, why it's saved, and buttons to queue it or take it out */
+function LibraryCard({ song, venue }: { song: LibrarySong, venue: Venue }) {
     const school = useSchool();
     const [button, setButton] = useState<{ label: string, disabled?: boolean, done?: boolean }>({ label: "Queue" });
     const [busy, setBusy] = useState(false);
@@ -142,19 +142,20 @@ function LibraryRow({ song, venue }: { song: LibrarySong, venue: Venue }) {
     }
 
     return (
-        <li className="song">
-            <SongCover song={song} />
-            <SongBackdrop song={song} />
-            <div className="meta">
-                <div className="title-row">
-                    <div className="name">{song.name}</div>
-                    {elsewhere && <span className="badge elsewhere" title={`Not requestable here, but you can request it at ${elsewhere.name}`}>Available at {elsewhere.name}</span>}
-                </div>
-                <div className="artist">{song.artist}</div>
-                <div className="library-details">{details(song)}</div>
-                <div className="error" role="alert">{error}</div>
+        <li className={cx("library-card", unavailableHere && "unavailable")}>
+            <div className="library-art">
+                {song.cover ? <img src={song.cover} alt="" loading="lazy" /> : <div className="library-no-art" aria-hidden="true">♪</div>}
+                <SaveButton song={song} />
             </div>
-            <SaveButton song={song} />
+            {/* The cover, blurred behind the card's text, like the glow on song rows */}
+            {song.cover && <img className="library-glow" src={song.cover} alt="" loading="lazy" aria-hidden="true" />}
+            <div className="library-card-body">
+                <div className="library-name" title={song.name}>{song.name}</div>
+                <div className="library-artist" title={song.artist}>{song.artist}</div>
+                <div className="library-details">{details(song)}</div>
+                {elsewhere && <span className="badge elsewhere" title={`Not requestable here, but you can request it at ${elsewhere.name}`}>At {elsewhere.name}</span>}
+                {error && <div className="library-error" role="alert">{error}</div>}
+            </div>
             <button type="button" className={cx("queue-btn", button.done && "done", busy && "busy")} disabled={busy || button.disabled || unavailableHere}
                 title={unavailableHere ? `Can't be requested at ${school.venueName(venue)} right now` : `Queue it at ${school.venueName(venue)}`} onClick={queue}>
                 {busy ? <Busy label="Queuing…" /> : unavailableHere ? "Unavailable" : button.label}

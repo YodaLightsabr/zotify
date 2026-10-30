@@ -81,8 +81,8 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
 
-    -- Each person's Library: Rockbot songs (in songs) they requested, saved by hand (source "saved"), or that turned up in a
-    -- playlist they saved (source "playlist", with playlist_id). removed_at marks songs they took out, so a saved playlist doesn't
+    -- Each person's Library: Rockbot songs (in songs) they requested, saved by hand (source "saved"), that turned up in a
+    -- playlist they saved (source "playlist", with playlist_id), or imported from their Spotify likes (source "liked"). removed_at marks songs they took out, so a saved playlist doesn't
     -- put them back; requesting or saving one again does
     CREATE TABLE IF NOT EXISTS library_songs (
         email TEXT NOT NULL,
@@ -346,6 +346,11 @@ for (const column of ["previous_refresh_hash TEXT", "rotated_at INTEGER"]) {
 // Databases from before the Zotify queue could be rearranged don't have its position column. Songs keep the order they were added in
 if (!(db.prepare("PRAGMA table_info(zotify_queue)").all() as { name: string }[]).some(column => column.name === "position")) {
     db.exec("ALTER TABLE zotify_queue ADD COLUMN position REAL; UPDATE zotify_queue SET position = id;");
+}
+
+// Private playlists, read through someone's own Spotify (see spotifyApi.ts). Only people who added them can open them
+if (!(db.prepare("PRAGMA table_info(playlists)").all() as { name: string }[]).some(column => column.name === "private")) {
+    db.exec("ALTER TABLE playlists ADD COLUMN private INTEGER NOT NULL DEFAULT 0");
 }
 
 // Playlists people saved to their Library, as opposed to ones they only opened. Added after user_playlists existed

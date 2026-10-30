@@ -11,7 +11,7 @@ export interface LibrarySong {
     artist: string;
     cover?: string;
     savedAt: number;
-    source: "requested" | "saved" | "playlist";
+    source: "requested" | "saved" | "playlist" | "liked";
     playlist?: { id: string, name: string };
     requests: number;
     lastRequestedAt: number | null;

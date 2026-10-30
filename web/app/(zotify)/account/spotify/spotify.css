@@ -1,0 +1,176 @@
+/* Importing from Spotify (account/spotify/page.tsx) */
+
+/* Scoped to this page, since Next.js keeps global CSS loaded across navigation */
+.page-spotify {
+    display: contents;
+
+    main {
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 0 24px 48px;
+    }
+
+    h1 {
+        font-family: "Jua", system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 1.8rem;
+        margin: 4px 0 16px;
+    }
+
+    h2 { margin: 0; font-size: 1rem; }
+
+    .spotify-back { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
+    .spotify-back:hover { color: var(--text); }
+
+    .spotify-stepper { display: flex; gap: 4px; margin: 0 0 20px; padding: 0; list-style: none; }
+
+    .spotify-stepper li {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 3px solid var(--border);
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .spotify-stepper li.done, .spotify-stepper li.current { border-top-color: var(--accent); }
+    .spotify-stepper li.current { color: var(--text); }
+
+    .spotify-dot {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: var(--surface-2);
+        font-size: 0.75rem;
+    }
+
+    .spotify-stepper li.done .spotify-dot, .spotify-stepper li.current .spotify-dot { background: var(--accent); color: var(--on-accent); }
+
+    .spotify-panel {
+        margin-bottom: 16px;
+        padding: 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .spotify-panel > h2 { margin-bottom: 10px; }
+    .spotify-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+
+    .spotify-lead { margin: 0 0 12px; font-size: 1rem; line-height: 1.5; }
+    .spotify-muted { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
+    .spotify-error { margin: 0 0 12px; color: var(--error); font-weight: 600; }
+
+    .spotify-points { margin: 0 0 18px; padding-left: 20px; color: var(--muted); line-height: 1.5; font-size: 0.92rem; }
+
+    .spotify-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 11px 20px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: none;
+        color: var(--text);
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .spotify-button:hover:not(:disabled) { border-color: var(--accent); }
+    .spotify-button:disabled { opacity: 0.55; cursor: default; }
+    .spotify-button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+    .spotify-link { padding: 0; border: none; background: none; color: var(--accent); font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+
+    .spotify-account {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: var(--muted);
+        font-size: 0.92rem;
+    }
+
+    .spotify-account strong { color: var(--text); }
+
+    /* Liked songs and playlists to pick */
+
+    .spotify-choices { display: flex; flex-direction: column; gap: 4px; max-height: 480px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+
+    .spotify-choice {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .spotify-choice:hover { background: var(--surface-2); }
+    .spotify-choice.disabled { opacity: 0.5; cursor: default; }
+    .spotify-choice.disabled:hover { background: none; }
+    .spotify-choice input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+
+    .spotify-art {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--muted);
+        object-fit: cover;
+    }
+
+    .spotify-art.liked { background: linear-gradient(135deg, #4b2fd1, #9aa9e8); color: #fff; font-size: 1.2rem; }
+
+    .spotify-choice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .spotify-choice-text strong, .spotify-choice-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .spotify-choice-text span { color: var(--muted); font-size: 0.85rem; }
+
+    .spotify-badge {
+        flex-shrink: 0;
+        padding: 2px 8px;
+        border-radius: 999px;
+        box-shadow: inset 0 0 0 1px var(--accent);
+        color: var(--accent);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .spotify-footer { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+    /* The import running */
+
+    .spotify-progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+    .spotify-progress li { display: flex; flex-direction: column; gap: 6px; }
+    .spotify-progress-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .spotify-progress-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .spotify-progress-head span { flex-shrink: 0; color: var(--muted); font-size: 0.85rem; }
+    .spotify-progress li.done .spotify-progress-head span { color: var(--text); }
+    .spotify-progress li.failed .spotify-progress-head span { color: var(--error); }
+
+    .spotify-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .spotify-bar div { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+    .spotify-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+
+    @media (max-width: 520px) {
+        main { padding: 0 16px 40px; }
+        .spotify-badge { display: none; }
+    }
+}

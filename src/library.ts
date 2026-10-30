@@ -3,11 +3,12 @@ import { events } from "./events.js";
 import type { PlaylistMatchJob } from "./playlistMatch.js";
 import type { RequestedSong } from "./requestSong.js";
 
-// Everyone's Library: the Rockbot songs they've requested, saved by hand, or found in a playlist they saved, and the playlists
+// Everyone's Library: the Rockbot songs they've requested, saved by hand, found in a playlist they saved, or imported from their
+// Spotify likes (spotifyImport.ts), and the playlists
 // they saved. Songs are kept whether or not they can be requested anywhere right now; song_availability says where they can
 // be, and pages hide the ones that can't be played at the venue they're showing
 
-export type LibrarySource = "requested" | "saved" | "playlist";
+export type LibrarySource = "requested" | "saved" | "playlist" | "liked";
 
 export interface LibrarySong {
     id: string;
@@ -50,6 +51,11 @@ const saveExplicitly = db.prepare(`
 // Playlists only add songs that were never in the Library, so ones taken out by hand stay out
 const saveFromPlaylist = db.prepare(`
     INSERT INTO library_songs (email, song_id, saved_at, source, playlist_id) VALUES (?, ?, ?, 'playlist', ?)
+    ON CONFLICT (email, song_id) DO NOTHING
+`);
+// Imported likes, like playlists, only add songs that were never in the Library
+const saveLiked = db.prepare(`
+    INSERT INTO library_songs (email, song_id, saved_at, source) VALUES (?, ?, ?, 'liked')
     ON CONFLICT (email, song_id) DO NOTHING
 `);
 const markRemoved = db.prepare("UPDATE library_songs SET removed_at = ? WHERE email = ? AND song_id = ? AND removed_at IS NULL");
@@ -108,6 +114,12 @@ export function saveSong(email: string, songId: string) {
     if (!songExists.get(songId)) return false;
     saveExplicitly.run(email, songId, Date.now(), "saved");
     return true;
+}
+
+/** Adds songs found from someone's Spotify likes, most recently liked first. Songs must already be in songs, from a search */
+export function saveLikedSongs(email: string, songIds: string[]) {
+    const now = Date.now();
+    transaction(() => [...new Set(songIds)].forEach((id, i) => saveLiked.run(email, id, now - i)));
 }
 
 /** Takes a song out of someone's Library. False if it wasn't there */

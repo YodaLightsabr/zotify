@@ -104,6 +104,7 @@ function details(song: LibrarySong) {
     if (song.requests) parts.push(`Requested ${song.requests === 1 ? "once" : `${song.requests} times`}`);
     if (song.source === "playlist" && song.playlist) parts.push(<>From <Link href={`/playlist/${song.playlist.id}`}>{song.playlist.name}</Link></>);
     else if (song.source === "saved") parts.push(`Saved ${shortDate(song.savedAt)}`);
+    else if (song.source === "liked") parts.push("From your Spotify likes");
     else if (!song.requests) parts.push(`Requested ${shortDate(song.savedAt)}`);
     return parts.map((part, i) => <span key={i}>{i > 0 && " · "}{part}</span>);
 }

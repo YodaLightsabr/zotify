@@ -35,6 +35,9 @@ import {
     saveVenueRoute, school, schoolAdminRoute, schools
 } from "./routes/schools.js";
 import { search } from "./routes/search.js";
+import {
+    spotifyAuthorize, spotifyCallback, spotifyDisconnect, spotifyImport, spotifyImportStatus, spotifyLibrary, spotifyStatus
+} from "./routes/spotify.js";
 import { venueQueue } from "./routes/venue-queue.js";
 import { pickVotes, votePick } from "./routes/votes.js";
 import { clearZotifyQueue, removeFromZotifyQueue, reorderZotifyQueue, zotifyQueue } from "./routes/zotify-queue.js";
@@ -120,6 +123,14 @@ v1.delete("/me/library/songs/:songId", signedIn("music:write"), removeSongRoute)
 v1.get("/me/library/playlists", signedIn("music:read"), libraryPlaylists);
 v1.delete("/me/library/playlists/:id", signedIn("music:write"), removePlaylistRoute);
 
+// Connecting Spotify and importing from it, on Zotify's own pages
+v1.get("/me/spotify", sessionOnly, spotifyStatus);
+v1.post("/me/spotify/authorize", sessionOnly, spotifyAuthorize);
+v1.post("/me/spotify/callback", sessionOnly, spotifyCallback);
+v1.delete("/me/spotify", sessionOnly, spotifyDisconnect);
+v1.get("/me/spotify/library", sessionOnly, spotifyLibrary);
+v1.get("/me/spotify/import", sessionOnly, spotifyImportStatus);
+
 // Joining a school's Zotify during the beta
 v1.post("/schools/:school/join-request", schoolParam, signedIn(), requestInviteRoute);
 v1.post("/schools/:school/invite-codes/redeem", schoolParam, signedIn(), redeemCodeRoute);
@@ -139,6 +150,7 @@ v1.get("/venues/:venue/playlists/:id/matches", venueParam, member("music:read"),
 v1.post("/venues/:venue/playlists/:id/queue", venueParam, member("music:write"), queuePlaylist);
 v1.get("/venues/:venue/playlists/:id/queue", venueParam, member("music:read"), playlistQueueStatus);
 v1.put("/venues/:venue/playlists/:id/library", venueParam, member("music:write"), savePlaylistRoute);
+v1.post("/venues/:venue/spotify/import", venueParam, sessionOnly, member("music:write"), spotifyImport);
 
 // Zotify Meals: public menus, and your favorites. More specific paths come before /:location
 const meals = express.Router();

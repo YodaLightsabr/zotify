@@ -12,7 +12,7 @@ The server keeps everything (Rockbot accounts, schools, sessions, members, invit
 
 Older versions kept that data in `.cache.json`. The first time the server starts without a database, it imports `.cache.json` and then leaves it alone as a backup. Run `npm run backup` (after `npm run build`) to save a consistent copy of the database to `backups/`, even while the server is running.
 
-Login codes are emailed through [Resend](https://resend.com) when `RESEND_API_KEY` is set in `.env`; otherwise they're printed to the server console. See `.env.example` for the settings.
+Login codes are emailed through [Resend](https://resend.com) when `RESEND_API_KEY` is set in `.env`; otherwise they're printed to the server console. Spotify connections need `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` (see [Spotify](#spotify)). See `.env.example` for the settings.
 
 ## Ports and URLs
 
@@ -92,7 +92,7 @@ Availability changes by the minute, so unlike Meals it's fetched from LibCal for
 
 A virtual YubiKey for Duo, at keys.zotify.app (`web/app/keys`), ported from [yksim](https://github.com/MikhailRyazanov/yksim)'s JavaScript version. Anyone signed in (not just people in the music beta) can add a Yubico OTP key (serial number or public ID, private ID, AES key and usage counter) and make API keys for the Zotify Keys Chrome extension (`keys-extension/`). On a Duo prompt, the extension picks the YubiKey option, asks `POST /v1/keys/otp` for a passcode and submits it. `npm run build` packs the extension into `web/public/keys/zotify-keys.zip`, which the page links to. `src/keys/yubikey.ts` and the extension are GPL-3.0-or-later, like yksim.
 
-- The private ID and AES key are encrypted with AES-256-GCM using `KEYS_SECRET` (64 hex digits) from `.env`, or `.keys-secret` next to the database, made the first time it's needed. Backups don't include it, so keep a copy of it somewhere safe: without it, saved keys can't be used.
+- The private ID and AES key are encrypted with AES-256-GCM (`src/secrets.ts`, which also encrypts Spotify tokens) using `KEYS_SECRET` (64 hex digits) from `.env`, or `.keys-secret` next to the database, made the first time it's needed. Backups don't include it, so keep a copy of it somewhere safe: without it, saved keys can't be used.
 - Duo rejects any passcode whose counter isn't higher than the last it accepted, so each passcode is made and the counter raised in one transaction, and it can only go up (to 32767). Restoring an older database rolls counters back: afterwards, have everyone raise theirs on keys.zotify.app.
 - API keys (`zotify_key_…`) are stored hashed, can only make passcodes (30 an hour) and check themselves (`GET /v1/keys/whoami`), and nothing else in the API accepts them. Every passcode is listed on the page.
 
@@ -125,6 +125,16 @@ Each person's Library (`/library`, from `src/library.ts`) has three tabs:
 - **History:** every song they've queued, by day. It used to be the My picks page, which now redirects here. The pick history is no longer trimmed, so nobody loses old picks; the admin dashboard shows the newest 5,000.
 
 Everyone's Library started out as their pick history, the first time the server ran with it.
+
+## Spotify
+
+People can connect their Spotify account on the Account page (`src/spotifyApi.ts`). It needs a Spotify app from [Spotify's dashboard](https://developer.spotify.com/dashboard), with `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`. Without them, the Spotify section is hidden.
+
+- **Redirect URIs:** the app needs `https://www.zotify.app/api/spotify/callback`. For development, also add `http://127.0.0.1:3000/api/spotify/callback`, since Spotify doesn't allow `localhost`; `web/proxy.ts` sends people on from 127.0.0.1 to localhost, where the session cookie is.
+- **Development Mode:** until the app gets Spotify's Extended Quota, only the Spotify accounts added under User Management in its dashboard can connect, five at most, and the app owner's Spotify Premium has to stay active. Spotify also only lets the app read the tracks of private playlists someone made or collaborates on.
+- **Importing** (`/account/spotify`, `src/spotifyImport.ts`): a wizard picks liked songs (the 500 most recent) and playlists. Each playlist is saved to the Library like "Save to Library" does, and every track is looked for on Rockbot at the venue picked in the top bar, four searches at a time.
+- **Private playlists:** with Spotify connected, pasting a link to your own private playlist works, and your own playlists come with all their tracks (up to 1,000) instead of the embed's 100. Private playlists can only be opened by the people who added them.
+- Tokens are encrypted with the same key as Zotify Keys' secrets. Disconnecting deletes them; imported songs and playlists stay.
 
 ## Running on a server
 

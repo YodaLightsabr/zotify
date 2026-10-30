@@ -1,14 +1,12 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { DB_FILE, db, transaction } from "../db.js";
+import { createHash, randomBytes } from "node:crypto";
+import { db, transaction } from "../db.js";
+import { seal, unseal } from "../secrets.js";
 import { generateOtp, isModHex, MAX_COUNTER, publicIdFor, serialOf } from "./yubikey.js";
 
 // Zotify Keys: each person's virtual YubiKey, the API keys their Chrome extension uses to ask for OTPs, and a record of each OTP.
 //
 // The private ID and AES key are someone's second factor, so they're encrypted at rest (AES-256-GCM) with a key that isn't in
-// the database: KEYS_SECRET (64 hex digits), or else a file made next to the database the first time it's needed. Database
-// backups (npm run backup) don't include it. Once saved, they're never sent back, even to their owner.
+// the database (see secrets.ts). Once saved, they're never sent back, even to their owner.
 //
 // The usage counter only ever goes up: every OTP is made and the counter raised in one transaction, and a service like Duo
 // rejects any OTP whose counter isn't higher than the last it accepted. Restoring an older copy of the database would roll
@@ -63,40 +61,6 @@ export class KeysError extends Error {
 }
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
-
-// Encryption
-
-let secretKey: Buffer | null = null;
-
-/** The key secrets are encrypted with: KEYS_SECRET, or a file beside the database, made with a random key if it's missing */
-function encryptionKey() {
-    if (secretKey) return secretKey;
-
-    const fromEnv = process.env.KEYS_SECRET?.trim();
-    if (fromEnv) {
-        if (!/^[0-9a-f]{64}$/i.test(fromEnv)) throw new Error("KEYS_SECRET must be 64 hex digits");
-        return (secretKey = Buffer.from(fromEnv, "hex"));
-    }
-
-    const file = join(dirname(DB_FILE), ".keys-secret");
-    if (!existsSync(file)) writeFileSync(file, randomBytes(32).toString("hex"), { mode: 0o600, flag: "wx" });
-    return (secretKey = Buffer.from(readFileSync(file, "utf8").trim(), "hex"));
-}
-
-/** Encrypts secrets for the database, as iv.tag.ciphertext in base64url */
-function seal(secrets: { privateId: string, aesKey: string }) {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
-    const sealed = Buffer.concat([cipher.update(JSON.stringify(secrets), "utf8"), cipher.final()]);
-    return [iv, cipher.getAuthTag(), sealed].map(part => part.toString("base64url")).join(".");
-}
-
-function unseal(text: string): { privateId: string, aesKey: string } {
-    const [iv, tag, sealed] = text.split(".").map(part => Buffer.from(part, "base64url"));
-    const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), iv);
-    decipher.setAuthTag(tag);
-    return JSON.parse(Buffer.concat([decipher.update(sealed), decipher.final()]).toString("utf8"));
-}
 
 // Keys
 
@@ -214,7 +178,7 @@ export function nextOtp(token: TokenRow) {
         if (!row) throw new KeysError("This API key's owner has no key. Add one at keys.zotify.app.", 404);
         if (row.counter > MAX_COUNTER) throw new KeysError("This key has used every counter it has. Register a new one with Duo, then add it at keys.zotify.app.", 409);
 
-        const { privateId, aesKey } = unseal(row.secrets);
+        const { privateId, aesKey } = unseal<{ privateId: string, aesKey: string }>(row.secrets);
         const otp = generateOtp({ publicId: row.public_id, privateId: Buffer.from(privateId, "hex"), aesKey: Buffer.from(aesKey, "hex") }, row.counter);
         const now = Date.now();
 

@@ -7,7 +7,7 @@ node_modules
 .zotify.db-wal
 .zotify.db-shm
 backups/
-# Zotify Keys' encryption key, when KEYS_SECRET isn't set (see src/keys/store.ts)
+# The key Zotify Keys' secrets and Spotify tokens are encrypted with, when KEYS_SECRET isn't set (see src/secrets.ts)
 .keys-secret
 # Written into each release by deploy/deploy.sh
 .release-info

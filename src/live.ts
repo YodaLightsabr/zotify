@@ -5,6 +5,7 @@ import { isApproved } from "./beta.js";
 import { RockbotClient } from "./client.js";
 import { events } from "./events.js";
 import { getPlaylistQueueJob, type PlaylistQueueJob } from "./playlistQueue.js";
+import { getPlaylistFor } from "./playlists.js";
 import { getRecentlyQueued } from "./queued.js";
 import { sessionFromCookies } from "./routes/auth.js";
 import { getVenue, getVenues, schoolForOrigin } from "./schools.js";
@@ -157,6 +158,8 @@ function handleConnection(socket: LiveSocket) {
 
     socket.on("watchPlaylist", ({ id, venue }: { id?: unknown, venue?: unknown } = {}) => {
         if (!socket.data.member || !isPlaylistId(id) || !isVenue(venue)) return;
+        // Private playlists only for the people who added them
+        if (!socket.data.email || !getPlaylistFor(socket.data.email, id)) return;
 
         socket.join(`playlist:${id}:${venue}`);
         socket.emit("playlistQueue", { playlistId: id, venue, job: getPlaylistQueueJob(id, venue) });

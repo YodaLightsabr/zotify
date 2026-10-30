@@ -60,6 +60,7 @@ export default function AccountPage() {
                         </button>
                     </div>
 
+                    {user.approved && <SpotifyConnection />}
                     <ConnectedApps />
                 </>}
             </main>
@@ -75,6 +76,46 @@ interface Authorization {
     scopes: string[];
     authorizedAt: number;
     lastUsedAt: number | null;
+}
+
+/** Your Spotify connection, for importing your library and opening private playlists. Hidden if this server doesn't have Spotify set up */
+function SpotifyConnection() {
+    const [status, setStatus] = useState<{ configured: boolean, connection: { spotifyId: string, displayName: string | null } | null } | null>(null);
+
+    const load = useCallback(async () => {
+        const { response, data } = await getJson("/v1/me/spotify");
+        if (response.ok) setStatus(data);
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    if (!status?.configured) return null;
+    const connection = status.connection;
+
+    return (
+        <section className="connected-apps" aria-labelledby="spotify-title">
+            <h2 id="spotify-title">Spotify</h2>
+            <div className="panel">
+                <div className="connected-app">
+                    <div>
+                        <div className="field-value">{connection ? `Connected as ${connection.displayName ?? connection.spotifyId}` : "Not connected"}</div>
+                        <div className="app-detail">
+                            {connection ? "Import your liked songs and playlists, and paste links to your private playlists in the search."
+                                : "Connect Spotify to import your liked songs and playlists into your Library."}
+                        </div>
+                    </div>
+                    {connection && (
+                        <button type="button" className="app-sign-out" onClick={async () => {
+                            if (!confirm("Disconnect Spotify? Songs and playlists you've imported stay in your Library.")) return;
+                            await deleteJson("/v1/me/spotify");
+                            load();
+                        }}>Disconnect</button>
+                    )}
+                </div>
+                <Link className="button primary" href="/account/spotify">{connection ? "Import from Spotify" : "Connect Spotify"}</Link>
+            </div>
+        </section>
+    );
 }
 
 /** Apps you've let use your account (see src/routes/oauth.ts), which you can sign out of. Hidden until there are some */

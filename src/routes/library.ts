@@ -3,7 +3,7 @@ import {
     getLibraryPlaylists, getLibrarySongs, removePlaylistFromLibrary, removeSong, saveMatches, savePlaylistToLibrary, saveSong
 } from "../library.js";
 import { startPlaylistMatchJob } from "../playlistMatch.js";
-import { getPlaylist } from "../playlists.js";
+import { getPlaylistFor } from "../playlists.js";
 import { requestVenue } from "./params.js";
 
 const sessionEmail = (res: Response): string => res.locals.session.email;
@@ -52,7 +52,7 @@ export function libraryPlaylists(_req: Request, res: Response) {
  */
 export function savePlaylistRoute(req: Request, res: Response) {
     const id = playlistIdParam(req);
-    const saved = id ? getPlaylist(id) : null;
+    const saved = id ? getPlaylistFor(sessionEmail(res), id) : null;
 
     if (!saved) {
         res.status(404).json({ error: "Zotify doesn't have that playlist. Add it first with its Spotify link.", code: "not_found" });

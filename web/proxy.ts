@@ -41,6 +41,14 @@ export async function proxy(request: NextRequest) {
         return new NextResponse("Zotify is starting up. Try again in a moment.", { status: 503, headers: { "Retry-After": "5" } });
     }
 
+    // Development only: Spotify won't send people back to "localhost", so they come back to 127.0.0.1, where the session cookie
+    // (and Next.js's development scripts) aren't. Send them on to the same address on localhost. Next.js would turn a redirect
+    // there into a relative one, since it counts both as itself, so the browser is moved by a script instead
+    if (SITE_DOMAIN.startsWith("localhost:") && host.startsWith("127.0.0.1:")) {
+        return new NextResponse(`<!doctype html><script>location.replace(location.href.replace("//127.0.0.1", "//localhost"))</script>`,
+            { headers: { "Content-Type": "text/html" } });
+    }
+
     const main = list.find(school => !school.subdomain);
     let school: SchoolInfo | undefined = main;
     const { pathname, search } = request.nextUrl;

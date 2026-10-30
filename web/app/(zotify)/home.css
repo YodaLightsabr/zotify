@@ -86,6 +86,8 @@
 
     .row-icon:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
     .row-icon.remove:not(:disabled):hover { color: var(--error); border-color: var(--error); }
+    .row-icon.save { flex-shrink: 0; }
+    .row-icon.save.saved { color: var(--accent); }
     .row-icon:disabled { opacity: 0.35; cursor: default; }
     .song.busy-row { opacity: 0.6; }
 

@@ -1,4 +1,5 @@
 import type { VenueName } from "./accounts.js";
+import { events } from "./events.js";
 import type { StoredPlaylist } from "./playlists.js";
 import { findTrack } from "./trackMatch.js";
 
@@ -72,6 +73,7 @@ export function startPlaylistMatchJob(playlist: StoredPlaylist, venue: VenueName
             }
 
             job.finishedAt = Date.now();
+            events.emit("playlistMatched", job);
         });
 
     return job;

@@ -81,6 +81,38 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
 
+    -- Each person's Library: Rockbot songs (in songs) they requested, saved by hand (source "saved"), or that turned up in a
+    -- playlist they saved (source "playlist", with playlist_id). removed_at marks songs they took out, so a saved playlist doesn't
+    -- put them back; requesting or saving one again does
+    CREATE TABLE IF NOT EXISTS library_songs (
+        email TEXT NOT NULL,
+        song_id TEXT NOT NULL REFERENCES songs (id),
+        saved_at INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        playlist_id TEXT,
+        removed_at INTEGER,
+        PRIMARY KEY (email, song_id)
+    );
+
+    -- The Rockbot songs each playlist's tracks turned out to be, from every time anyone looked it up at any venue, whether or
+    -- not they can be requested there. Tracks Rockbot doesn't have aren't here
+    CREATE TABLE IF NOT EXISTS playlist_songs (
+        playlist_id TEXT NOT NULL REFERENCES playlists (id),
+        song_id TEXT NOT NULL REFERENCES songs (id),
+        found_at INTEGER NOT NULL,
+        PRIMARY KEY (playlist_id, song_id)
+    );
+
+    -- Whether each song could be requested at each venue the last time it came up in a search. Unlike searches, kept for good,
+    -- so the Library knows what can be played where, and notices when that changes
+    CREATE TABLE IF NOT EXISTS song_availability (
+        song_id TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        requestable INTEGER NOT NULL,
+        checked_at INTEGER NOT NULL,
+        PRIMARY KEY (song_id, venue)
+    );
+
     -- Zotify's own first-in, first-out queue at each venue. Songs wait here until there's room for them in Rockbot's queue.
     -- status: waiting, released (requested or boosted on Rockbot as pick_id), failed (after its retries, with last_error)
     -- or removed. position orders the waiting songs, so admins can rearrange them
@@ -314,6 +346,11 @@ for (const column of ["previous_refresh_hash TEXT", "rotated_at INTEGER"]) {
 // Databases from before the Zotify queue could be rearranged don't have its position column. Songs keep the order they were added in
 if (!(db.prepare("PRAGMA table_info(zotify_queue)").all() as { name: string }[]).some(column => column.name === "position")) {
     db.exec("ALTER TABLE zotify_queue ADD COLUMN position REAL; UPDATE zotify_queue SET position = id;");
+}
+
+// Playlists people saved to their Library, as opposed to ones they only opened. Added after user_playlists existed
+if (!(db.prepare("PRAGMA table_info(user_playlists)").all() as { name: string }[]).some(column => column.name === "saved_at")) {
+    db.exec("ALTER TABLE user_playlists ADD COLUMN saved_at INTEGER");
 }
 
 /** Runs fn in a transaction: all of it lands, or none of it does */

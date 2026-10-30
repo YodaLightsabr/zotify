@@ -3,6 +3,7 @@ import { RockbotClient, type QueueEntry, type VenueQueue } from "./client.js";
 import { db, transaction } from "./db.js";
 import { events } from "./events.js";
 import { recordPick } from "./history.js";
+import { saveRequestedSong } from "./library.js";
 import { getRecentlyQueued, markBoosted } from "./queued.js";
 import { NoAccountsError, requestSong, type RequestedSong } from "./requestSong.js";
 import { getVenueQueue, isFromZotify, isSameSong, queueEntries } from "./venueQueue.js";
@@ -87,6 +88,15 @@ export function enqueue(venue: VenueName, song: RequestedSong, requestedBy?: str
         // Only keep real image URLs since this gets rendered back on the page
         const cover = song.cover?.startsWith("https://") ? song.cover : null;
         insert.run(venue, song.id, song.name, song.artist, cover, requestedBy ?? null, Date.now(), venue);
+    }
+
+    // Everything someone requests goes in their Library, even if it was already waiting
+    if (requestedBy) {
+        try {
+            saveRequestedSong(requestedBy, song);
+        } catch (error) {
+            console.error(`Could not save "${song.name}" to ${requestedBy}'s Library:`, error);
+        }
     }
 
     const waiting = getWaiting(venue);

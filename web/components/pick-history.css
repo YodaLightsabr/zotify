@@ -1,4 +1,4 @@
-/* A pick history list (app/pick-history.js), used by the admin dashboard and My picks. Scoped so it can't clash with other rows */
+/* A pick history list (app/pick-history.js), used by the admin dashboard and the Library's History. Scoped so it can't clash with other rows */
 
 .pick-history .history-day + .history-day { margin-top: 20px; }
 

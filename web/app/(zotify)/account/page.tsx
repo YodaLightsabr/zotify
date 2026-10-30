@@ -48,7 +48,7 @@ export default function AccountPage() {
                         </div>
                     </div>
                     <div className="actions">
-                        {user.approved && <Link className="button" href="/my-picks">My picks</Link>}
+                        {user.approved && <Link className="button" href="/library">Library</Link>}
                         {!user.approved && <Link className="button primary" href="/beta">Join the beta</Link>}
                         {user.developer && <Link className="button" href="/developers">Developers</Link>}
                         <button type="button" className="button sign-out" disabled={signingOut} onClick={async () => {

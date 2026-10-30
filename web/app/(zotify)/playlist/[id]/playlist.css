@@ -4,7 +4,14 @@
 .page-playlist {
     display: contents;
 
-    .playlist-heading { margin: 0 0 16px; }
+    .playlist-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
+    .playlist-heading > div { min-width: 0; }
+    .save-playlist { margin-top: 4px; }
+
+    @media (max-width: 520px) {
+        .playlist-heading { flex-direction: column; gap: 8px; }
+        .save-playlist { margin-top: 0; }
+    }
 
     .playlist-heading h1 {
         font-family: "Jua", system-ui, sans-serif;

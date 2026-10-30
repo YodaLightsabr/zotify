@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { playlistSavedAt } from "../library.js";
 import { getPlaylistMatchJob, startPlaylistMatchJob } from "../playlistMatch.js";
 import { getPlaylistQueueJob, startPlaylistQueueJob } from "../playlistQueue.js";
 import { getPlaylist, getPlaylistsFor, linkPlaylist, savePlaylist } from "../playlists.js";
@@ -54,7 +55,7 @@ export function myPlaylists(_req: Request, res: Response) {
     res.json(getPlaylistsFor(sessionEmail(res)));
 }
 
-/** A saved playlist and its tracks. Opening one also links it to you, so shared links show up in your playlists */
+/** A saved playlist and its tracks, and when you saved it to your Library. Opening one also links it to you, so shared links show up in your playlists */
 export function playlist(req: Request, res: Response) {
     const id = playlistIdParam(req);
     const saved = id ? getPlaylist(id) : null;
@@ -65,7 +66,7 @@ export function playlist(req: Request, res: Response) {
     }
 
     linkPlaylist(sessionEmail(res), saved.id);
-    res.json(saved);
+    res.json({ ...saved, savedAt: playlistSavedAt(sessionEmail(res), saved.id) });
 }
 
 /**

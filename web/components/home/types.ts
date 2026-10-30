@@ -43,6 +43,8 @@ export interface Playlist {
     fetchedAt: number;
     owner?: string;
     mayBeTruncated?: boolean;
+    // When you saved it to your Library, or null
+    savedAt?: number | null;
     tracks: PlaylistTrack[];
 }
 

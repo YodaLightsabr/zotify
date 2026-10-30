@@ -7,8 +7,9 @@ import { Loading, Message, resultGroup, SongResults, type NotFound } from "@/com
 import type { Playlist, PlaylistTrack, QueueEntry, Song } from "@/components/home/types";
 import VoteDialog from "@/components/home/VoteDialog";
 import { Busy } from "@/components/Spinner";
-import { fetchOrThrow, getJson, postJson, runWithConcurrency, type Venue } from "@/lib/api";
-import { plural } from "@/lib/format";
+import { deleteJson, fetchOrThrow, getJson, postJson, putJson, runWithConcurrency, type Venue } from "@/lib/api";
+import { cx, plural } from "@/lib/format";
+import { useLibrary } from "@/lib/library";
 import { setPlaylistJob, useLivePlaylistJob, type Outcome, type QueueJob } from "@/lib/live";
 import { useMember } from "@/lib/useMember";
 import { useSchool } from "@/lib/school";
@@ -19,9 +20,12 @@ import "./playlist.css";
 // Only this many track searches run at once, to go easy on Rockbot
 const MATCH_CONCURRENCY = 3;
 
-/** Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot */
-const fetchMatch = async (track: PlaylistTrack, venue: Venue) =>
-    (await fetchOrThrow<{ match: Song | null }>(`/v1/venues/${venue}/match`, { title: track.title, artist: track.artist }, "Search failed")).match;
+/**
+ * Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot.
+ * The server keeps what it finds with the playlist, for the Libraries of people who saved it
+ */
+const fetchMatch = async (track: PlaylistTrack, venue: Venue, playlistId: string) =>
+    (await fetchOrThrow<{ match: Song | null }>(`/v1/venues/${venue}/match`, { title: track.title, artist: track.artist, playlist: playlistId }, "Search failed")).match;
 
 // Matching the playlist's tracks to Rockbot songs, then the grouped results
 type Matching =
@@ -93,11 +97,11 @@ function PlaylistView() {
 
             try {
                 try {
-                    matches[i] = await fetchMatch(track, venue);
+                    matches[i] = await fetchMatch(track, venue, playlist.id);
                 } catch {
                     states[i] = "retrying";
                     show();
-                    matches[i] = await fetchMatch(track, venue);
+                    matches[i] = await fetchMatch(track, venue, playlist.id);
                 }
 
                 states[i] = matches[i] ? "found" : "missing";
@@ -146,8 +150,11 @@ function PlaylistView() {
     return (
         <Page>
             <div className="playlist-heading">
-                <h1>{playlist.name}</h1>
-                <p>{playlist.owner ? `By ${playlist.owner} · ` : ""}{plural(playlist.tracks.length, "track")}.{note}</p>
+                <div>
+                    <h1>{playlist.name}</h1>
+                    <p>{playlist.owner ? `By ${playlist.owner} · ` : ""}{plural(playlist.tracks.length, "track")}.{note}</p>
+                </div>
+                <SavePlaylist playlist={playlist} venue={venue} onChange={savedAt => setPlaylist({ ...playlist, savedAt })} />
             </div>
 
             {/* Schools with one venue don't need a choice */}
@@ -176,6 +183,40 @@ function PlaylistView() {
             <VoteDialog target={voteTarget} admin={!!user?.admin} onClose={() => setVoteTarget(null)} onVoted={() => {}}
                 onArtist={artist => router.push(`/?${new URLSearchParams({ q: artist, venue })}`)} />
         </Page>
+    );
+}
+
+/** Saves the playlist to your Library, along with every song of it Rockbot has, or takes it out */
+function SavePlaylist({ playlist, venue, onChange }: { playlist: Playlist, venue: Venue, onChange: (savedAt: number | null) => void }) {
+    const { reload } = useLibrary();
+    const [busy, setBusy] = useState(false);
+    const saved = !!playlist.savedAt;
+
+    async function toggle() {
+        if (saved && !confirm(`Take "${playlist.name}" out of your Library? Its songs stay saved.`)) return;
+        setBusy(true);
+
+        try {
+            // Saving finds its songs at this venue on the server, which saves them as they're found
+            const { response, data } = saved
+                ? await deleteJson(`/v1/me/library/playlists/${playlist.id}`)
+                : await putJson(`/v1/venues/${venue}/playlists/${playlist.id}/library`, {});
+            if (!response.ok && !(saved && response.status === 404)) throw new Error(data?.error ?? `That didn't work (${response.status})`);
+            onChange(saved ? null : data?.savedAt ?? Date.now());
+            // The songs' hearts fill in once they're saved, which is quick when this page has already found them
+            if (!saved) setTimeout(() => reload().catch(() => {}), 1500);
+        } catch (error) {
+            alert((error as Error).message);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <button type="button" className={cx("queue-btn save-playlist", saved && "done", busy && "busy")} aria-pressed={saved} disabled={busy} onClick={toggle}
+            title={saved ? "Take it out of your Library" : "Save it and its songs to your Library"}>
+            {busy ? <Busy label={saved ? "Removing…" : "Saving…"} /> : saved ? "In your Library ✓" : "Save to Library"}
+        </button>
     );
 }
 

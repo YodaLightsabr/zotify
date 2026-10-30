@@ -23,7 +23,7 @@ export default function Navbar() {
             onBrandClick={event => { if (resetHome()) event.preventDefault(); }}
             nav={<>
                 {link("/", "Queue")}
-                {user?.approved && link("/my-picks", "My picks")}
+                {user?.approved && link("/library", "Library")}
                 {user && !user.approved && link("/beta", "Join")}
                 {user?.admin && link("/admin", "Admin")}
             </>} />

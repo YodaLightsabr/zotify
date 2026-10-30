@@ -110,9 +110,21 @@ The connection is opened with the session cookie, and signing in or out reconnec
 
 Queuing a song (the Queue button, Request again, or a whole playlist) adds it to Zotify's own first-in, first-out queue for that venue, kept in the database. After each poll of Rockbot's queue (below), and whenever something is added, the API checks: while fewer than 3 of Zotify's songs are waiting there, it requests the next one and upvotes it with every account. Keeping only a few in Rockbot at once keeps cooldowns short and keeps songs in the order people asked for them.
 
-If someone else requests the same song on Rockbot while it waits, Zotify boosts their pick with every account instead of requesting it again; that doesn't use up one of the 3 places. Admins can move waiting songs up and down and remove any of them, and everyone can remove their own.
+If someone else requests the same song on Rockbot while it waits, Zotify boosts their pick with every account instead of requesting it again; that doesn't use up one of the 3 places. Admins can move waiting songs up and down, bring one to the front, and remove any of them, and everyone can remove their own.
 
 A song that can't be requested is retried twice, 30 and 60 seconds apart, holding its place in line meanwhile. After that (or straight away, if Rockbot says it was played too recently) it's marked failed and the next song goes. Signed-in people see the waiting songs on the homepage between On deck and Coming up, and a warning by "Up next" lists recent failures. The rules live in `src/zotifyQueue.ts`.
+
+## The Library
+
+Each person's Library (`/library`, from `src/library.ts`) has three tabs:
+
+- **Songs:** everything they've requested, songs they saved with the heart on search and playlist results, and songs from playlists they saved. Only Rockbot songs are kept, since the Library needs Rockbot's details to request them.
+  - Songs are kept whether or not they can be requested anywhere right now. Every search records whether each song could be requested at each venue (`song_availability`), and the page hides songs that can't be played at the chosen venue behind a "Show" link.
+  - Taking a song out keeps a note of it, so a saved playlist doesn't put it back. Requesting or saving it again does.
+- **Playlists:** playlists saved with "Save to Library" on a playlist's page. Saving one finds its tracks on Rockbot at that venue and saves each one Rockbot has. Whenever anyone looks the playlist up again, the songs it turns up are kept (`playlist_songs`) and any new ones are added for the people who saved it.
+- **History:** every song they've queued, by day. It used to be the My picks page, which now redirects here. The pick history is no longer trimmed, so nobody loses old picks; the admin dashboard shows the newest 5,000.
+
+Everyone's Library started out as their pick history, the first time the server ran with it.
 
 ## Running on a server
 
@@ -161,7 +173,7 @@ In development, run `npm run dev` and `npm run dev:web` side by side.
 - `src/openapi.ts`: the API's OpenAPI description, which the docs are built from
 - `src/`: Rockbot client, caching, search, queuing, voting and Spotify modules
 - `src/scripts/`: one-off scripts
-- `web/app/`: the pages (home, sign in, private beta, invite links, My picks, admin, developers, OAuth sign-in), Zotify Meals (`meals/`), Zotify Spaces (`spaces/`), Zotify Keys (`keys/`) and the API docs (`docs/`)
+- `web/app/`: the pages (home, sign in, private beta, invite links, your Library, admin, developers, OAuth sign-in), Zotify Meals (`meals/`), Zotify Spaces (`spaces/`), Zotify Keys (`keys/`) and the API docs (`docs/`)
 - `keys-extension/`: the Zotify Keys Chrome extension
 - `web/components/`: shared components, including the `AppBar` every app shares (its app switcher and account menu are always top right) and Zotify's `Navbar` and `TabBar`
 - `web/lib/`: the API client, the signed-in user, and formatting helpers

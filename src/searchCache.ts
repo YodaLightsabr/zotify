@@ -37,6 +37,12 @@ export function normalizeQuery(query: string) {
 const findSearch = db.prepare("SELECT results, cached_at FROM searches WHERE venue = ? AND query = ?");
 const findSong = db.prepare("SELECT name, artist, cover FROM songs WHERE id = ?");
 const saveSong = db.prepare("INSERT OR REPLACE INTO songs (id, name, artist, cover) VALUES (?, ?, ?, ?)");
+// Only a newer search changes what's known about a song at a venue
+const saveAvailability = db.prepare(`
+    INSERT INTO song_availability (song_id, venue, requestable, checked_at) VALUES (?, ?, ?, ?)
+    ON CONFLICT (song_id, venue) DO UPDATE SET requestable = excluded.requestable, checked_at = excluded.checked_at
+    WHERE excluded.checked_at >= song_availability.checked_at
+`);
 const saveSearch = db.prepare("INSERT OR REPLACE INTO searches (venue, query, results, cached_at) VALUES (?, ?, ?, ?)");
 const dropExpired = db.prepare("DELETE FROM searches WHERE cached_at < ?");
 const keepNewest = db.prepare(`
@@ -72,7 +78,10 @@ export async function cacheSearches(query: string, resultsByVenue: Record<string
     transaction(() => {
         for (const [venue, venueSongs] of Object.entries(resultsByVenue)) {
             // Song details are refreshed whenever a song comes up, and never expire
-            for (const song of venueSongs) saveSong.run(song.id, song.name, song.artist, song.cover ?? null);
+            for (const song of venueSongs) {
+                saveSong.run(song.id, song.name, song.artist, song.cover ?? null);
+                saveAvailability.run(song.id, venue, song.requestable ? 1 : 0, now);
+            }
 
             saveSearch.run(venue, normalized, JSON.stringify(venueSongs.map(({ id, requestable }) => ({ id, requestable }))), now);
             keepNewest.run(venue, venue, MAX_QUERIES_PER_VENUE);

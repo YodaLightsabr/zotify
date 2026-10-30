@@ -203,7 +203,7 @@ function AccountMenu({ app, open, onToggle, onClose }: MenuProps & { app: AppId 
 
                     <div className="account-links" onClick={onClose}>
                         <a href={`${zotify}/account`}>Account and connected apps</a>
-                        {user.approved && <a href={`${zotify}/my-picks`}>My picks</a>}
+                        {user.approved && <a href={`${zotify}/library`}>Library</a>}
                         {!user.approved && !schools.length && <a href={`${zotify}/beta`}>Join the beta</a>}
                         {user.developer && <a href={`${zotify}/developers`}>Tokens and OAuth apps</a>}
                         {admin && <a href={`${zotify}/admin`}>Admin</a>}

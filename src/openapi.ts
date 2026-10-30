@@ -195,12 +195,33 @@ const schemas: Record<string, Schema> = {
         addedAt: timestamp("When you first added it."),
         openedAt: timestamp("When you last opened it.")
     }),
+    LibrarySong: object({
+        id: string("Rockbot's song ID."),
+        name: string(),
+        artist: string(),
+        "cover?": string(),
+        savedAt: timestamp("When it went into your Library."),
+        source: { type: "string", enum: ["requested", "saved", "playlist"], description: "How: you requested it, saved it by hand, or it was in a playlist you saved." },
+        "playlist?": object({ id: string(), name: string() }, "The saved playlist it came from, for source playlist."),
+        requests: integer("How many times you've requested it through Zotify."),
+        lastRequestedAt: nullable(timestamp("When you last requested it.")),
+        availability: { type: "object", additionalProperties: { type: "boolean" }, description: "Whether it could be requested at each venue, by venue ID, the last time it came up there. Venues it hasn't come up at are left out. Zotify's pages hide songs that can't be requested at the venue they're showing." }
+    }),
+    LibraryPlaylist: object({
+        id: string("Spotify's playlist ID."),
+        name: string(),
+        "owner?": string(),
+        trackCount: integer(),
+        songCount: integer("How many of its tracks are in your Library: the ones found on Rockbot that you haven't taken out."),
+        savedAt: timestamp("When you saved it to your Library.")
+    }),
     Playlist: object({
         id: string("Spotify's playlist ID.", "37i9dQZF1DXcBWIGoYBM5M"),
         name: string(),
         "owner?": string(),
         mayBeTruncated: boolean("Spotify only shows Zotify the first 100 tracks, so a playlist with exactly 100 may have more."),
         fetchedAt: timestamp("When its tracks were last read from Spotify."),
+        "savedAt?": nullable(timestamp("When you saved it to your Library, or null. Only from GET /v1/playlists/{id}.")),
         tracks: array(object({ title: string(), artist: string(), "durationMs?": integer(), "uri?": string("Spotify URI.") }))
     }),
     PlaylistMatches: object({
@@ -342,7 +363,7 @@ const paths: Record<string, Record<string, unknown>> = {
     "/v1/me/picks": {
         get: operation("myPicks", {
             tag: "You", scope: "music:read", access: "signed-in", summary: "Songs you've requested",
-            description: "Every song you've requested through Zotify that made it into Rockbot's queue, newest first.",
+            description: "Every song you've requested through Zotify that made it into Rockbot's queue, newest first: the History in your Library.",
             parameters: [query("school", "Only picks at this school's venues.", "uci")],
             response: { description: "Your picks.", schema: array(ref("Pick")) },
             errors: AUTH_ERRORS
@@ -362,6 +383,50 @@ const paths: Record<string, Record<string, unknown>> = {
             status: 201,
             response: { description: "The playlist.", schema: ref("Playlist") },
             errors: [400, ...AUTH_ERRORS, 404, 502]
+        })
+    },
+    "/v1/me/library/songs": {
+        get: operation("librarySongs", {
+            tag: "Library", scope: "music:read", access: "signed-in", summary: "Your saved songs",
+            description: "Songs in your Library, most recently saved first: everything you've requested, songs you saved, and songs from playlists you saved. Includes songs that can't be requested anywhere right now; availability says where they can be.",
+            response: { description: "Your saved songs.", schema: array(ref("LibrarySong")), example: [{ ...exampleSong, savedAt: 1792607436572, source: "requested", requests: 2, lastRequestedAt: 1792607436572, availability: { anteatery: true, brandywine: false } }] },
+            errors: AUTH_ERRORS
+        })
+    },
+    "/v1/me/library/songs/{songId}": {
+        put: operation("saveLibrarySong", {
+            tag: "Library", scope: "music:write", access: "signed-in", summary: "Save a song",
+            description: "Adds a song to your Library. It has to be one Zotify has seen on Rockbot, from a search or a playlist. Saving one you took out brings it back.",
+            parameters: [path("songId", "Rockbot's song ID, from search results.", "1091753")],
+            status: 204,
+            response: { description: "Saved." },
+            errors: [...AUTH_ERRORS, 404]
+        }),
+        delete: operation("removeLibrarySong", {
+            tag: "Library", scope: "music:write", access: "signed-in", summary: "Take a song out",
+            description: "Takes a song out of your Library. Saved playlists won't put it back, but requesting or saving it will. Your picks still list every time you requested it.",
+            parameters: [path("songId", "Rockbot's song ID.", "1091753")],
+            status: 204,
+            response: { description: "Taken out." },
+            errors: [...AUTH_ERRORS, 404]
+        })
+    },
+    "/v1/me/library/playlists": {
+        get: operation("libraryPlaylists", {
+            tag: "Library", scope: "music:read", access: "signed-in", summary: "Your saved playlists",
+            description: "Playlists you saved to your Library, most recently saved first. Save one with PUT /v1/venues/{venue}/playlists/{id}/library.",
+            response: { description: "Your saved playlists.", schema: array(ref("LibraryPlaylist")) },
+            errors: AUTH_ERRORS
+        })
+    },
+    "/v1/me/library/playlists/{id}": {
+        delete: operation("removeLibraryPlaylist", {
+            tag: "Library", scope: "music:write", access: "signed-in", summary: "Take a playlist out",
+            description: "Takes a playlist out of your Library. The songs it added stay until you take them out.",
+            parameters: [path("id", "Spotify's playlist ID.", "37i9dQZF1DXcBWIGoYBM5M")],
+            status: 204,
+            response: { description: "Taken out." },
+            errors: [...AUTH_ERRORS, 404]
         })
     },
     "/v1/playlists/{id}": {
@@ -397,7 +462,8 @@ const paths: Record<string, Record<string, unknown>> = {
             description: "Finds the Rockbot song for a track from somewhere else, like Spotify: send title and artist, or a Spotify track link as spotify. match is null when Rockbot doesn't have it.",
             parameters: [
                 venue, query("title", "The track's title.", "Dancing Queen"), query("artist", "Its artist.", "ABBA"),
-                query("spotify", "Instead of title and artist, a Spotify track link or URI, like https://open.spotify.com/track/….")
+                query("spotify", "Instead of title and artist, a Spotify track link or URI, like https://open.spotify.com/track/…."),
+                query("playlist", "The ID of the playlist the track is from, if it's from one Zotify has. The match is then added to the Library of everyone who saved that playlist.")
             ],
             response: {
                 description: "The best match, if there is one. With spotify, track is the title and artist Spotify gave.",
@@ -517,6 +583,15 @@ const paths: Record<string, Record<string, unknown>> = {
             tag: "Playlists", scope: "music:read", access: "member", summary: "How requesting a playlist is going",
             parameters: [venue, path("id", "Spotify's playlist ID.", "37i9dQZF1DXcBWIGoYBM5M")],
             response: { description: "The latest job, or null if nobody's started one in the last hour.", schema: nullable(ref("PlaylistJob")) },
+            errors: [...AUTH_ERRORS, 404]
+        })
+    },
+    "/v1/venues/{venue}/playlists/{id}/library": {
+        put: operation("saveLibraryPlaylist", {
+            tag: "Library", scope: "music:write", access: "member", summary: "Save a playlist",
+            description: "Saves a playlist to your Library and starts finding its tracks on Rockbot at the venue, as POST /v1/venues/{venue}/playlists/{id}/matches does. Every track Rockbot has is added to your saved songs once it's found, even ones that can't be requested right now, and new ones are added whenever the playlist is looked up again. Songs you took out stay out.",
+            parameters: [venue, path("id", "Spotify's playlist ID. Add it first with POST /v1/me/playlists.", "37i9dQZF1DXcBWIGoYBM5M")],
+            response: { description: "The saved playlist.", schema: ref("LibraryPlaylist") },
             errors: [...AUTH_ERRORS, 404]
         })
     },
@@ -795,6 +870,7 @@ export const spec = {
         { name: "Votes", description: "Voting on songs already in a venue's Rockbot queue, with Zotify's accounts." },
         { name: "Zotify's queue", description: "Songs waiting to go into Rockbot's queue. Zotify keeps at most 3 of its songs in Rockbot's queue at a venue, and adds the next as each one plays." },
         { name: "Playlists", description: "Spotify playlists, and requesting every track in one." },
+        { name: "Library", description: "Your saved songs and playlists. Everything you request is saved, and you can save songs and playlists yourself." },
         { name: "Zotify Meals", description: "Dining hall menus, which are public, and your favorite dishes." },
         { name: "Zotify Spaces", description: "Study rooms at the libraries and housing, and when they're free. Public, and live." },
         { name: "Admin", description: "For a school's admins, with the admin scope." },

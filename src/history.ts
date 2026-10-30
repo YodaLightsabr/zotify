@@ -1,8 +1,9 @@
 import type { VenueName } from "./accounts.js";
-import { db, transaction } from "./db.js";
+import { db } from "./db.js";
 
-// A lasting record of every song queued through Zotify. The "queued" log only keeps two hours for badges; this keeps them all
-const MAX_HISTORY = 5000;
+// A lasting record of every song queued through Zotify. The "queued" log only keeps two hours for badges; this keeps them all,
+// since it's everyone's History in their Library. The admin dashboard only shows the newest
+const ADMIN_HISTORY = 5000;
 
 export interface HistoryEntry {
     pickId: string;
@@ -42,21 +43,16 @@ const insert = db.prepare(`
     INSERT INTO pick_history (pick_id, song_id, name, artist, cover, venue, requested_at, requested_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
-// Drop the oldest picks so the history can't grow forever
-const trim = db.prepare("DELETE FROM pick_history WHERE id NOT IN (SELECT id FROM pick_history ORDER BY id DESC LIMIT ?)");
-const selectAll = db.prepare("SELECT * FROM pick_history ORDER BY requested_at DESC, id DESC");
+const selectAll = db.prepare("SELECT * FROM pick_history ORDER BY requested_at DESC, id DESC LIMIT ?");
 const selectFor = db.prepare("SELECT * FROM pick_history WHERE requested_by = ? ORDER BY requested_at DESC, id DESC");
 
 export async function recordPick(entry: HistoryEntry) {
-    transaction(() => {
-        insert.run(entry.pickId, entry.songId, entry.name, entry.artist, entry.cover ?? null, entry.venue, entry.requestedAt, entry.requestedBy ?? null);
-        trim.run(MAX_HISTORY);
-    });
+    insert.run(entry.pickId, entry.songId, entry.name, entry.artist, entry.cover ?? null, entry.venue, entry.requestedAt, entry.requestedBy ?? null);
 }
 
-/** Every recorded pick, newest first */
+/** The newest recorded picks, newest first */
 export async function getHistory() {
-    return (selectAll.all() as unknown as HistoryRow[]).map(toEntry);
+    return (selectAll.all(ADMIN_HISTORY) as unknown as HistoryRow[]).map(toEntry);
 }
 
 /** One person's picks, newest first */

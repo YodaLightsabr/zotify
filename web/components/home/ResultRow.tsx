@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import SaveButton from "@/components/SaveButton";
 import { Busy } from "@/components/Spinner";
 import { postJson, type Venue } from "@/lib/api";
 import { cx, plural, timeAgo, voteSummary } from "@/lib/format";
+import { useLibrary } from "@/lib/library";
 import { useSchool } from "@/lib/school";
 import { CooldownBadge, QueuedBadge, SongBackdrop, SongCover, VotableCover } from "./SongParts";
 import type { OpenVote, PlaylistTrack, Song } from "./types";
@@ -31,6 +33,7 @@ function initialButton(song: Song, requestable: boolean, boostable: boolean): Bu
 /** A search result, with a button to queue it, or to boost it when someone else queued it */
 export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, onVote: OpenVote }) {
     const school = useSchool();
+    const { markSaved } = useLibrary();
     const requestable = song.requestable !== false;
     // Someone else queued it, so all our accounts can upvote it instead
     const boostable = song.status === "queued" && !!song.pickId && song.queuedByZotify === false;
@@ -86,6 +89,8 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
 
             setQueuedAt(data.requestedAt ?? Date.now());
             setButton(QUEUED);
+            // Requesting a song saves it
+            markSaved(song.id);
         } catch (err) {
             setError((err as Error).message || "Could not queue song");
             update({ busy: undefined });
@@ -110,6 +115,7 @@ export function ResultRow({ song, venue, onVote }: { song: Song, venue: Venue, o
                 <div className="artist">{song.artist}</div>
                 <div className="error" role="alert">{error}</div>
             </div>
+            <SaveButton song={song} />
             <button
                 className={cx("queue-btn", button.variant, button.busy && "busy")}
                 disabled={button.disabled || !!button.busy}

@@ -38,7 +38,7 @@ interface Props {
     onRequested?: () => void;
 }
 
-/** A pick history: songs grouped by day, newest first, each with "Request again". Used by the admin dashboard and My picks */
+/** A pick history: songs grouped by day, newest first, each with "Request again". Used by the admin dashboard and your Library's History */
 export default function PickHistory({ picks, showRequester = false, emptyText = "Nothing here yet.", onRequested }: Props) {
     const [shown, setShown] = useState(PAGE_SIZE);
 

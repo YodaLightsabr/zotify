@@ -16,6 +16,9 @@ import {
     createTokenRoute as createKeysTokenRoute, deleteDeviceRoute, deleteTokenRoute as deleteKeysTokenRoute, keysOverview, otpRoute,
     raiseCounterRoute, randomSecretsRoute, saveDeviceRoute, whoamiRoute
 } from "./routes/keys.js";
+import {
+    libraryPlaylists, librarySongs, removePlaylistRoute, removeSongRoute, savePlaylistRoute, saveSongRoute
+} from "./routes/library.js";
 import { match } from "./routes/match.js";
 import {
     addFavoriteRoute, mealsDay, mealsIndex, mealsItem, mealsLocation, mealsSchool, mealsStatus, myFavorites, removeFavoriteRoute
@@ -111,6 +114,11 @@ v1.get("/me/picks", signedIn("music:read"), myPicks);
 v1.get("/me/playlists", signedIn("music:read"), myPlaylists);
 v1.post("/me/playlists", signedIn("music:write"), addPlaylist);
 v1.get("/playlists/:id", signedIn("music:read"), playlist);
+v1.get("/me/library/songs", signedIn("music:read"), librarySongs);
+v1.put("/me/library/songs/:songId", signedIn("music:write"), saveSongRoute);
+v1.delete("/me/library/songs/:songId", signedIn("music:write"), removeSongRoute);
+v1.get("/me/library/playlists", signedIn("music:read"), libraryPlaylists);
+v1.delete("/me/library/playlists/:id", signedIn("music:write"), removePlaylistRoute);
 
 // Joining a school's Zotify during the beta
 v1.post("/schools/:school/join-request", schoolParam, signedIn(), requestInviteRoute);
@@ -130,6 +138,7 @@ v1.post("/venues/:venue/playlists/:id/matches", venueParam, member("music:read")
 v1.get("/venues/:venue/playlists/:id/matches", venueParam, member("music:read"), playlistMatches);
 v1.post("/venues/:venue/playlists/:id/queue", venueParam, member("music:write"), queuePlaylist);
 v1.get("/venues/:venue/playlists/:id/queue", venueParam, member("music:read"), playlistQueueStatus);
+v1.put("/venues/:venue/playlists/:id/library", venueParam, member("music:write"), savePlaylistRoute);
 
 // Zotify Meals: public menus, and your favorites. More specific paths come before /:location
 const meals = express.Router();

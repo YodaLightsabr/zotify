@@ -15,7 +15,7 @@ const icon = (paths: React.ReactNode) => (
 
 const ICONS = {
     home: icon(<><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" /></>),
-    picks: icon(<><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>),
+    library: icon(<><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>),
     admin: icon(<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" />),
     account: icon(<><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" /></>)
 };
@@ -31,7 +31,7 @@ export default function TabBar() {
 
     const tabs = [
         { href: "/", label: "Home", icon: ICONS.home },
-        { href: "/my-picks", label: "My picks", icon: ICONS.picks },
+        { href: "/library", label: "Library", icon: ICONS.library },
         ...(user?.admin ? [{ href: "/admin", label: "Admin", icon: ICONS.admin }] : []),
         { href: "/account", label: "Account", icon: ICONS.account }
     ];

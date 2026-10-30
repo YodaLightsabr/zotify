@@ -6,7 +6,7 @@ import {
 import { getImport, MAX_LIKED, startImport } from "../spotifyImport.js";
 import { requestVenue } from "./params.js";
 
-// Connecting Spotify and importing from it, for Zotify's own pages (see spotifyApi.ts and spotifyImport.ts)
+// Connecting Spotify and importing from it, for site admins on Zotify's own pages (see spotifyApi.ts and spotifyImport.ts)
 
 const sessionEmail = (res: Response): string => res.locals.session.email;
 

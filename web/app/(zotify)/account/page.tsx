@@ -60,7 +60,7 @@ export default function AccountPage() {
                         </button>
                     </div>
 
-                    {user.approved && <SpotifyConnection />}
+                    {user.siteAdmin && <SpotifyConnection />}
                     <ConnectedApps />
                 </>}
             </main>
@@ -78,7 +78,10 @@ interface Authorization {
     lastUsedAt: number | null;
 }
 
-/** Your Spotify connection, for importing your library and opening private playlists. Hidden if this server doesn't have Spotify set up */
+/**
+ * Site admins only: your Spotify connection, for importing your library and opening private playlists. The most recently
+ * connected admin's also looks up playlist covers and album art for everyone. Hidden if this server doesn't have Spotify set up
+ */
 function SpotifyConnection() {
     const [status, setStatus] = useState<{ configured: boolean, connection: { spotifyId: string, displayName: string | null } | null } | null>(null);
 

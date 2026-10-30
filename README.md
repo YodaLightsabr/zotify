@@ -12,7 +12,7 @@ The server keeps everything (Rockbot accounts, schools, sessions, members, invit
 
 Older versions kept that data in `.cache.json`. The first time the server starts without a database, it imports `.cache.json` and then leaves it alone as a backup. Run `npm run backup` (after `npm run build`) to save a consistent copy of the database to `backups/`, even while the server is running.
 
-Login codes are emailed through [Resend](https://resend.com) when `RESEND_API_KEY` is set in `.env`; otherwise they're printed to the server console. Spotify connections need `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` (see [Spotify](#spotify)). See `.env.example` for the settings.
+Login codes are emailed through [Resend](https://resend.com) when `RESEND_API_KEY` is set in `.env`; otherwise they're printed to the server console. Spotify needs `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` (see [Spotify](#spotify)). See `.env.example` for the settings.
 
 ## Ports and URLs
 
@@ -128,12 +128,13 @@ Everyone's Library started out as their pick history, the first time the server 
 
 ## Spotify
 
-People can connect their Spotify account on the Account page (`src/spotifyApi.ts`). It needs a Spotify app from [Spotify's dashboard](https://developer.spotify.com/dashboard), with `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`. Without them, the Spotify section is hidden.
+Site admins can connect their Spotify account on the Account page (`src/spotifyApi.ts`). It needs a Spotify app from [Spotify's dashboard](https://developer.spotify.com/dashboard), with `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in `.env`. Without them, the Spotify section is hidden.
 
+- **Why only site admins:** Spotify's Development Mode only lets the Spotify accounts added under User Management in the app's dashboard connect, five at most, and the app owner's Spotify Premium has to stay active. Spotify also only lets the app read the tracks of private playlists someone made or collaborates on.
 - **Redirect URIs:** the app needs `https://www.zotify.app/api/spotify/callback`. For development, also add `http://127.0.0.1:3000/api/spotify/callback`, since Spotify doesn't allow `localhost`; `web/proxy.ts` sends people on from 127.0.0.1 to localhost, where the session cookie is.
-- **Development Mode:** until the app gets Spotify's Extended Quota, only the Spotify accounts added under User Management in its dashboard can connect, five at most, and the app owner's Spotify Premium has to stay active. Spotify also only lets the app read the tracks of private playlists someone made or collaborates on.
+- **Covers and album art for everyone** (`src/spotifyArt.ts`): the site admin who connected Spotify most recently is who Zotify looks things up as. Adding or opening any playlist looks up its cover and each track's album art (5 at a time, up to 250 tracks a pass), waiting up to 4 seconds before answering and finishing in the background. Album art is kept by Spotify track, so each is only looked up once. Covers also come from Spotify's public embed, which works without anyone connected.
 - **Importing** (`/account/spotify`, `src/spotifyImport.ts`): a wizard picks liked songs (the 500 most recent) and playlists. Each playlist is saved to the Library like "Save to Library" does, and every track is looked for on Rockbot at the venue picked in the top bar, four searches at a time.
-- **Private playlists:** with Spotify connected, pasting a link to your own private playlist works, and your own playlists come with all their tracks (up to 1,000) instead of the embed's 100. Private playlists can only be opened by the people who added them.
+- **Private playlists:** with Spotify connected, a site admin can paste a link to their own private playlist, and their own playlists come with all their tracks (up to 1,000) instead of the embed's 100. Private playlists can only be opened by the people who added them.
 - Tokens are encrypted with the same key as Zotify Keys' secrets. Disconnecting deletes them; imported songs and playlists stay.
 
 ## Running on a server

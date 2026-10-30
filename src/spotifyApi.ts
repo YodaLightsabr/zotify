@@ -1,15 +1,18 @@
 import { randomBytes } from "node:crypto";
 import { FRONTEND_URL } from "./config.js";
+import { isSiteAdmin } from "./auth.js";
 import { db } from "./db.js";
 import { seal, unseal } from "./secrets.js";
 import { SpotifyPlaylistUnavailableError, type SpotifyPlaylist, type SpotifyTrack } from "./spotify.js";
 
-// People's own Spotify accounts, connected with Spotify's sign-in (OAuth), so Zotify can import their liked songs and
+// Site admins' own Spotify accounts, connected with Spotify's sign-in (OAuth), so they can import their liked songs and
 // playlists, and read private playlists they paste. Public playlists are read without an account (see spotify.ts).
 //
-// The app is set up at developer.spotify.com with SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env. While it's in
-// Spotify's Development Mode, only the Spotify accounts added under User Management in its dashboard can connect (five at
-// most), and Spotify only lets it read the tracks of playlists someone made or collaborates on. Tokens are encrypted (secrets.ts)
+// The app is set up at developer.spotify.com with SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env. Spotify's Development
+// Mode only lets the Spotify accounts added under User Management in its dashboard connect (five at most), which is why it's
+// for site admins only, and only lets it read the tracks of playlists someone made or collaborates on. The site admin who
+// connected most recently is also who Zotify looks up everyone's playlist covers and album art as (see spotifyArt.ts).
+// Tokens are encrypted (secrets.ts)
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID?.trim() ?? "";
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET?.trim() ?? "";
@@ -66,6 +69,12 @@ const upsertAccount = db.prepare(`
 `);
 const updateTokens = db.prepare("UPDATE spotify_accounts SET tokens = ?, expires_at = ? WHERE email = ?");
 const deleteAccount = db.prepare("DELETE FROM spotify_accounts WHERE email = ?");
+const selectByRecency = db.prepare("SELECT email FROM spotify_accounts ORDER BY connected_at DESC");
+
+/** Who Zotify looks things up on Spotify as, for everyone: the site admin who connected Spotify most recently, or null */
+export function lookupAccount() {
+    return (selectByRecency.all() as { email: string }[]).map(row => row.email).find(isSiteAdmin) ?? null;
+}
 
 /** Someone's connected Spotify account, without its tokens, or null */
 export function getConnection(email: string) {
@@ -218,6 +227,24 @@ async function getAll(email: string, path: string, max: number) {
     return { items, total };
 }
 
+/** The image closest to 300 pixels wide from a list Spotify sends biggest first, or null */
+function pickImage(images: unknown): string | null {
+    if (!Array.isArray(images) || !images.length) return null;
+    const bigEnough = images.filter(image => image?.url && (image.width ?? 0) >= 300);
+    return String((bigEnough.at(-1) ?? images[0])?.url ?? "") || null;
+}
+
+/** A playlist's cover, looked up as `email`. Spotify shares covers of public playlists with anyone */
+export async function playlistCover(email: string, id: string) {
+    return pickImage((await get(email, `/playlists/${id}?fields=images`)).images);
+}
+
+/** A track's album art, looked up as `email` */
+export async function trackArt(email: string, trackId: string) {
+    if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return null;
+    return pickImage((await get(email, `/tracks/${trackId}`)).album?.images);
+}
+
 /** A Spotify track as Zotify keeps them, or null for podcast episodes and missing tracks */
 function toTrack(item: any): SpotifyTrack | null {
     if (!item || item.type !== "track" || !item.name) return null;
@@ -283,6 +310,7 @@ export async function fetchPlaylistAs(email: string, id: string): Promise<Spotif
             id,
             name: String(playlist.name ?? "Untitled playlist"),
             ...(playlist.owner?.display_name ? { owner: String(playlist.owner.display_name) } : {}),
+            ...(pickImage(playlist.images) ? { image: pickImage(playlist.images)! } : {}),
             tracks: items.map(item => toTrack(item?.item ?? item?.track)).filter((track): track is SpotifyTrack => !!track),
             mayBeTruncated: total > MAX_PLAYLIST_TRACKS,
             private: playlist.public !== true

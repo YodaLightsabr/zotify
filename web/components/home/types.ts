@@ -33,7 +33,8 @@ export interface VenueQueue {
     comingUp: QueueEntry[];
 }
 
-export interface PlaylistTrack { title: string, artist: string }
+// image is its album art from Spotify, once Zotify has looked it up
+export interface PlaylistTrack { title: string, artist: string, image?: string }
 
 /** A Spotify playlist saved on the server */
 export interface Playlist {
@@ -43,6 +44,8 @@ export interface Playlist {
     fetchedAt: number;
     owner?: string;
     mayBeTruncated?: boolean;
+    // Its cover from Spotify
+    image?: string;
     // When you saved it to your Library, or null
     savedAt?: number | null;
     tracks: PlaylistTrack[];

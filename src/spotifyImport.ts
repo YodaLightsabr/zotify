@@ -4,6 +4,7 @@ import { startPlaylistMatchJob } from "./playlistMatch.js";
 import { getPlaylist, savePlaylist } from "./playlists.js";
 import { fetchPlaylist, SpotifyPlaylistUnavailableError } from "./spotify.js";
 import { fetchPlaylistAs, getLikedSongs } from "./spotifyApi.js";
+import { addArt } from "./spotifyArt.js";
 import { findTrack } from "./trackMatch.js";
 
 // Importing someone's Spotify library into their Zotify Library, in the background: the playlists they pick, each saved to
@@ -132,6 +133,7 @@ async function importPlaylist(email: string, venue: VenueName, item: ImportItem)
     }
 
     const saved = getPlaylist(id)!;
+    void addArt(saved);
     item.name = saved.name;
     item.tracks = saved.tracks.length;
     savePlaylistToLibrary(email, id);

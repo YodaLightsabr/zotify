@@ -18,7 +18,7 @@ import "../../home.css";
 import "./playlist.css";
 
 // Only this many track searches run at once, to go easy on Rockbot
-const MATCH_CONCURRENCY = 3;
+const MATCH_CONCURRENCY = 5;
 
 /**
  * Finds a playlist track's Rockbot song on the server, which also tries the artist alone if needed. Null means not on Rockbot.
@@ -146,7 +146,8 @@ function PlaylistView() {
     return (
         <Page>
             <div className="playlist-heading">
-                <div>
+                {playlist.image && <img className="playlist-cover" src={playlist.image} alt="" />}
+                <div className="playlist-title">
                     <h1>{playlist.name}</h1>
                     <p>{playlist.owner ? `By ${playlist.owner} · ` : ""}{plural(playlist.tracks.length, "track")}.{note}</p>
                 </div>

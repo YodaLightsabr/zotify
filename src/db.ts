@@ -70,6 +70,13 @@ db.exec(`
         PRIMARY KEY (playlist_id, position)
     );
 
+    -- Album art for each Spotify track (spotify:track:...) from Spotify's API, or a null image when it has none (see spotifyArt.ts)
+    CREATE TABLE IF NOT EXISTS spotify_art (
+        uri TEXT PRIMARY KEY,
+        image TEXT,
+        fetched_at INTEGER NOT NULL
+    );
+
     -- Which people have opened which playlists. Many people can share a playlist, and anyone can have many
     CREATE TABLE IF NOT EXISTS user_playlists (
         email TEXT NOT NULL,
@@ -351,6 +358,13 @@ if (!(db.prepare("PRAGMA table_info(zotify_queue)").all() as { name: string }[])
 // Private playlists, read through someone's own Spotify (see spotifyApi.ts). Only people who added them can open them
 if (!(db.prepare("PRAGMA table_info(playlists)").all() as { name: string }[]).some(column => column.name === "private")) {
     db.exec("ALTER TABLE playlists ADD COLUMN private INTEGER NOT NULL DEFAULT 0");
+}
+
+// Playlists' covers from Spotify (see spotifyArt.ts), and when they were last looked up
+for (const column of ["image TEXT", "image_checked_at INTEGER"]) {
+    if (!(db.prepare("PRAGMA table_info(playlists)").all() as { name: string }[]).some(existing => existing.name === column.split(" ")[0])) {
+        db.exec(`ALTER TABLE playlists ADD COLUMN ${column}`);
+    }
 }
 
 // Playlists people saved to their Library, as opposed to ones they only opened. Added after user_playlists existed

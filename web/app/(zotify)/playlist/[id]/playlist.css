@@ -4,12 +4,15 @@
 .page-playlist {
     display: contents;
 
-    .playlist-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
-    .playlist-heading > div { min-width: 0; }
+    .playlist-heading { display: flex; align-items: center; gap: 16px; margin: 0 0 16px; }
+    .playlist-title { flex: 1; min-width: 0; }
+    .playlist-cover { width: 88px; height: 88px; flex-shrink: 0; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
     .save-playlist { margin-top: 4px; }
 
     @media (max-width: 520px) {
-        .playlist-heading { flex-direction: column; gap: 8px; }
+        .playlist-heading { flex-wrap: wrap; gap: 12px; }
+        .playlist-cover { width: 72px; height: 72px; }
+        .save-playlist { flex-basis: 100%; }
         .save-playlist { margin-top: 0; }
     }
 

@@ -63,7 +63,7 @@ export default function SpotifyImportPage() {
     }, []);
 
     useEffect(() => {
-        if (user) load().catch(error => setError((error as Error).message));
+        if (user?.siteAdmin) load().catch(error => setError((error as Error).message));
     }, [user, load]);
 
     // Follow a running import until it's done
@@ -75,6 +75,8 @@ export default function SpotifyImportPage() {
         return () => clearInterval(timer);
     }, [running, load]);
 
+    // Spotify only lets a handful of accounts connect, so this is for site admins
+    if (user && !user.siteAdmin) return <Page step={0}><p className="spotify-lead">Importing from Spotify is only for Zotify&apos;s admins for now.</p></Page>;
     if (error) return <Page step={0}><p className="spotify-error">{error}</p></Page>;
     if (!status) return <Page step={0}><Spinner small /></Page>;
 
@@ -140,6 +142,7 @@ function Connect() {
                 <li>Zotify finds each song on Rockbot and saves the ones it has, even if they can&apos;t be played right now.</li>
                 <li>You can also paste links to your own private playlists into the search.</li>
                 <li>Zotify only reads your library. It never changes anything on Spotify.</li>
+                <li>Your connection also fetches playlist covers and album art for everyone&apos;s playlists.</li>
             </ul>
             {error && <p className="spotify-error" role="alert">{error}</p>}
             <button type="button" className="spotify-button primary" disabled={busy} onClick={connect}>

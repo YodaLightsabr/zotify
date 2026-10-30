@@ -13,6 +13,8 @@ export interface SpotifyPlaylist {
     name: string;
     owner?: string;
     tracks: SpotifyTrack[];
+    // Its cover, when Spotify shows one
+    image?: string;
     // The embed has returned at most this many tracks, so a playlist this long may have more
     mayBeTruncated: boolean;
 }
@@ -100,6 +102,7 @@ export async function fetchPlaylist(id: string): Promise<SpotifyPlaylist> {
         name: String(entity.name ?? entity.title ?? "Untitled playlist"),
         owner: entity.subtitle ? String(entity.subtitle) : undefined,
         tracks,
+        image: entity.coverArt?.sources?.find((source: any) => typeof source?.url === "string")?.url,
         mayBeTruncated: tracks.length >= EMBED_TRACK_LIMIT
     };
 }

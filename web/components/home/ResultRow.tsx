@@ -136,7 +136,7 @@ const TRACK_LABELS: Record<TrackState, string> = { waiting: "Waiting", searching
 export function TrackRow({ track, state }: { track: PlaylistTrack, state: TrackState | "not-found" }) {
     return (
         <li className="song">
-            <SongCover song={{}} />
+            <SongCover song={{ cover: track.image }} />
             <div className="meta">
                 <div className="title-row"><div className="name">{track.title}</div></div>
                 <div className="artist">{track.artist}</div>

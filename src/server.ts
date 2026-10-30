@@ -123,13 +123,14 @@ v1.delete("/me/library/songs/:songId", signedIn("music:write"), removeSongRoute)
 v1.get("/me/library/playlists", signedIn("music:read"), libraryPlaylists);
 v1.delete("/me/library/playlists/:id", signedIn("music:write"), removePlaylistRoute);
 
-// Connecting Spotify and importing from it, on Zotify's own pages
-v1.get("/me/spotify", sessionOnly, spotifyStatus);
-v1.post("/me/spotify/authorize", sessionOnly, spotifyAuthorize);
-v1.post("/me/spotify/callback", sessionOnly, spotifyCallback);
-v1.delete("/me/spotify", sessionOnly, spotifyDisconnect);
-v1.get("/me/spotify/library", sessionOnly, spotifyLibrary);
-v1.get("/me/spotify/import", sessionOnly, spotifyImportStatus);
+// Connecting Spotify and importing from it, for site admins on Zotify's own pages: Spotify only lets a handful of accounts
+// connect. Their connection also looks up playlist covers and album art for everyone (see spotifyArt.ts)
+v1.get("/me/spotify", siteAdmin, spotifyStatus);
+v1.post("/me/spotify/authorize", siteAdmin, spotifyAuthorize);
+v1.post("/me/spotify/callback", siteAdmin, spotifyCallback);
+v1.delete("/me/spotify", siteAdmin, spotifyDisconnect);
+v1.get("/me/spotify/library", siteAdmin, spotifyLibrary);
+v1.get("/me/spotify/import", siteAdmin, spotifyImportStatus);
 
 // Joining a school's Zotify during the beta
 v1.post("/schools/:school/join-request", schoolParam, signedIn(), requestInviteRoute);
@@ -150,7 +151,7 @@ v1.get("/venues/:venue/playlists/:id/matches", venueParam, member("music:read"),
 v1.post("/venues/:venue/playlists/:id/queue", venueParam, member("music:write"), queuePlaylist);
 v1.get("/venues/:venue/playlists/:id/queue", venueParam, member("music:read"), playlistQueueStatus);
 v1.put("/venues/:venue/playlists/:id/library", venueParam, member("music:write"), savePlaylistRoute);
-v1.post("/venues/:venue/spotify/import", venueParam, sessionOnly, member("music:write"), spotifyImport);
+v1.post("/venues/:venue/spotify/import", venueParam, siteAdmin, member("music:write"), spotifyImport);
 
 // Zotify Meals: public menus, and your favorites. More specific paths come before /:location
 const meals = express.Router();

@@ -141,8 +141,8 @@
         margin: 0;
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 14px;
     }
 
     .library-playlists li {
@@ -154,13 +154,15 @@
 
     .library-playlists li:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
 
-    .library-playlist { display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 14px; color: var(--text); text-decoration: none; }
+    .library-playlist { display: flex; flex-direction: column; gap: 2px; padding: 8px 8px 10px; color: var(--text); text-decoration: none; }
     .library-playlist strong { margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .library-playlist span:not(.library-playlist-art) { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* Spotify doesn't give Zotify playlists' covers, so each gets a note on Zotify's colors */
+    /* The playlist's cover from Spotify, or a note on Zotify's colors when there isn't one */
     .library-playlist-art {
-        aspect-ratio: 16 / 9;
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
         display: grid;
         place-items: center;
         border-radius: 10px;
@@ -173,8 +175,8 @@
     /* Taking it out sits on the art's corner, outside the link */
     .library-playlists .row-icon.remove {
         position: absolute;
-        top: 20px;
-        right: 20px;
+        top: 16px;
+        right: 16px;
         background: color-mix(in srgb, var(--bg) 80%, transparent);
     }
 

@@ -191,6 +191,7 @@ const schemas: Record<string, Schema> = {
         id: string("Spotify's playlist ID."),
         name: string(),
         "owner?": string(),
+        "image?": string("Its cover from Spotify."),
         trackCount: integer(),
         addedAt: timestamp("When you first added it."),
         openedAt: timestamp("When you last opened it.")
@@ -211,6 +212,7 @@ const schemas: Record<string, Schema> = {
         id: string("Spotify's playlist ID."),
         name: string(),
         "owner?": string(),
+        "image?": string("Its cover from Spotify."),
         trackCount: integer(),
         songCount: integer("How many of its tracks are in your Library: the ones found on Rockbot that you haven't taken out."),
         savedAt: timestamp("When you saved it to your Library.")
@@ -220,10 +222,11 @@ const schemas: Record<string, Schema> = {
         name: string(),
         "owner?": string(),
         mayBeTruncated: boolean("Whether it may have more tracks than Zotify read: 100 for playlists read without a Spotify connection, 1,000 for your own."),
-        private: boolean("Read through your connected Spotify, so only people who added it themselves can open it."),
+        private: boolean("Read through a site admin's connected Spotify, so only people who added it themselves can open it."),
+        "image?": string("Its cover from Spotify."),
         fetchedAt: timestamp("When its tracks were last read from Spotify."),
         "savedAt?": nullable(timestamp("When you saved it to your Library, or null. Only from GET /v1/playlists/{id}.")),
-        tracks: array(object({ title: string(), artist: string(), "durationMs?": integer(), "uri?": string("Spotify URI.") }))
+        tracks: array(object({ title: string(), artist: string(), "durationMs?": integer(), "uri?": string("Spotify URI."), "image?": string("Its album art from Spotify.") }))
     }),
     PlaylistMatches: object({
         playlistId: string(),
@@ -379,7 +382,7 @@ const paths: Record<string, Record<string, unknown>> = {
         }),
         post: operation("addPlaylist", {
             tag: "Playlists", scope: "music:write", access: "signed-in", summary: "Add a Spotify playlist",
-            description: "Reads a Spotify playlist and adds it to your playlists. Adding one that's already saved reads it again. Public playlists work for anyone; if you've connected Spotify on Zotify's Account page, your own private playlists (ones you made or collaborate on) do too, with all their tracks.",
+            description: "Reads a Spotify playlist and adds it to your playlists. Adding one that's already saved reads it again. Public playlists work; private ones don't. Covers and album art from Spotify come with it when Zotify can look them up.",
             body: { schema: object({ url: string("A Spotify playlist link, spotify:playlist: URI, or ID.") }), example: { url: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M" } },
             status: 201,
             response: { description: "The playlist.", schema: ref("Playlist") },

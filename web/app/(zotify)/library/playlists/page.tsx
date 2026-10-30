@@ -10,6 +10,8 @@ interface LibraryPlaylist {
     id: string;
     name: string;
     owner?: string;
+    // Its cover from Spotify
+    image?: string;
     trackCount: number;
     // How many of its tracks are in your Library
     songCount: number;
@@ -57,11 +59,13 @@ export default function LibraryPlaylistsPage() {
             {playlists.map(playlist => (
                 <li key={playlist.id}>
                     <Link className="library-playlist" href={`/playlist/${playlist.id}`}>
-                        <span className="library-playlist-art" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" />
-                            </svg>
-                        </span>
+                        {playlist.image ? <img className="library-playlist-art" src={playlist.image} alt="" loading="lazy" /> : (
+                            <span className="library-playlist-art" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" />
+                                </svg>
+                            </span>
+                        )}
                         <strong>{playlist.name}</strong>
                         <span>{playlist.owner ? `By ${playlist.owner}` : "Spotify playlist"}</span>
                         <span>{plural(playlist.trackCount, "track")} · {playlist.songCount} in your Library</span>

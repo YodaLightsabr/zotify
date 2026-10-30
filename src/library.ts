@@ -92,7 +92,7 @@ const recordPlaylistSong = db.prepare(`
 `);
 const selectSavers = db.prepare("SELECT email FROM user_playlists WHERE playlist_id = ? AND saved_at IS NOT NULL");
 const selectPlaylists = db.prepare(`
-    SELECT playlists.id, playlists.name, playlists.owner, user_playlists.saved_at,
+    SELECT playlists.id, playlists.name, playlists.owner, playlists.image, user_playlists.saved_at,
         (SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = playlists.id) AS track_count,
         (SELECT COUNT(*) FROM playlist_songs JOIN library_songs ON library_songs.song_id = playlist_songs.song_id
             WHERE playlist_songs.playlist_id = playlists.id AND library_songs.email = user_playlists.email AND library_songs.removed_at IS NULL) AS song_count
@@ -171,6 +171,7 @@ export function getLibraryPlaylists(email: string) {
         id: row.id as string,
         name: row.name as string,
         ...(row.owner ? { owner: row.owner as string } : {}),
+        ...(row.image ? { image: row.image as string } : {}),
         trackCount: row.track_count as number,
         // How many of its tracks are in your Library: the ones found on Rockbot that you haven't taken out
         songCount: row.song_count as number,

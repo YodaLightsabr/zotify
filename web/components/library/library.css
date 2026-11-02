@@ -60,7 +60,7 @@
 
     /* Songs */
 
-    .library-toolbar { display: flex; gap: 8px; max-width: 640px; }
+    .library-toolbar { display: flex; flex-wrap: wrap; gap: 8px; max-width: 860px; }
 
     .library-filter, .library-sort {
         padding: 9px 14px;
@@ -72,7 +72,7 @@
         font-size: 0.9rem;
     }
 
-    .library-filter { flex: 1; min-width: 0; }
+    .library-filter { flex: 1; min-width: 200px; }
     .library-filter:focus, .library-sort:focus { outline: none; border-color: var(--accent); }
 
     /* As many columns as fit; two on phones */
@@ -140,6 +140,32 @@
 
     .library-unavailable { margin-top: 32px; }
     .library-unavailable .library-card, .library-unavailable .song { opacity: 0.7; }
+
+    /* Groups: a heading, then rows (list view) or a shelf of cards that scrolls sideways (grid view) */
+    .library-group, .library-shelf { margin-top: 24px; }
+    .library-group-title { margin: 0; font-size: 1.05rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .library-group-title span { margin-left: 4px; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+    .library-group .library-group-title { max-width: 860px; margin-bottom: 10px; }
+    .library-group .library-list { margin-top: 0; }
+
+    .library-shelf-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .library-shelf-arrows { display: flex; flex-shrink: 0; gap: 6px; }
+
+    .library-shelf-track {
+        list-style: none;
+        margin: 0 -4px;
+        padding: 4px;
+        display: flex;
+        gap: 14px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-padding: 4px;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+    }
+
+    .library-shelf-track::-webkit-scrollbar { display: none; }
+    .library-shelf-track .library-card { flex: 0 0 160px; scroll-snap-align: start; }
 
     /* The list view: rows like search results, in a column that stays readable on a wide screen */
     .library-list { max-width: 860px; }
@@ -215,7 +241,12 @@
     .library-playlists.list .row-icon.remove { top: 50%; right: 12px; transform: translateY(-50%); }
 
     @media (max-width: 520px) {
-        .library-sort { flex-shrink: 0; }
+        .library-sort { flex: 1; min-width: 0; }
+        .library-filter { flex-basis: 100%; }
+        /* Phones scroll shelves by swiping, and show a bit of the next card to say so */
+        .library-shelf-arrows { display: none; }
+        .library-shelf-track { margin: 0 -16px; padding: 4px 16px; scroll-padding: 16px; gap: 10px; }
+        .library-shelf-track .library-card { flex-basis: 42%; }
         .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .library-card { padding: 8px 8px 10px; gap: 8px; }
         .library-details { white-space: normal; }

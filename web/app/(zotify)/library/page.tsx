@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SongBackdrop, SongCover } from "@/components/home/SongParts";
 import { useLibraryView } from "@/components/library/LibraryFrame";
 import SaveButton from "@/components/SaveButton";
@@ -22,7 +22,58 @@ const SORTS: { id: Sort, label: string }[] = [
     { id: "artist", label: "Artist" }
 ];
 
+type Grouping = "artist" | "source" | "none";
+
+const GROUPINGS: { id: Grouping, label: string }[] = [
+    { id: "artist", label: "By artist" },
+    { id: "source", label: "By where it's from" },
+    { id: "none", label: "No groups" }
+];
+
 const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+
+/**
+ * The artist a song is shelved under: the first one credited ("Stevie Wonder and Dionne Warwick", "Stevie Wonder feat. Ray
+ * Charles") when that artist has songs of their own in the Library, and otherwise the whole credit, so bands like "Earth,
+ * Wind & Fire" stay whole
+ */
+function shelfArtist(artist: string, known: Set<string>) {
+    const first = artist.split(/,\s*|\s+(?:&|and|x|feat\.?|ft\.?|featuring|with)\s+/i)[0].trim();
+    return first && first !== artist && known.has(first.toLowerCase()) ? first : artist;
+}
+
+/** Which group a song goes in, by its key and heading. known is every artist with songs in the Library, lowercased */
+function groupOf(song: LibrarySong, grouping: Grouping, known: Set<string>): [string, string] {
+    if (grouping === "artist") {
+        const artist = shelfArtist(song.artist, known);
+        return [artist.toLowerCase(), artist];
+    }
+
+    if (song.source === "playlist" && song.playlist) return [`playlist:${song.playlist.id}`, song.playlist.name];
+    if (song.source === "liked") return ["liked", "Spotify likes"];
+    if (song.source === "saved") return ["saved", "Saved by you"];
+    return ["requested", "Requested"];
+}
+
+interface Group { key: string, title: string, songs: LibrarySong[] }
+
+/**
+ * Sorted songs in groups. Groups come in the order of their first song, so "Recently saved" puts the artist you saved most
+ * recently first, except when sorting by title or artist, where groups go A to Z
+ */
+function grouped(songs: LibrarySong[], grouping: Grouping, sort: Sort): Group[] {
+    const groups = new Map<string, Group>();
+    const known = new Set(songs.map(song => song.artist.toLowerCase()));
+
+    for (const song of songs) {
+        const [key, title] = groupOf(song, grouping, known);
+        if (!groups.has(key)) groups.set(key, { key, title, songs: [] });
+        groups.get(key)!.songs.push(song);
+    }
+
+    const list = [...groups.values()];
+    return sort === "name" || sort === "artist" ? list.sort((a, b) => byText(a.title, b.title)) : list;
+}
 
 function sorted(songs: LibrarySong[], sort: Sort) {
     const copy = [...songs];
@@ -45,6 +96,7 @@ export default function LibrarySongsPage() {
     const [error, setError] = useState("");
     const [filter, setFilter] = useState("");
     const [sort, setSort] = useState<Sort>("recent");
+    const [grouping, setGrouping] = useState<Grouping>("artist");
     const [showUnavailable, setShowUnavailable] = useState(false);
     const view = useLibraryView();
 
@@ -74,14 +126,30 @@ export default function LibrarySongsPage() {
     }
 
     const venueName = school.venueName(venue);
-    const list = (items: LibrarySong[]) => view === "grid"
-        ? <ul className="library-grid">{items.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>
-        : <ul className="results library-list">{items.map(song => <LibraryRow key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>;
+    const cards = (items: LibrarySong[]) => items.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />);
+    const rows = (items: LibrarySong[]) => <ul className="results library-list">{items.map(song => <LibraryRow key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>;
+
+    // Ungrouped, the grid wraps; grouped, each group is a shelf that scrolls sideways
+    const list = (items: LibrarySong[]) => {
+        if (grouping === "none") return view === "grid" ? <ul className="library-grid">{cards(items)}</ul> : rows(items);
+
+        return grouped(items, grouping, sort).map(group => view === "grid"
+            ? <Shelf key={group.key} title={group.title} count={group.songs.length}>{cards(group.songs)}</Shelf>
+            : (
+                <section className="library-group" key={group.key}>
+                    <h3 className="library-group-title">{group.title} <span>{group.songs.length}</span></h3>
+                    {rows(group.songs)}
+                </section>
+            ));
+    };
 
     return <>
         <div className="library-toolbar">
             <input type="search" className="library-filter" placeholder={`Filter ${plural(songs.length, "song")}`} aria-label="Filter your songs"
                 value={filter} onChange={event => setFilter(event.target.value)} />
+            <select className="library-sort" aria-label="Group" value={grouping} onChange={event => setGrouping(event.target.value as Grouping)}>
+                {GROUPINGS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
             <select className="library-sort" aria-label="Sort by" value={sort} onChange={event => setSort(event.target.value as Sort)}>
                 {SORTS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
@@ -102,6 +170,53 @@ export default function LibrarySongsPage() {
             </section>
         )}
     </>;
+}
+
+/** A group of cards in a row that scrolls sideways, with arrows on wide screens, like a streaming service's shelves */
+function Shelf({ title, count, children }: { title: string, count: number, children: React.ReactNode }) {
+    const track = useRef<HTMLUListElement>(null);
+    const [edges, setEdges] = useState({ start: true, end: true });
+
+    // Which way there's more to scroll, as it scrolls and as the window resizes
+    useEffect(() => {
+        const element = track.current;
+        if (!element) return;
+
+        const update = () => setEdges({
+            start: element.scrollLeft <= 2,
+            end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 2
+        });
+
+        update();
+        element.addEventListener("scroll", update, { passive: true });
+        const observer = new ResizeObserver(update);
+        observer.observe(element);
+
+        return () => {
+            element.removeEventListener("scroll", update);
+            observer.disconnect();
+        };
+    }, [count]);
+
+    const scroll = (direction: 1 | -1) => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.85, behavior: "smooth" });
+    const arrow = (path: string) => (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>
+    );
+
+    return (
+        <section className="library-shelf" aria-label={title}>
+            <div className="library-shelf-head">
+                <h3 className="library-group-title">{title} <span>{count}</span></h3>
+                {!(edges.start && edges.end) && (
+                    <div className="library-shelf-arrows">
+                        <button type="button" className="row-icon" aria-label={`Scroll ${title} back`} disabled={edges.start} onClick={() => scroll(-1)}>{arrow("m15 18-6-6 6-6")}</button>
+                        <button type="button" className="row-icon" aria-label={`Scroll ${title} on`} disabled={edges.end} onClick={() => scroll(1)}>{arrow("m9 18 6-6-6-6")}</button>
+                    </div>
+                )}
+            </div>
+            <ul className="library-shelf-track" ref={track}>{children}</ul>
+        </section>
+    );
 }
 
 /** Why a song is in your Library, and how much you've played it */

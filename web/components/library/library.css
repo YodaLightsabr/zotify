@@ -18,7 +18,27 @@
 
     main.has-results { padding-top: 0; }
 
-    .library-tabs { display: flex; gap: 4px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
+    .library-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 16px; }
+    .library-tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+
+    /* List or grid */
+    .library-views { display: inline-flex; flex-shrink: 0; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+
+    .library-view {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: none;
+        color: var(--muted);
+        cursor: pointer;
+    }
+
+    .library-view:hover { color: var(--text); }
+    .library-view.current { background: var(--surface-2); color: var(--text); }
 
     .library-tab {
         flex-shrink: 0;
@@ -119,7 +139,12 @@
     .library-card .queue-btn { position: relative; z-index: 2; width: 100%; padding: 6px 10px; font-size: 0.85rem; }
 
     .library-unavailable { margin-top: 32px; }
-    .library-unavailable .library-card { opacity: 0.7; }
+    .library-unavailable .library-card, .library-unavailable .song { opacity: 0.7; }
+
+    /* The list view: rows like search results, in a column that stays readable on a wide screen */
+    .library-list { max-width: 860px; }
+    .library-toolbar + .library-list { margin-top: 16px; }
+    .library-unavailable .library-list { margin-top: 12px; }
 
     .library-reveal {
         padding: 0;
@@ -155,8 +180,9 @@
     .library-playlists li:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
 
     .library-playlist { display: flex; flex-direction: column; gap: 2px; padding: 8px 8px 10px; color: var(--text); text-decoration: none; }
-    .library-playlist strong { margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .library-playlist span:not(.library-playlist-art) { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .library-playlist-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin-top: 8px; }
+    .library-playlist-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .library-playlist-text span { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* The playlist's cover from Spotify, or a note on Zotify's colors when there isn't one */
     .library-playlist-art {
@@ -179,6 +205,14 @@
         right: 16px;
         background: color-mix(in srgb, var(--bg) 80%, transparent);
     }
+
+    /* Playlists as rows, with the cover small on the left and taking out on the right */
+    .library-playlists.list { display: flex; flex-direction: column; gap: 8px; max-width: 860px; }
+    .library-playlists.list .library-playlist { flex-direction: row; align-items: center; gap: 12px; padding: 8px 56px 8px 8px; }
+    .library-playlists.list .library-playlist-art { width: 56px; flex-shrink: 0; }
+    .library-playlists.list .library-playlist-art svg { width: 24px; height: 24px; }
+    .library-playlists.list .library-playlist-text { margin-top: 0; }
+    .library-playlists.list .row-icon.remove { top: 50%; right: 12px; transform: translateY(-50%); }
 
     @media (max-width: 520px) {
         .library-sort { flex-shrink: 0; }

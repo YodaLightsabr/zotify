@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLibraryView } from "@/components/library/LibraryFrame";
 import { Spinner } from "@/components/Spinner";
 import { deleteJson, getJson } from "@/lib/api";
-import { plural } from "@/lib/format";
+import { cx, plural } from "@/lib/format";
 
 interface LibraryPlaylist {
     id: string;
@@ -22,6 +23,7 @@ interface LibraryPlaylist {
 export default function LibraryPlaylistsPage() {
     const [playlists, setPlaylists] = useState<LibraryPlaylist[] | null>(null);
     const [error, setError] = useState("");
+    const view = useLibraryView();
 
     useEffect(() => {
         getJson<LibraryPlaylist[]>("/v1/me/library/playlists").then(({ response, data }) => {
@@ -55,7 +57,7 @@ export default function LibraryPlaylistsPage() {
     }
 
     return (
-        <ul className="library-playlists">
+        <ul className={cx("library-playlists", view)}>
             {playlists.map(playlist => (
                 <li key={playlist.id}>
                     <Link className="library-playlist" href={`/playlist/${playlist.id}`}>
@@ -66,9 +68,11 @@ export default function LibraryPlaylistsPage() {
                                 </svg>
                             </span>
                         )}
-                        <strong>{playlist.name}</strong>
-                        <span>{playlist.owner ? `By ${playlist.owner}` : "Spotify playlist"}</span>
-                        <span>{plural(playlist.trackCount, "track")} · {playlist.songCount} in your Library</span>
+                        <span className="library-playlist-text">
+                            <strong>{playlist.name}</strong>
+                            <span>{playlist.owner ? `By ${playlist.owner}` : "Spotify playlist"}</span>
+                            <span>{plural(playlist.trackCount, "track")} · {playlist.songCount} in your Library</span>
+                        </span>
                     </Link>
                     <button type="button" className="row-icon remove" title="Take out of your Library" aria-label={`Take ${playlist.name} out of your Library`}
                         onClick={() => remove(playlist)}>

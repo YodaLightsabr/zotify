@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { SongBackdrop, SongCover } from "@/components/home/SongParts";
+import { useLibraryView } from "@/components/library/LibraryFrame";
 import SaveButton from "@/components/SaveButton";
 import { Busy, Spinner } from "@/components/Spinner";
 import { postJson, type Venue } from "@/lib/api";
@@ -44,6 +46,7 @@ export default function LibrarySongsPage() {
     const [filter, setFilter] = useState("");
     const [sort, setSort] = useState<Sort>("recent");
     const [showUnavailable, setShowUnavailable] = useState(false);
+    const view = useLibraryView();
 
     // Kept as loaded: songs taken out stay listed (with an empty heart) until the page is opened again, so it can be undone
     useEffect(() => {
@@ -71,6 +74,9 @@ export default function LibrarySongsPage() {
     }
 
     const venueName = school.venueName(venue);
+    const list = (items: LibrarySong[]) => view === "grid"
+        ? <ul className="library-grid">{items.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>
+        : <ul className="results library-list">{items.map(song => <LibraryRow key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>;
 
     return <>
         <div className="library-toolbar">
@@ -82,7 +88,7 @@ export default function LibrarySongsPage() {
         </div>
 
         {available.length ? (
-            <ul className="library-grid">{available.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>
+            list(available)
         ) : (
             <p className="library-empty">{filter ? "Nothing matches that." : `None of your songs can be played at ${venueName} right now.`}</p>
         )}
@@ -92,7 +98,7 @@ export default function LibrarySongsPage() {
                 <button type="button" className="library-reveal" aria-expanded={showUnavailable} onClick={() => setShowUnavailable(!showUnavailable)}>
                     {showUnavailable ? "Hide" : "Show"} {plural(unavailable.length, "song")} that can&apos;t be played at {venueName}
                 </button>
-                {showUnavailable && <ul className="library-grid">{unavailable.map(song => <LibraryCard key={`${song.id}-${venue}`} song={song} venue={venue} />)}</ul>}
+                {showUnavailable && list(unavailable)}
             </section>
         )}
     </>;
@@ -109,15 +115,15 @@ function details(song: LibrarySong) {
     return parts.map((part, i) => <span key={i}>{i > 0 && " · "}{part}</span>);
 }
 
-/** A saved song as a card: its cover, why it's saved, and buttons to queue it or take it out */
-function LibraryCard({ song, venue }: { song: LibrarySong, venue: Venue }) {
+/** Queuing a saved song at the venue, and whether it can be, for both views */
+function useQueue(song: LibrarySong, venue: Venue) {
     const school = useSchool();
     const [button, setButton] = useState<{ label: string, disabled?: boolean, done?: boolean }>({ label: "Queue" });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
 
     const unavailableHere = song.availability[venue] === false;
-    const elsewhere = unavailableHere ? school.venues.find(other => other.id !== venue && song.availability[other.id]) : null;
+    const elsewhere = unavailableHere ? school.venues.find(other => other.id !== venue && song.availability[other.id]) ?? null : null;
 
     // Into Zotify's queue, like the homepage's Queue button
     async function queue() {
@@ -145,6 +151,47 @@ function LibraryCard({ song, venue }: { song: LibrarySong, venue: Venue }) {
         }
     }
 
+    const queueButton = (
+        <button type="button" className={cx("queue-btn", button.done && "done", busy && "busy")} disabled={busy || button.disabled || unavailableHere}
+            title={unavailableHere ? `Can't be requested at ${school.venueName(venue)} right now` : `Queue it at ${school.venueName(venue)}`} onClick={queue}>
+            {busy ? <Busy label="Queuing…" /> : unavailableHere ? "Unavailable" : button.label}
+        </button>
+    );
+
+    return { queueButton, error, unavailableHere, elsewhere };
+}
+
+const ElsewhereBadge = ({ venue, short }: { venue: { name: string }, short?: boolean }) => (
+    <span className="badge elsewhere" title={`Not requestable here, but you can request it at ${venue.name}`}>{short ? "At" : "Available at"} {venue.name}</span>
+);
+
+/** A saved song as a row, like a search result */
+function LibraryRow({ song, venue }: { song: LibrarySong, venue: Venue }) {
+    const { queueButton, error, unavailableHere, elsewhere } = useQueue(song, venue);
+
+    return (
+        <li className={cx("song", unavailableHere && "unavailable")}>
+            <SongCover song={song} />
+            <SongBackdrop song={song} />
+            <div className="meta">
+                <div className="title-row">
+                    <div className="name">{song.name}</div>
+                    {elsewhere && <ElsewhereBadge venue={elsewhere} />}
+                </div>
+                <div className="artist">{song.artist}</div>
+                <div className="library-details">{details(song)}</div>
+                {error && <div className="error" role="alert">{error}</div>}
+            </div>
+            <SaveButton song={song} />
+            {queueButton}
+        </li>
+    );
+}
+
+/** A saved song as a card: its cover, why it's saved, and buttons to queue it or take it out */
+function LibraryCard({ song, venue }: { song: LibrarySong, venue: Venue }) {
+    const { queueButton, error, unavailableHere, elsewhere } = useQueue(song, venue);
+
     return (
         <li className={cx("library-card", unavailableHere && "unavailable")}>
             <div className="library-art">
@@ -157,13 +204,10 @@ function LibraryCard({ song, venue }: { song: LibrarySong, venue: Venue }) {
                 <div className="library-name" title={song.name}>{song.name}</div>
                 <div className="library-artist" title={song.artist}>{song.artist}</div>
                 <div className="library-details">{details(song)}</div>
-                {elsewhere && <span className="badge elsewhere" title={`Not requestable here, but you can request it at ${elsewhere.name}`}>At {elsewhere.name}</span>}
+                {elsewhere && <ElsewhereBadge venue={elsewhere} short />}
                 {error && <div className="library-error" role="alert">{error}</div>}
             </div>
-            <button type="button" className={cx("queue-btn", button.done && "done", busy && "busy")} disabled={busy || button.disabled || unavailableHere}
-                title={unavailableHere ? `Can't be requested at ${school.venueName(venue)} right now` : `Queue it at ${school.venueName(venue)}`} onClick={queue}>
-                {busy ? <Busy label="Queuing…" /> : unavailableHere ? "Unavailable" : button.label}
-            </button>
+            {queueButton}
         </li>
     );
 }

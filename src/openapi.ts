@@ -204,6 +204,7 @@ const schemas: Record<string, Schema> = {
         savedAt: timestamp("When it went into your Library."),
         source: { type: "string", enum: ["requested", "saved", "playlist", "liked"], description: "How: you requested it, saved it by hand, it was in a playlist you saved, or you imported it from your Spotify likes." },
         "playlist?": object({ id: string(), name: string() }, "The saved playlist it came from, for source playlist."),
+        playlists: array(object({ id: string(), name: string() }), "Every playlist in your Library it's in, however it was saved."),
         requests: integer("How many times you've requested it through Zotify."),
         lastRequestedAt: nullable(timestamp("When you last requested it.")),
         availability: { type: "object", additionalProperties: { type: "boolean" }, description: "Whether it could be requested at each venue, by venue ID, the last time it came up there. Venues it hasn't come up at are left out. Zotify's pages hide songs that can't be requested at the venue they're showing." }
@@ -393,7 +394,7 @@ const paths: Record<string, Record<string, unknown>> = {
         get: operation("librarySongs", {
             tag: "Library", scope: "music:read", access: "signed-in", summary: "Your saved songs",
             description: "Songs in your Library, most recently saved first: everything you've requested, songs you saved, and songs from playlists you saved. Includes songs that can't be requested anywhere right now; availability says where they can be.",
-            response: { description: "Your saved songs.", schema: array(ref("LibrarySong")), example: [{ ...exampleSong, savedAt: 1792607436572, source: "requested", requests: 2, lastRequestedAt: 1792607436572, availability: { anteatery: true, brandywine: false } }] },
+            response: { description: "Your saved songs.", schema: array(ref("LibrarySong")), example: [{ ...exampleSong, savedAt: 1792607436572, source: "requested", playlists: [], requests: 2, lastRequestedAt: 1792607436572, availability: { anteatery: true, brandywine: false } }] },
             errors: AUTH_ERRORS
         })
     },
@@ -771,7 +772,13 @@ const paths: Record<string, Record<string, unknown>> = {
         get: operation("betaOverview", {
             tag: "Admin", scope: "admin", access: "admin", summary: "The school's members, requests and invite codes",
             parameters: [school],
-            response: { description: "The beta.", schema: object({ members: array(object({})), requests: array(object({})), codes: array(object({})) }) },
+            response: {
+                description: "The beta.",
+                schema: object({
+                    members: array(object({})), requests: array(object({})), codes: array(object({})), admins: array(string()),
+                    lastActive: { type: "object", additionalProperties: { type: "integer" }, description: "When each admin, member and person asking was last active, by email, in milliseconds since 1970. People who haven't been since this was tracked are left out." }
+                })
+            },
             errors: [...AUTH_ERRORS, 404]
         })
     },

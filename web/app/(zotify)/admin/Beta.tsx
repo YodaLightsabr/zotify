@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { cx } from "@/lib/format";
+import { cx, relativeTime } from "@/lib/format";
 import { useSchool } from "@/lib/school";
 import { adminGet, adminPost, adminSend, FormMessage, Loading, Rows, SmallButton, useLoad, when } from "./shared";
 
@@ -12,6 +12,8 @@ interface BetaOverview {
     codes: { code: string, url: string, maxUses: number | null, uses: { email: string, usedAt: number }[], createdBy: string, revokedAt?: number }[];
     members: { email: string, joinedVia: "request" | "invite" | "code", joinedAt: number, approvedBy?: string, code?: string, silent?: boolean }[];
     admins: string[];
+    // When each person was last active, by email
+    lastActive: Record<string, number>;
 }
 
 export default function Beta() {
@@ -23,6 +25,12 @@ export default function Beta() {
     const [inviteMessage, setInviteMessage] = useState({ text: "", error: false });
     const [maxUses, setMaxUses] = useState("");
     const [codeMessage, setCodeMessage] = useState({ text: "", error: false });
+
+    // When someone last used Zotify, to the hour or so, with the exact time on hover
+    const active = (email: string) => {
+        const at = data?.lastActive?.[email];
+        return at ? <span title={new Date(at).toLocaleString()}>active {relativeTime(at)}</span> : "no activity recorded";
+    };
 
     async function decide(email: string, decision: "approved" | "rejected", silent = false) {
         const result = await adminPost(`${base}/beta/decisions`, { email, decision, silent });
@@ -73,7 +81,7 @@ export default function Beta() {
             {!data ? <Loading error={error} /> : <Rows>
                 {pending.map(request => (
                     <div className="row" key={request.email}>
-                        <div><span className="who">{school.shortEmail(request.email)}</span><span className="muted">  asked {when(request.requestedAt)}</span></div>
+                        <div><span className="who">{school.shortEmail(request.email)}</span><span className="muted">  asked {when(request.requestedAt)} · {active(request.email)}</span></div>
                         <div className="actions">
                             <SmallButton label="Approve" className="primary-small" onClick={() => decide(request.email, "approved")} />
                             <SmallButton label="Approve silently" onClick={() => decide(request.email, "approved", true)} />
@@ -136,13 +144,13 @@ export default function Beta() {
             {data && <Rows>
                 {[
                     ...data.admins.map(email => (
-                        <div className="row" key={`admin-${email}`}><span className="who">{school.shortEmail(email)}</span><span className="muted">admin</span></div>
+                        <div className="row" key={`admin-${email}`}><span className="who">{school.shortEmail(email)}</span><span className="muted">admin · {active(email)}</span></div>
                     )),
                     ...data.members.map(member => {
                         const how = member.joinedVia === "code"
                             ? `code ${member.code}`
                             : `${member.joinedVia}${member.approvedBy ? ` by ${school.shortEmail(member.approvedBy)}` : ""}${member.silent ? " (silent)" : ""}`;
-                        return <div className="row" key={`member-${member.email}`}><span className="who">{school.shortEmail(member.email)}</span><span className="muted">{how} · {when(member.joinedAt)}</span></div>;
+                        return <div className="row" key={`member-${member.email}`}><span className="who">{school.shortEmail(member.email)}</span><span className="muted">{how} · {when(member.joinedAt)} · {active(member.email)}</span></div>;
                     }),
                     ...rejected.map(request => (
                         <div className="row revoked" key={`rejected-${request.email}`}>

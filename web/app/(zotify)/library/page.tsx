@@ -22,10 +22,11 @@ const SORTS: { id: Sort, label: string }[] = [
     { id: "artist", label: "Artist" }
 ];
 
-type Grouping = "artist" | "source" | "none";
+type Grouping = "artist" | "playlist" | "source" | "none";
 
 const GROUPINGS: { id: Grouping, label: string }[] = [
     { id: "artist", label: "By artist" },
+    { id: "playlist", label: "By playlist" },
     { id: "source", label: "By where it's from" },
     { id: "none", label: "No groups" }
 ];
@@ -42,23 +43,33 @@ function shelfArtist(artist: string, known: Set<string>) {
     return first && first !== artist && known.has(first.toLowerCase()) ? first : artist;
 }
 
-/** Which group a song goes in, by its key and heading. known is every artist with songs in the Library, lowercased */
-function groupOf(song: LibrarySong, grouping: Grouping, known: Set<string>): [string, string] {
+// Songs in none of your saved playlists, which go last when grouping by playlist
+const NO_PLAYLIST = "none";
+
+/**
+ * Which groups a song goes in, by key and heading: one, except by playlist, where it's in every saved playlist it's in. known
+ * is every artist with songs in the Library, lowercased
+ */
+function groupsOf(song: LibrarySong, grouping: Grouping, known: Set<string>): [string, string][] {
     if (grouping === "artist") {
         const artist = shelfArtist(song.artist, known);
-        return [artist.toLowerCase(), artist];
+        return [[artist.toLowerCase(), artist]];
     }
 
-    if (song.source === "playlist" && song.playlist) return [`playlist:${song.playlist.id}`, song.playlist.name];
-    if (song.source === "liked") return ["liked", "Spotify likes"];
-    if (song.source === "saved") return ["saved", "Saved by you"];
-    return ["requested", "Requested"];
+    if (grouping === "playlist") {
+        return song.playlists.length ? song.playlists.map(playlist => [`playlist:${playlist.id}`, playlist.name]) : [[NO_PLAYLIST, "Not in a playlist"]];
+    }
+
+    if (song.source === "playlist" && song.playlist) return [[`playlist:${song.playlist.id}`, song.playlist.name]];
+    if (song.source === "liked") return [["liked", "Spotify likes"]];
+    if (song.source === "saved") return [["saved", "Saved by you"]];
+    return [["requested", "Requested"]];
 }
 
 interface Group { key: string, title: string, songs: LibrarySong[] }
 
 /**
- * Sorted songs in groups. Groups come in the order of their first song, so "Recently saved" puts the artist you saved most
+ * Sorted songs in groups, a song in more than one when it's in more than one playlist. Groups come in the order of their first song, so "Recently saved" puts the artist you saved most
  * recently first, except when sorting by title or artist, where groups go A to Z
  */
 function grouped(songs: LibrarySong[], grouping: Grouping, sort: Sort): Group[] {
@@ -66,13 +77,16 @@ function grouped(songs: LibrarySong[], grouping: Grouping, sort: Sort): Group[] 
     const known = new Set(songs.map(song => song.artist.toLowerCase()));
 
     for (const song of songs) {
-        const [key, title] = groupOf(song, grouping, known);
-        if (!groups.has(key)) groups.set(key, { key, title, songs: [] });
-        groups.get(key)!.songs.push(song);
+        for (const [key, title] of groupsOf(song, grouping, known)) {
+            if (!groups.has(key)) groups.set(key, { key, title, songs: [] });
+            groups.get(key)!.songs.push(song);
+        }
     }
 
     const list = [...groups.values()];
-    return sort === "name" || sort === "artist" ? list.sort((a, b) => byText(a.title, b.title)) : list;
+    if (sort === "name" || sort === "artist") list.sort((a, b) => byText(a.title, b.title));
+    // Songs in no playlist come after the playlists
+    return [...list.filter(group => group.key !== NO_PLAYLIST), ...list.filter(group => group.key === NO_PLAYLIST)];
 }
 
 function sorted(songs: LibrarySong[], sort: Sort) {

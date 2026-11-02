@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
+import { lastActive } from "./activity.js";
 import { AuthError, createSession, isAdmin, SITE_ADMIN_EMAILS } from "./auth.js";
 import { cache } from "./cache.js";
 import { sendRequestNotification, sendWelcomeEmail } from "./email.js";
@@ -241,8 +242,12 @@ export async function redeemInviteCode(email: string, input: unknown, schoolId: 
 export async function betaOverview(schoolId: string) {
     const [members, requests, codes] = await Promise.all([readMembers(schoolId), readRequests(schoolId), readCodes()]);
 
+    const admins = [...new Set([...SITE_ADMIN_EMAILS, ...getSchoolAdmins(schoolId)])];
+
     return {
-        admins: [...new Set([...SITE_ADMIN_EMAILS, ...getSchoolAdmins(schoolId)])],
+        admins,
+        // When each of them was last active, for the ones who have been since this was tracked
+        lastActive: lastActive([...admins, ...Object.keys(members), ...Object.keys(requests)]),
         members: Object.entries(members).map(([email, member]) => ({ email, ...member })).sort((a, b) => b.joinedAt - a.joinedAt),
         requests: Object.entries(requests).map(([email, request]) => ({ email, ...request })).sort((a, b) => b.requestedAt - a.requestedAt),
         codes: Object.entries(codes).filter(([, invite]) => invite.school === schoolId)

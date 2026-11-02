@@ -19,6 +19,8 @@ export interface LibrarySong {
     source: LibrarySource;
     // The saved playlist it came from, for source "playlist"
     playlist?: { id: string, name: string };
+    // Every playlist in your Library it's in, whichever way it got saved
+    playlists: { id: string, name: string }[];
     // How many times you've requested it through Zotify, and when you last did
     requests: number;
     lastRequestedAt: number | null;
@@ -73,6 +75,17 @@ const selectSongs = db.prepare(`
     LEFT JOIN playlists ON playlists.id = library_songs.playlist_id
     WHERE library_songs.email = ? AND library_songs.removed_at IS NULL
     ORDER BY library_songs.saved_at DESC
+`);
+// The saved playlists each saved song is in: the songs each playlist turned up on Rockbot, and the one a song was saved from
+const selectMemberships = db.prepare(`
+    SELECT playlist_songs.song_id, playlists.id, playlists.name FROM playlist_songs
+    JOIN user_playlists ON user_playlists.playlist_id = playlist_songs.playlist_id AND user_playlists.email = ? AND user_playlists.saved_at IS NOT NULL
+    JOIN playlists ON playlists.id = playlist_songs.playlist_id
+    UNION
+    SELECT library_songs.song_id, playlists.id, playlists.name FROM library_songs
+    JOIN user_playlists ON user_playlists.playlist_id = library_songs.playlist_id AND user_playlists.email = library_songs.email AND user_playlists.saved_at IS NOT NULL
+    JOIN playlists ON playlists.id = library_songs.playlist_id
+    WHERE library_songs.email = ?
 `);
 const selectAvailability = db.prepare(`
     SELECT song_availability.song_id, song_availability.venue, song_availability.requestable
@@ -130,6 +143,11 @@ export function removeSong(email: string, songId: string) {
 /** Someone's saved songs, most recently saved first, with where each can be requested */
 export function getLibrarySongs(email: string): LibrarySong[] {
     const availability = new Map<string, Record<string, boolean>>();
+    const memberships = new Map<string, { id: string, name: string }[]>();
+
+    for (const row of selectMemberships.all(email, email) as { song_id: string, id: string, name: string }[]) {
+        memberships.set(row.song_id, [...memberships.get(row.song_id) ?? [], { id: row.id, name: row.name }]);
+    }
 
     for (const row of selectAvailability.all(email) as { song_id: string, venue: string, requestable: number }[]) {
         availability.set(row.song_id, { ...availability.get(row.song_id), [row.venue]: !!row.requestable });
@@ -145,6 +163,7 @@ export function getLibrarySongs(email: string): LibrarySong[] {
         ...(row.playlist_id && row.playlist_name ? { playlist: { id: row.playlist_id, name: row.playlist_name } } : {}),
         requests: row.requests,
         lastRequestedAt: row.last_requested_at,
+        playlists: memberships.get(row.song_id) ?? [],
         availability: availability.get(row.song_id) ?? {}
     }));
 }

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { noteActivity } from "../activity.js";
 import { betaStatus, isApproved } from "../beta.js";
 import { AuthError, endSession, getSession, isAdmin, isSiteAdmin, requestLoginCode, SESSION_TTL_MS, signInEmail, signInHint, verifyLoginCode } from "../auth.js";
 import { isDeveloper, resolveBearerToken, type Scope } from "../developers.js";
@@ -111,6 +112,7 @@ async function authenticate(req: Request, res: Response): Promise<Auth | null | 
         }
 
         res.locals.auth = { email: auth.email, via: auth.via, scopes: auth.scopes } satisfies Auth;
+        noteActivity(auth.email);
         res.locals.session = { email: auth.email };
         return res.locals.auth;
     }
@@ -119,6 +121,7 @@ async function authenticate(req: Request, res: Response): Promise<Auth | null | 
     if (!session) return undefined;
 
     res.locals.auth = { email: session.email, via: "session", scopes: null } satisfies Auth;
+    noteActivity(session.email);
     res.locals.session = session;
     return res.locals.auth;
 }

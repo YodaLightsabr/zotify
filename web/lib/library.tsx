@@ -13,6 +13,8 @@ export interface LibrarySong {
     savedAt: number;
     source: "requested" | "saved" | "playlist" | "liked";
     playlist?: { id: string, name: string };
+    // Every playlist in your Library it's in
+    playlists: { id: string, name: string }[];
     requests: number;
     lastRequestedAt: number | null;
     // Whether it could be requested at each venue the last time it came up there

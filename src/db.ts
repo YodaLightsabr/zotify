@@ -88,6 +88,12 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
 
+    -- When each person last used Zotify (see activity.ts). Milliseconds since 1970
+    CREATE TABLE IF NOT EXISTS user_activity (
+        email TEXT PRIMARY KEY,
+        last_active_at INTEGER NOT NULL
+    );
+
     -- Each person's Library: Rockbot songs (in songs) they requested, saved by hand (source "saved"), that turned up in a
     -- playlist they saved (source "playlist", with playlist_id), or imported from their Spotify likes (source "liked"). removed_at marks songs they took out, so a saved playlist doesn't
     -- put them back; requesting or saving one again does

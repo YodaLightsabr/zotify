@@ -12,6 +12,16 @@ export function timeAgo(timestamp: number) {
     return `${Math.floor(minutes / 60)} hr ${minutes % 60} min ago`;
 }
 
+/** How long ago, in the biggest whole unit: "just now", "5 minutes ago", "1 day ago", "3 months ago" */
+export function relativeTime(timestamp: number) {
+    const seconds = Math.max(0, (Date.now() - timestamp) / 1000);
+    if (seconds < 60) return "just now";
+
+    const units: [string, number][] = [["year", 365 * 86400], ["month", 30 * 86400], ["week", 7 * 86400], ["day", 86400], ["hour", 3600], ["minute", 60]];
+    const [unit, size] = units.find(([, size]) => seconds >= size)!;
+    return `${plural(Math.floor(seconds / size), unit)} ago`;
+}
+
 export function formatTime(seconds: number) {
     const total = Math.max(0, Math.round(seconds));
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;

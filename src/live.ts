@@ -6,7 +6,7 @@ import { RockbotClient } from "./client.js";
 import { events } from "./events.js";
 import { getPlaylistQueueJob, type PlaylistQueueJob } from "./playlistQueue.js";
 import { getPlaylistFor } from "./playlists.js";
-import { noteActivity } from "./activity.js";
+import { noteActivity } from "./users.js";
 import { getRecentlyQueued } from "./queued.js";
 import { sessionFromCookies } from "./routes/auth.js";
 import { getVenue, getVenues, schoolForOrigin } from "./schools.js";

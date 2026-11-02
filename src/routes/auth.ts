@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { noteActivity } from "../activity.js";
+import { noteActivity } from "../users.js";
 import { betaStatus, isApproved } from "../beta.js";
 import { AuthError, endSession, getSession, isAdmin, isSiteAdmin, requestLoginCode, SESSION_TTL_MS, signInEmail, signInHint, verifyLoginCode } from "../auth.js";
 import { isDeveloper, resolveBearerToken, type Scope } from "../developers.js";

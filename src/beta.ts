@@ -1,9 +1,10 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { lastActive } from "./activity.js";
 import { AuthError, createSession, isAdmin, SITE_ADMIN_EMAILS } from "./auth.js";
 import { cache } from "./cache.js";
+import { db, transaction } from "./db.js";
 import { sendRequestNotification, sendWelcomeEmail } from "./email.js";
 import { getSchool, getSchoolAdmins, getVenues, schoolUrl, type School } from "./schools.js";
+import { ensureUser, lastActive } from "./users.js";
 
 // Zotify is invite-only during the beta, separately at each school. A school's admins are always in there; everyone else
 // needs to be on that school's whitelist ("members"). One sign-in works at every school, but membership doesn't carry over
@@ -55,12 +56,42 @@ interface MagicLink {
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
-// Members and requests are kept per school, as kv sections like "members:uci"
-const membersKey = (schoolId: string) => `members:${schoolId}`;
-const requestsKey = (schoolId: string) => `joinRequests:${schoolId}`;
+// Members and requests are kept per school, in the school_members and join_requests tables (see db.ts)
+interface MemberRow { email: string, joined_via: JoinedVia, joined_at: number, approved_by: string | null, code: string | null, silent: number }
+interface RequestRow { email: string, status: JoinRequest["status"], requested_at: number, decided_at: number | null, decided_by: string | null }
 
-const readMembers = async (schoolId: string): Promise<Record<string, Member>> => (await cache.get([membersKey(schoolId)])) ?? {};
-const readRequests = async (schoolId: string): Promise<Record<string, JoinRequest>> => (await cache.get([requestsKey(schoolId)])) ?? {};
+const selectMember = db.prepare("SELECT 1 FROM school_members WHERE school_id = ? AND email = ?");
+const selectMembers = db.prepare("SELECT * FROM school_members WHERE school_id = ? ORDER BY joined_at DESC");
+// Keeps however they first got in
+const insertMember = db.prepare(`
+    INSERT OR IGNORE INTO school_members (school_id, email, joined_via, joined_at, approved_by, code, silent) VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const selectRequest = db.prepare("SELECT * FROM join_requests WHERE school_id = ? AND email = ?");
+const selectRequests = db.prepare("SELECT * FROM join_requests WHERE school_id = ? ORDER BY requested_at DESC");
+const insertRequest = db.prepare("INSERT INTO join_requests (school_id, email, status, requested_at) VALUES (?, ?, 'pending', ?)");
+const settleRequest = db.prepare("UPDATE join_requests SET status = ?, decided_at = ?, decided_by = ? WHERE school_id = ? AND email = ?");
+
+const toMember = (row: MemberRow): Member & { email: string } => ({
+    email: row.email,
+    joinedVia: row.joined_via,
+    joinedAt: row.joined_at,
+    ...(row.approved_by ? { approvedBy: row.approved_by } : {}),
+    ...(row.code ? { code: row.code } : {}),
+    ...(row.silent ? { silent: true } : {})
+});
+
+const toRequest = (row: RequestRow): JoinRequest & { email: string } => ({
+    email: row.email,
+    status: row.status,
+    requestedAt: row.requested_at,
+    ...(row.decided_at ? { decidedAt: row.decided_at } : {}),
+    ...(row.decided_by ? { decidedBy: row.decided_by } : {})
+});
+
+const getRequest = (email: string, schoolId: string) => {
+    const row = selectRequest.get(schoolId, email) as RequestRow | undefined;
+    return row ? toRequest(row) : null;
+};
 const readCodes = async (): Promise<Record<string, InviteCode>> => (await cache.get(["inviteCodes"])) ?? {};
 
 async function readMagicLinks(): Promise<Record<string, MagicLink>> {
@@ -73,31 +104,26 @@ async function readMagicLinks(): Promise<Record<string, MagicLink>> {
 const idName = (schoolId: string) => getSchool(schoolId)?.idLabel ?? "email address";
 
 export async function isApproved(email: string, schoolId: string) {
-    return isAdmin(email, schoolId) || !!(await readMembers(schoolId))[email];
+    return isAdmin(email, schoolId) || !!selectMember.get(schoolId, email);
 }
 
 /** Where someone stands at a school, for the beta screen */
 export async function betaStatus(email: string, schoolId: string) {
     const approved = await isApproved(email, schoolId);
-    const request = (await readRequests(schoolId))[email];
+    const request = getRequest(email, schoolId);
     return { approved, request: request ? { status: request.status, requestedAt: request.requestedAt } : null };
 }
 
 async function addMember(email: string, schoolId: string, member: Member) {
-    const members = await readMembers(schoolId);
+    transaction(() => {
+        ensureUser(email);
+        insertMember.run(schoolId, email, member.joinedVia, member.joinedAt, member.approvedBy ?? null, member.code ?? null, member.silent ? 1 : 0);
 
-    // Keep however they first got in
-    if (!members[email]) {
-        members[email] = member;
-        await cache.set([membersKey(schoolId)], members);
-    }
-
-    // A pending request is settled by any other way in
-    const requests = await readRequests(schoolId);
-    if (requests[email]?.status === "pending") {
-        requests[email] = { ...requests[email], status: "approved", decidedAt: Date.now(), decidedBy: member.approvedBy ?? member.code };
-        await cache.set([requestsKey(schoolId)], requests);
-    }
+        // A pending request is settled by any other way in
+        if (getRequest(email, schoolId)?.status === "pending") {
+            settleRequest.run("approved", Date.now(), member.approvedBy ?? member.code ?? null, schoolId, email);
+        }
+    });
 }
 
 /** A one-time link that signs this person in at the school's Zotify. Only a hash is stored */
@@ -131,31 +157,30 @@ export async function redeemMagicLink(token: string, schoolId: string) {
 export async function requestInvite(email: string, school: School) {
     if (await isApproved(email, school.id)) throw new AuthError("You're already in.", 409);
 
-    const requests = await readRequests(school.id);
-    if (requests[email]) throw new AuthError("You've already asked for an invitation.", 409);
+    if (getRequest(email, school.id)) throw new AuthError("You've already asked for an invitation.", 409);
 
-    requests[email] = { status: "pending", requestedAt: Date.now() };
-    await cache.set([requestsKey(school.id)], requests);
+    transaction(() => {
+        ensureUser(email);
+        insertRequest.run(school.id, email, Date.now());
+    });
 
     // The request is saved either way; a failed notification just gets logged
     const admins = [...new Set([...getSchoolAdmins(school.id), ...SITE_ADMIN_EMAILS])];
     await Promise.all(admins.map(admin => sendRequestNotification(admin, email, `${schoolUrl(school)}/admin`, school.shortName)
         .catch(error => console.error(`Could not tell ${admin} about ${email}'s request:`, error))));
 
-    return requests[email];
+    return getRequest(email, school.id)!;
 }
 
 /** Approves or rejects a pending request. Approving emails them a magic link, unless silent */
 export async function decideRequest(email: string, decision: "approved" | "rejected", adminEmail: string, school: School, silent = false) {
-    const requests = await readRequests(school.id);
-    const request = requests[email];
+    const request = getRequest(email, school.id);
 
     if (!request) throw new AuthError("There's no request from that account.", 404);
     if (request.status !== "pending") throw new AuthError(`That request was already ${request.status}.`, 409);
 
     if (decision === "rejected") {
-        requests[email] = { ...request, status: "rejected", decidedAt: Date.now(), decidedBy: adminEmail };
-        await cache.set([requestsKey(school.id)], requests);
+        settleRequest.run("rejected", Date.now(), adminEmail, school.id, email);
         return { emailed: false };
     }
 
@@ -240,16 +265,18 @@ export async function redeemInviteCode(email: string, input: unknown, schoolId: 
 
 /** Everything a school's admin dashboard shows */
 export async function betaOverview(schoolId: string) {
-    const [members, requests, codes] = await Promise.all([readMembers(schoolId), readRequests(schoolId), readCodes()]);
+    const members = (selectMembers.all(schoolId) as unknown as MemberRow[]).map(toMember);
+    const requests = (selectRequests.all(schoolId) as unknown as RequestRow[]).map(toRequest);
+    const codes = await readCodes();
 
     const admins = [...new Set([...SITE_ADMIN_EMAILS, ...getSchoolAdmins(schoolId)])];
 
     return {
         admins,
         // When each of them was last active, for the ones who have been since this was tracked
-        lastActive: lastActive([...admins, ...Object.keys(members), ...Object.keys(requests)]),
-        members: Object.entries(members).map(([email, member]) => ({ email, ...member })).sort((a, b) => b.joinedAt - a.joinedAt),
-        requests: Object.entries(requests).map(([email, request]) => ({ email, ...request })).sort((a, b) => b.requestedAt - a.requestedAt),
+        lastActive: lastActive([...admins, ...members.map(member => member.email), ...requests.map(request => request.email)]),
+        members,
+        requests,
         codes: Object.entries(codes).filter(([, invite]) => invite.school === schoolId)
             .map(([code, invite]) => ({ code, ...invite })).sort((a, b) => b.createdAt - a.createdAt)
     };

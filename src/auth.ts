@@ -1,7 +1,9 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { cache } from "./cache.js";
+import { db } from "./db.js";
 import { codeDelivery, sendLoginCode, type CodeDelivery } from "./email.js";
 import { isSchoolAdminEmail, type School } from "./schools.js";
+import { ensureUser } from "./users.js";
 
 // Login codes are short-lived, and a few wrong guesses use one up
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -71,7 +73,7 @@ export function signInEmail(input: unknown, school: Pick<School, "emailDomain">)
     return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : null;
 }
 
-async function readLog<T>(key: "loginCodes" | "sessions"): Promise<Record<string, T>> {
+async function readLog<T>(key: "loginCodes"): Promise<Record<string, T>> {
     const log: Record<string, T & { expiresAt: number }> = (await cache.get([key])) ?? {};
 
     // Drop anything expired while we're here
@@ -164,14 +166,21 @@ export async function verifyLoginCode(email: string, code: string) {
     return createSession(email);
 }
 
+// Sessions (the sessions table). Only a hash of each token is stored, so the database can't be used to sign in
+const insertSession = db.prepare("INSERT INTO sessions (token_hash, email, created_at, expires_at) VALUES (?, ?, ?, ?)");
+const selectSession = db.prepare("SELECT email, created_at, expires_at FROM sessions WHERE token_hash = ? AND expires_at > ?");
+const deleteSession = db.prepare("DELETE FROM sessions WHERE token_hash = ?");
+const deleteExpired = db.prepare("DELETE FROM sessions WHERE expires_at <= ?");
+
 /** Starts a session for this email and returns its token, for the cookie */
 export async function createSession(email: string) {
     const token = randomBytes(32).toString("base64url");
-    const sessions = await readLog<Session>("sessions");
+    const now = Date.now();
 
-    // Only a hash of the token is stored, so the cache file can't be used to sign in
-    sessions[sha256(token)] = { email, createdAt: Date.now(), expiresAt: Date.now() + SESSION_TTL_MS };
-    await cache.set(["sessions"], sessions);
+    ensureUser(email);
+    // Clear out sessions that ran out while we're here
+    deleteExpired.run(now);
+    insertSession.run(sha256(token), email, now, now + SESSION_TTL_MS);
 
     return token;
 }
@@ -179,16 +188,13 @@ export async function createSession(email: string) {
 export async function getSession(token: string | undefined): Promise<Session | null> {
     if (!token) return null;
 
-    const session = (await readLog<Session>("sessions"))[sha256(token)];
-    return session && session.expiresAt > Date.now() ? session : null;
+    const row = selectSession.get(sha256(token), Date.now()) as { email: string, created_at: number, expires_at: number } | undefined;
+    return row ? { email: row.email, createdAt: row.created_at, expiresAt: row.expires_at } : null;
 }
 
 export async function endSession(token: string | undefined) {
     if (!token) return;
-
-    const sessions = await readLog<Session>("sessions");
-    delete sessions[sha256(token)];
-    await cache.set(["sessions"], sessions);
+    deleteSession.run(sha256(token));
 }
 
 /** What to ask for when a school's sign-in field doesn't make sense, e.g. "Enter your UCInetID or email address, like panteater." */

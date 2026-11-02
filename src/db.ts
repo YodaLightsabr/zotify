@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 // Zotify's data lives in one SQLite file. Small sections (sessions, members, codes...) are JSON in the kv table;
@@ -88,10 +89,47 @@ db.exec(`
 
     CREATE INDEX IF NOT EXISTS user_playlists_playlist ON user_playlists (playlist_id);
 
-    -- When each person last used Zotify (see activity.ts). Milliseconds since 1970
-    CREATE TABLE IF NOT EXISTS user_activity (
+    -- Everyone Zotify knows: anyone who's signed in, been invited or asked to join (see users.ts). Signing in only proves
+    -- someone owns an email address, so the email is who they are, and other tables refer to people by it. created_at is
+    -- when Zotify first knew of them; last_active_at is when they last used it
+    CREATE TABLE IF NOT EXISTS users (
         email TEXT PRIMARY KEY,
-        last_active_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        last_active_at INTEGER
+    );
+
+    -- Signed-in browsers (see auth.ts). Only a hash of each token is stored, so the database can't be used to sign in
+    CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY,
+        email TEXT NOT NULL REFERENCES users (email),
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS sessions_email ON sessions (email);
+
+    -- Who's in each school's Zotify during the beta (see beta.ts), and how they got in: joined_via is request, invite or code.
+    -- approved_by is the admin who approved or invited them; code is the invite code they used; silent invites sent no email
+    CREATE TABLE IF NOT EXISTS school_members (
+        school_id TEXT NOT NULL,
+        email TEXT NOT NULL REFERENCES users (email),
+        joined_via TEXT NOT NULL,
+        joined_at INTEGER NOT NULL,
+        approved_by TEXT,
+        code TEXT,
+        silent INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (school_id, email)
+    );
+
+    -- Asking to join a school's Zotify, once per school. status is pending, approved or rejected
+    CREATE TABLE IF NOT EXISTS join_requests (
+        school_id TEXT NOT NULL,
+        email TEXT NOT NULL REFERENCES users (email),
+        status TEXT NOT NULL,
+        requested_at INTEGER NOT NULL,
+        decided_at INTEGER,
+        decided_by TEXT,
+        PRIMARY KEY (school_id, email)
     );
 
     -- Each person's Library: Rockbot songs (in songs) they requested, saved by hand (source "saved"), that turned up in a
@@ -522,6 +560,96 @@ once("schoolScopedBeta", () => {
     }
 });
 
+// People got a table of their own, and sessions, the beta's members and join requests moved from JSON in kv to tables. Before
+// that, a full copy of the database is saved in backups/ beside it, in case anything needs to be looked up or put back
+if (!db.prepare("SELECT 1 FROM meta WHERE key = 'usersTable'").get() && (db.prepare("SELECT COUNT(*) AS count FROM kv").get() as { count: number }).count) {
+    const backups = join(dirname(DB_FILE), "backups");
+    mkdirSync(backups, { recursive: true });
+    const file = join(backups, `before-users-table-${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
+    db.prepare("VACUUM INTO ?").run(file);
+    console.log(`Saved a copy of the database to ${file} before moving people out of kv`);
+}
+
+once("usersTable", () => {
+    const now = Date.now();
+    const tableExists = (name: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+
+    // When Zotify first knew of each person, from the earliest thing it has about them
+    const firstSeen = new Map<string, number>();
+    const seen = (email: unknown, at: unknown) => {
+        if (typeof email !== "string" || !email) return;
+        firstSeen.set(email, Math.min(firstSeen.get(email) ?? Infinity, typeof at === "number" ? at : now));
+    };
+
+    // What's in the blobs, read first: people have to be in users before anything that refers to them
+    const sessions: { hash: string, email: string, createdAt: number, expiresAt: number }[] = [];
+    const members: { school: string, email: string, member: any }[] = [];
+    const requests: { school: string, email: string, request: any }[] = [];
+    const rows = db.prepare("SELECT key, value FROM kv WHERE key = 'sessions' OR key LIKE 'members:%' OR key LIKE 'joinRequests:%'").all() as { key: string, value: string }[];
+
+    for (const { key, value } of rows) {
+        for (const [id, entry] of Object.entries<any>(JSON.parse(value) ?? {})) {
+            if (key === "sessions") {
+                seen(entry.email, entry.createdAt);
+                // Expired sessions don't work anyway
+                if (typeof entry.email === "string" && entry.expiresAt > now) sessions.push({ hash: id, email: entry.email, createdAt: entry.createdAt ?? now, expiresAt: entry.expiresAt });
+            } else if (key.startsWith("members:")) {
+                seen(id, entry.joinedAt);
+                members.push({ school: key.slice("members:".length), email: id, member: entry });
+            } else {
+                seen(id, entry.requestedAt);
+                requests.push({ school: key.slice("joinRequests:".length), email: id, request: entry });
+            }
+        }
+    }
+
+    // Everyone else Zotify has something about. Some of these tables are made by their own modules, so they may not exist yet
+    const people: [table: string, email: string, at: string][] = [
+        ["pick_history", "requested_by", "requested_at"], ["library_songs", "email", "saved_at"], ["user_playlists", "email", "added_at"],
+        ["developers", "email", "added_at"], ["school_admins", "email", "added_at"], ["api_tokens", "email", "created_at"],
+        ["oauth_grants", "email", "created_at"], ["meal_favorites", "email", "added_at"], ["keys_devices", "email", "created_at"],
+        ["spotify_accounts", "email", "connected_at"], ["user_activity", "email", "last_active_at"]
+    ];
+
+    for (const [table, email, at] of people) {
+        if (!tableExists(table)) continue;
+        for (const row of db.prepare(`SELECT ${email} AS email, MIN(${at}) AS at FROM ${table} WHERE ${email} IS NOT NULL GROUP BY ${email}`).all() as { email: string, at: number }[]) {
+            seen(row.email, row.at);
+        }
+    }
+
+    // When they were last active, from the table that kept it before this one
+    const lastActive = new Map(tableExists("user_activity")
+        ? (db.prepare("SELECT email, last_active_at FROM user_activity").all() as { email: string, last_active_at: number }[]).map(row => [row.email, row.last_active_at])
+        : []);
+
+    const counts = { users: 0, sessions: 0, members: 0, requests: 0 };
+    const addUser = db.prepare("INSERT OR IGNORE INTO users (email, created_at, last_active_at) VALUES (?, ?, ?)");
+    for (const [email, at] of firstSeen) counts.users += Number(addUser.run(email, at, lastActive.get(email) ?? null).changes);
+
+    const addSession = db.prepare("INSERT OR IGNORE INTO sessions (token_hash, email, created_at, expires_at) VALUES (?, ?, ?, ?)");
+    for (const session of sessions) counts.sessions += Number(addSession.run(session.hash, session.email, session.createdAt, session.expiresAt).changes);
+
+    const addMember = db.prepare(`
+        INSERT OR IGNORE INTO school_members (school_id, email, joined_via, joined_at, approved_by, code, silent) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const { school, email, member } of members) {
+        counts.members += Number(addMember.run(school, email, member.joinedVia ?? "invite", member.joinedAt ?? now,
+            member.approvedBy ?? null, member.code ?? null, member.silent ? 1 : 0).changes);
+    }
+
+    const addRequest = db.prepare(`
+        INSERT OR IGNORE INTO join_requests (school_id, email, status, requested_at, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const { school, email, request } of requests) {
+        counts.requests += Number(addRequest.run(school, email, request.status ?? "pending", request.requestedAt ?? now,
+            request.decidedAt ?? null, request.decidedBy ?? null).changes);
+    }
+
+    db.exec("DROP TABLE IF EXISTS user_activity; DELETE FROM kv WHERE key = 'sessions' OR key LIKE 'members:%' OR key LIKE 'joinRequests:%';");
+    console.log(`Moved people out of kv: ${counts.users} users, ${counts.sessions} sessions, ${counts.members} members, ${counts.requests} join requests`);
+});
+
 /** Everything, in the same shape .cache.json used to have. For the admin dashboard's cache view */
 export function snapshot() {
     const data: Record<string, any> = {};
@@ -545,6 +673,11 @@ export function snapshot() {
     }));
 
     data.zotifyQueue = db.prepare("SELECT * FROM zotify_queue ORDER BY id DESC LIMIT 200").all();
+
+    // People, without their sessions
+    data.users = db.prepare("SELECT * FROM users ORDER BY created_at").all();
+    data.schoolMembers = db.prepare("SELECT * FROM school_members ORDER BY school_id, joined_at").all();
+    data.joinRequests = db.prepare("SELECT * FROM join_requests ORDER BY school_id, requested_at").all();
 
     data.playlists = Object.fromEntries((db.prepare("SELECT * FROM playlists ORDER BY fetched_at DESC").all() as any[]).map(row => [row.id, {
         name: row.name, owner: row.owner, fetchedAt: row.fetched_at,

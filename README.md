@@ -8,7 +8,9 @@ Queue music at UCI's Anteatery and Brandywine through Rockbot. Two apps: an Expr
 npm install
 ```
 
-The server keeps everything (Rockbot accounts, schools, sessions, members, invite codes, cached searches, pick history) in a SQLite database, `.zotify.db`, in the project root. Rockbot accounts used to be in `.accounts.json`, which is imported the first time. Environment variables in `.env` are loaded if the file exists.
+The server keeps everything (Rockbot accounts, schools, people, sessions, members, invite codes, cached searches, pick history) in a SQLite database, `.zotify.db`, in the project root. Rockbot accounts used to be in `.accounts.json`, which is imported the first time. Environment variables in `.env` are loaded if the file exists.
+
+The database migrates itself when the server starts (`src/db.ts`): new tables and columns are added, and one-time moves run once each, in a transaction, noted in the `meta` table. People have the `users` table, keyed by email, since signing in proves someone owns an email address. Sessions, each school's members and join requests have tables of their own; they used to be JSON in the `kv` table, which still holds small things like login and invite codes. Moving them out saved a copy of the database to `backups/` first.
 
 Older versions kept that data in `.cache.json`. The first time the server starts without a database, it imports `.cache.json` and then leaves it alone as a backup. Run `npm run backup` (after `npm run build`) to save a consistent copy of the database to `backups/`, even while the server is running.
 

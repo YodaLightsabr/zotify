@@ -1,8 +1,8 @@
 import { db } from "./db.js";
 
-// The small sections of Zotify's data (sessions, members, invite codes, queued songs...), stored as JSON in SQLite's kv table.
+// The small sections of Zotify's data (login codes, invite codes, queued songs...), stored as JSON in SQLite's kv table.
 // They're loaded into memory once, so code that reads a section, changes it and saves it always works on the same object;
-// each save writes just that section, atomically. Songs, searches and pick history have their own tables (see db.ts)
+// each save writes just that section, atomically. People, sessions, songs, searches and the rest have their own tables (see db.ts)
 export class Cache {
     #data: Record<string, any> | undefined;
     #save = db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)");
